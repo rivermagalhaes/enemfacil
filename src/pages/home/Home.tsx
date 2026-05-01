@@ -9,7 +9,7 @@ export default function Home() {
   const navigate = useNavigate();
 
   const plano = String(profile?.plano ?? "free");
-  const nome = profile?.nome ?? ((profile as any)?.username) ?? "Estudante";
+  const nome = ((profile as any)?.nome ?? (profile as any)?.username) ?? "Estudante";
   const xp = profile?.xp_total ?? 0;
   const sequencia = profile?.sequencia ?? 0;
 
