@@ -8,6 +8,7 @@ import Simulado from "@/pages/simulado/Simulado";
 import AgenteEnem from "@/pages/agente/AgenteEnem";
 import Perfil from "@/pages/perfil/Perfil";
 import Assinatura from "@/pages/perfil/Assinatura";
+import Redacao from "@/pages/redacao/Redacao";
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
@@ -30,10 +31,12 @@ export default function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/" element={<PrivateRoute><Home /></PrivateRoute>} />
         <Route path="/quiz" element={<PrivateRoute><Quiz /></PrivateRoute>} />
+        <Route path="/quiz/vestibular/:vestibular" element={<PrivateRoute><Quiz /></PrivateRoute>} />
         <Route path="/quiz/:area" element={<PrivateRoute><Quiz /></PrivateRoute>} />
         <Route path="/simulado" element={<PrivateRoute><Simulado /></PrivateRoute>} />
         <Route path="/agente" element={<PrivateRoute><AgenteEnem /></PrivateRoute>} />
         <Route path="/perfil" element={<PrivateRoute><Perfil /></PrivateRoute>} />
+        <Route path="/redacao" element={<PrivateRoute><Redacao /></PrivateRoute>} />
         <Route path="/assinatura" element={<PrivateRoute><Assinatura /></PrivateRoute>} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

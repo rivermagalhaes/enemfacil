@@ -4,12 +4,20 @@ import { useAuth } from "@/hooks/useAuth";
 import BottomNav from "@/components/layout/BottomNav";
 import { AREAS, CORES } from "@/styles/theme";
 
+const VESTIBULARES = [
+  { id: "ITA",     nome: "ITA",     emoji: "✈️", cor: "#003D80", bg: "#E6F0FF", desc: "Inst. Tecnológico de Aeronáutica" },
+  { id: "IME",     nome: "IME",     emoji: "⚙️", cor: "#1a3a6e", bg: "#E6EEFF", desc: "Instituto Militar de Engenharia" },
+  { id: "FUVEST",  nome: "FUVEST",  emoji: "🎓", cor: "#8B0000", bg: "#FFE6E6", desc: "Universidade de São Paulo" },
+  { id: "UNICAMP", nome: "UNICAMP", emoji: "🔬", cor: "#005C97", bg: "#E6F4FF", desc: "Universidade de Campinas" },
+  { id: "UNB",     nome: "UnB",     emoji: "🏛️", cor: "#006400", bg: "#E6FFE6", desc: "Universidade de Brasília" },
+];
+
 export default function Home() {
   const { profile } = useAuth();
   const navigate = useNavigate();
 
   const plano = String(profile?.plano ?? "free");
-  const nome = ((profile as any)?.nome ?? (profile as any)?.username) ?? "Estudante";
+  const nome = profile?.nome ?? profile?.username ?? "Estudante";
   const xp = profile?.xp_total ?? 0;
   const sequencia = profile?.sequencia ?? 0;
 
@@ -147,6 +155,18 @@ export default function Home() {
               <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke={area.cor} strokeWidth="2" strokeLinecap="round" style={{ flexShrink: 0, opacity: 0.6 }}>
                 <path d="M6 4l4 4-4 4"/>
               </svg>
+            </button>
+          ))}
+        </div>
+
+        {/* Vestibulares */}
+        <p style={{ fontSize: 13, fontWeight: 700, color: CORES.text, textTransform: "uppercase", letterSpacing: "0.08em", margin: "0 0 12px" }}>Vestibulares</p>
+        <div style={{ display: "flex", gap: 10, overflowX: "auto", paddingBottom: 8, marginBottom: 24 }}>
+          {VESTIBULARES.map(v => (
+            <button key={v.id} onClick={() => navigate(`/quiz/vestibular/${v.id}`)} style={{ flexShrink: 0, width: 110, padding: "14px 12px", borderRadius: 14, background: v.bg, border: `1.5px solid ${v.cor}33`, cursor: "pointer", textAlign: "center", boxShadow: "0 2px 8px rgba(0,0,0,0.06)" }}>
+              <div style={{ fontSize: 28, marginBottom: 6 }}>{v.emoji}</div>
+              <p style={{ fontSize: 14, fontWeight: 800, color: v.cor, margin: "0 0 2px" }}>{v.nome}</p>
+              <p style={{ fontSize: 9, color: v.cor, opacity: 0.7, margin: 0, lineHeight: 1.3 }}>{v.desc}</p>
             </button>
           ))}
         </div>
