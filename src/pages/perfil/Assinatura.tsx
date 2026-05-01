@@ -1,6 +1,6 @@
 // src/pages/perfil/Assinatura.tsx
 import { useState } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useSearchParams } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/lib/supabaseClient";
 import { CORES } from "@/styles/theme";
@@ -68,7 +68,6 @@ const PLANOS = [
 
 export default function Assinatura() {
   const { profile } = useAuth();
-  const navigate = useNavigate();
   const [params] = useSearchParams();
   const [loading, setLoading] = useState<string | null>(null);
   const [erro, setErro] = useState<string | null>(null);

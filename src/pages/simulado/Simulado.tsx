@@ -153,7 +153,7 @@ export default function Simulado() {
   // Acertos por área
   const porArea = AREAS.map(area => {
     const qs = questoes.filter(q => q.area === area.id);
-    const acertosArea = qs.filter((q, i) => respostas[questoes.indexOf(q)] === q.answer_index).length;
+    const acertosArea = qs.filter((q, _i) => respostas[questoes.indexOf(q)] === q.answer_index).length;
     return { ...area, total: qs.length, acertos: acertosArea };
   }).filter(a => a.total > 0);
 

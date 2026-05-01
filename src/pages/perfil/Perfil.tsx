@@ -6,7 +6,6 @@ import BottomNav from "@/components/layout/BottomNav";
 import { supabase } from "@/lib/supabaseClient";
 import { AREAS, CORES, LIMITES_DIA } from "@/styles/theme";
 
-const TRAVA_DIAS = [3, 21, 90];
 
 const FUNCIONALIDADES = [
   { id: "quiz",     emoji: "🧠", titulo: "Quiz por área",        desc: "Questões do ENEM por disciplina",     acao: "/quiz",     limitado: true  },
@@ -26,7 +25,7 @@ function useUso(userId: string | undefined, plano: string, funcId: string) {
   const limite = LIMITES_DIA[plano] ?? 3;
   const [usosHoje, setUsosHoje]     = useState(0);
   const [travadoAte, setTravadoAte] = useState<Date | null>(null);
-  const [travaNivel, setTravaNivel] = useState(0);
+  const [_travaNivel, setTravaNivel] = useState(0);
   const [loading, setLoading]       = useState(true);
 
   const carregar = useCallback(async () => {
