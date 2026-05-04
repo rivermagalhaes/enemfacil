@@ -5,6 +5,7 @@ import { supabase } from "@/lib/supabaseClient";
 import { useAuth } from "@/hooks/useAuth";
 import BottomNav from "@/components/layout/BottomNav";
 import { AREAS, CORES, LIMITES_DIA } from "@/styles/theme";
+import { addXP, XP } from "@/lib/xpService";
 
 interface Questao {
   id: string;
@@ -152,6 +153,11 @@ export default function Quiz() {
     if (!ok) return;
     setRespostas(prev => ({ ...prev, [idx]: optIndex }));
     setMostrarExplicacao(true);
+    // XP: +10 se acertou, +2 se errou (incentiva participação)
+    if (profile?.id) {
+      const acertou = questaoAtual?.answer_index === optIndex;
+      await addXP(profile.id, acertou ? XP.QUESTAO_CERTA : XP.QUESTAO_ERRADA);
+    }
   }
 
   function proximaQuestao() {

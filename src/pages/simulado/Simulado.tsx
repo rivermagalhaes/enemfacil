@@ -5,6 +5,7 @@ import { supabase } from "@/lib/supabaseClient";
 import { useAuth } from "@/hooks/useAuth";
 import BottomNav from "@/components/layout/BottomNav";
 import { AREAS, CORES, LIMITES_DIA } from "@/styles/theme";
+import { addXP, XP } from "@/lib/xpService";
 
 const VESTIBULARES_SIMULADO = [
   { id: "ENEM",    nome: "ENEM",    emoji: "🎯", cor: "#0057FF", bg: "#E6EEFF",
@@ -166,8 +167,19 @@ export default function Simulado() {
     setRespostas(prev => ({ ...prev, [idx]: optIndex }));
   }
 
-  function proximaQuestao() {
-    if (idx + 1 >= questoes.length) { setEtapa("resultado"); return; }
+  async function proximaQuestao() {
+    if (idx + 1 >= questoes.length) {
+      setEtapa("resultado");
+      // XP ao concluir simulado: base + bônus por acerto
+      if (profile?.id) {
+        const totalAcertos = Object.entries(respostas).filter(
+          ([i, r]) => questoes[Number(i)]?.answer_index === r
+        ).length;
+        const xpTotal = XP.SIMULADO_CONCLUIR + (totalAcertos * XP.SIMULADO_BONUS);
+        await addXP(profile.id, xpTotal);
+      }
+      return;
+    }
     setIdx(i => i + 1);
   }
 
