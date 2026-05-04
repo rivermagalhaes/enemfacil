@@ -12,7 +12,7 @@ import Perfil from "@/pages/perfil/Perfil";
 import Assinatura from "@/pages/perfil/Assinatura";
 import Redacao from "@/pages/redacao/Redacao";
 import TrilhaQuimica from "@/pages/trilha/TrilhaQuimica";
-import VestibularHub from "@/pages/agente/VestibularHub";
+import VestibularHub from "@/pages/vestibular/VestibularHub";
 import TrilhaFisica from "@/pages/trilha/TrilhaFisica";
 import TrilhaMatematica from "@/pages/trilha/TrilhaMatematica";
 import TrilhaPortugues from "@/pages/trilha/TrilhaPortugues";

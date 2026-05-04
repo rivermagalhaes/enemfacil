@@ -15,6 +15,8 @@ const FUNCIONALIDADES = [
 ];
 
 const PLANO_CONFIG: Record<string, { label: string; cor: string; bg: string; emoji: string }> = {
+  gratis:    { label: "Gratuito",  cor: "#64748B", bg: "#F1F5F9", emoji: "🆓" },
+  estudante: { label: "Estudante", cor: "#0057FF", bg: "#E6EEFF", emoji: "⚡" },
   free:    { label: "Gratuito", cor: "#64748B", bg: "#F1F5F9", emoji: "🆓" },
   pro:     { label: "Pro",      cor: "#0057FF", bg: "#E6EEFF", emoji: "⚡" },
   premium: { label: "Premium",  cor: "#7C3AED", bg: "#F3F0FF", emoji: "⭐" },
@@ -156,7 +158,7 @@ export default function Perfil() {
         </div>
 
         {/* Upgrade */}
-        {plano === "free" && (
+        {["free", "gratis"].includes(plano) && (
           <div style={{ background: `linear-gradient(135deg, ${CORES.bgDark}, #0D1F3C)`, borderRadius: 14, padding: 16, marginBottom: 16, border: `1px solid ${CORES.primary}33` }}>
             <p style={{ fontSize: 14, fontWeight: 700, color: "#fff", margin: "0 0 6px" }}>⚡ Desbloqueie tudo</p>
             <p style={{ fontSize: 12, color: "rgba(255,255,255,0.6)", margin: "0 0 12px" }}>Simulados ilimitados, agente de IA e muito mais.</p>
@@ -164,7 +166,7 @@ export default function Perfil() {
           </div>
         )}
 
-        {plano !== "free" && (
+        {!["free", "gratis"].includes(plano) && (
           <button onClick={() => navigate("/assinatura")} style={{ width: "100%", padding: "11px 0", marginBottom: 8, border: `1px solid ${CORES.border}`, background: CORES.bgCard, borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: "pointer", color: CORES.textSub }}>Gerenciar assinatura</button>
         )}
         <button onClick={() => signOut().then(() => navigate("/login"))} style={{ width: "100%", padding: "11px 0", border: `1px solid ${CORES.border}`, background: CORES.bgCard, borderRadius: 8, fontSize: 14, fontWeight: 500, cursor: "pointer", color: "#EF4444" }}>Sair da conta</button>

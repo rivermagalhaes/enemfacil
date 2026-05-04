@@ -5,7 +5,7 @@ import { User } from '@supabase/supabase-js';
 interface Profile {
   id: string;
   nome: string | null;
-  plano: 'gratis' | 'cidadao' | 'concurseiro' | 'cursinho' | 'premium';
+  plano: 'free' | 'gratis' | 'estudante' | 'pro' | 'premium' | 'ouro';
   plano_ate: string | null;
   xp_total: number;
   sequencia: number;
@@ -57,7 +57,7 @@ export const useAuth = () => {
 
   const temPlano = (planoMinimo: Profile['plano']): boolean => {
     if (!profile) return false;
-    const ordem: Profile['plano'][] = ['gratis', 'cidadao', 'concurseiro', 'cursinho', 'premium'];
+    const ordem: Profile['plano'][] = ['free', 'gratis', 'estudante', 'pro', 'premium', 'ouro'];
     return ordem.indexOf(profile.plano) >= ordem.indexOf(planoMinimo);
   };
 

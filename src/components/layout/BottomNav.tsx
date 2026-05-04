@@ -6,7 +6,7 @@ const TABS = [
   { path: "/",        icon: "🏠", label: "Início"    },
   { path: "/quiz",    icon: "🧠", label: "Quiz"      },
   { path: "/simulado",icon: "📝", label: "Simulado"  },
-  { path: "/agente",  icon: "🤖", label: "Agente IA" },
+  { path: "/agentes", icon: "🤖", label: "Agente IA" },
   { path: "/perfil",  icon: "👤", label: "Perfil"    },
 ];
 
