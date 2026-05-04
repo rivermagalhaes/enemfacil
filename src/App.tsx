@@ -17,6 +17,8 @@ import TrilhaFisica from "@/pages/trilha/TrilhaFisica";
 import TrilhaMatematica from "@/pages/trilha/TrilhaMatematica";
 import TrilhaPortugues from "@/pages/trilha/TrilhaPortugues";
 import TrilhaIngles from "@/pages/trilha/TrilhaIngles";
+import AdminDashboard from "@/pages/admin/AdminDashboard";
+import ProfessorDashboard from "@/pages/admin/ProfessorDashboard";
 import TrilhaFisicoQuimica from "@/pages/trilha/TrilhaFisicoQuimica";
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
@@ -56,6 +58,8 @@ export default function App() {
         <Route path="/redacao" element={<PrivateRoute><Redacao /></PrivateRoute>} />
         <Route path="/perfil" element={<PrivateRoute><Perfil /></PrivateRoute>} />
         <Route path="/assinatura" element={<PrivateRoute><Assinatura /></PrivateRoute>} />
+        <Route path="/admin" element={<PrivateRoute><AdminDashboard /></PrivateRoute>} />
+        <Route path="/professor" element={<PrivateRoute><ProfessorDashboard /></PrivateRoute>} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
