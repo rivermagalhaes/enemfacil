@@ -60,7 +60,7 @@ export default function AgentesHome() {
   const navigate = useNavigate();
   const { profile } = useAuth();
 
-  const plano = (profile?.plan ?? "free") as string;
+  const plano = (profile?.plano ?? "free") as string;
   const isGratis = plano === "free";
 
   const handleVestibular = (id: string) => {
