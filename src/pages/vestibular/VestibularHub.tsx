@@ -5,8 +5,15 @@ import { CORES } from "@/styles/theme";
 
 const VESTIBULARES: Record<string, {
   nome: string; emoji: string; cor: string; bg: string;
-  desc: string; dificuldade: string; foco: string[];
+  desc: string; dificuldade: string; foco: string[]; logo: string;
 }> = {
+  ENEM: {
+    nome: "ENEM", emoji: "🎯", cor: "#0057FF", bg: "#E6EEFF",
+    desc: "Exame Nacional do Ensino Médio",
+    dificuldade: "⭐⭐⭐ Médio",
+    foco: ["Linguagens", "Matemática", "Humanas", "Natureza", "Redação"],
+    logo: "/logo-enem.png",
+  },
   ENEM: {
     nome: "ENEM", emoji: "🎯", cor: "#0057FF", bg: "#E6EEFF",
     desc: "Exame Nacional do Ensino Médio",
@@ -18,30 +25,35 @@ const VESTIBULARES: Record<string, {
     desc: "Instituto Tecnológico de Aeronáutica",
     dificuldade: "⭐⭐⭐⭐⭐ Extremamente difícil",
     foco: ["Matemática", "Física", "Química", "Inglês"],
+    logo: "/logo-ita.png",
   },
   IME: {
     nome: "IME", emoji: "⚙️", cor: "#1a3a6e", bg: "#E6EEFF",
     desc: "Instituto Militar de Engenharia",
     dificuldade: "⭐⭐⭐⭐⭐ Muito difícil",
     foco: ["Matemática", "Física", "Química", "Desenho"],
+    logo: "/logo-ime.png",
   },
   FUVEST: {
     nome: "FUVEST", emoji: "🎓", cor: "#8B0000", bg: "#FFE6E6",
     desc: "Universidade de São Paulo — USP",
     dificuldade: "⭐⭐⭐⭐ Muito difícil",
     foco: ["Todas as áreas", "Interpretação", "Redação"],
+    logo: "/logo-fuvest.png",
   },
   UNICAMP: {
     nome: "UNICAMP", emoji: "🔬", cor: "#005C97", bg: "#E6F4FF",
     desc: "Universidade Estadual de Campinas",
     dificuldade: "⭐⭐⭐⭐ Muito difícil",
     foco: ["Interdisciplinar", "Contextualizado", "Atualidades"],
+    logo: "/logo-unicamp.png",
   },
   UNB: {
     nome: "UnB", emoji: "🏛️", cor: "#006400", bg: "#E6FFE6",
     desc: "Universidade de Brasília — PAS",
     dificuldade: "⭐⭐⭐ Difícil",
     foco: ["Atualidades", "PAS", "Humanas", "Política"],
+    logo: "/logo-unb.png",
   },
 };
 
@@ -52,6 +64,13 @@ const MATERIAS: Record<string, { id: string; label: string; emoji: string; trilh
     { id: "humanas",    label: "Humanas",    emoji: "🌍", trilha: "portugues"  },
     { id: "natureza",   label: "Natureza",   emoji: "🔬", trilha: "fisica"     },
     { id: "redacao",    label: "Redação",    emoji: "✏️",  trilha: "portugues"  },
+  ],
+  ENEM: [
+    { id: "linguagens", label: "Linguagens", emoji: "📚", trilha: "portugues" },
+    { id: "matematica", label: "Matemática", emoji: "📐", trilha: "matematica" },
+    { id: "humanas", label: "Humanas", emoji: "🌍", trilha: "portugues" },
+    { id: "natureza", label: "Natureza", emoji: "🔬", trilha: "fisica" },
+    { id: "redacao", label: "Redação", emoji: "✏️", trilha: "portugues" },
   ],
   ITA: [
     { id: "matematica", label: "Matemática", emoji: "📐", trilha: "matematica" },
@@ -145,6 +164,15 @@ export default function VestibularHub() {
               {v.emoji} {v.nome}
             </p>
             <p style={{ fontSize: 12, color: "rgba(255,255,255,0.75)", margin: 0 }}>{v.desc}</p>
+          </div>
+          {/* Logo do vestibular */}
+          <div style={{ width: 72, height: 72, borderRadius: 14, background: "rgba(255,255,255,0.95)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, boxShadow: "0 4px 16px rgba(0,0,0,0.2)", overflow: "hidden" }}>
+            <img
+              src={v.logo}
+              alt={`Logo ${v.nome}`}
+              style={{ width: "100%", height: "100%", objectFit: "contain", padding: 4 }}
+              onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+            />
           </div>
         </div>
 
