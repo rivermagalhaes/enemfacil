@@ -6,9 +6,18 @@ import Home from "@/pages/home/Home";
 import Quiz from "@/pages/quiz/Quiz";
 import Simulado from "@/pages/simulado/Simulado";
 import AgenteEnem from "@/pages/agente/AgenteEnem";
+import AgentesHome from "@/pages/agente/AgentesHome";
+import AgenteVestibular from "@/pages/agente/AgenteVestibular";
 import Perfil from "@/pages/perfil/Perfil";
 import Assinatura from "@/pages/perfil/Assinatura";
 import Redacao from "@/pages/redacao/Redacao";
+import TrilhaQuimica from "@/pages/trilha/TrilhaQuimica";
+import VestibularHub from "@/pages/vestibular/VestibularHub";
+import TrilhaFisica from "@/pages/trilha/TrilhaFisica";
+import TrilhaMatematica from "@/pages/trilha/TrilhaMatematica";
+import TrilhaPortugues from "@/pages/trilha/TrilhaPortugues";
+import TrilhaIngles from "@/pages/trilha/TrilhaIngles";
+import TrilhaFisicoQuimica from "@/pages/trilha/TrilhaFisicoQuimica";
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
@@ -35,8 +44,17 @@ export default function App() {
         <Route path="/quiz/:area" element={<PrivateRoute><Quiz /></PrivateRoute>} />
         <Route path="/simulado" element={<PrivateRoute><Simulado /></PrivateRoute>} />
         <Route path="/agente" element={<PrivateRoute><AgenteEnem /></PrivateRoute>} />
-        <Route path="/perfil" element={<PrivateRoute><Perfil /></PrivateRoute>} />
+        <Route path="/agentes" element={<PrivateRoute><AgentesHome /></PrivateRoute>} />
+        <Route path="/agentes/:vestibular" element={<PrivateRoute><AgenteVestibular /></PrivateRoute>} />
+        <Route path="/vestibular/:vestibular" element={<PrivateRoute><VestibularHub /></PrivateRoute>} />
+        <Route path="/trilha/:vestibular/quimica" element={<PrivateRoute><TrilhaQuimica /></PrivateRoute>} />
+        <Route path="/trilha/:vestibular/fisica" element={<PrivateRoute><TrilhaFisica /></PrivateRoute>} />
+        <Route path="/trilha/:vestibular/matematica" element={<PrivateRoute><TrilhaMatematica /></PrivateRoute>} />
+        <Route path="/trilha/:vestibular/portugues" element={<PrivateRoute><TrilhaPortugues /></PrivateRoute>} />
+        <Route path="/trilha/:vestibular/ingles" element={<PrivateRoute><TrilhaIngles /></PrivateRoute>} />
+        <Route path="/trilha/:vestibular/fisicoquimica" element={<PrivateRoute><TrilhaFisicoQuimica /></PrivateRoute>} />
         <Route path="/redacao" element={<PrivateRoute><Redacao /></PrivateRoute>} />
+        <Route path="/perfil" element={<PrivateRoute><Perfil /></PrivateRoute>} />
         <Route path="/assinatura" element={<PrivateRoute><Assinatura /></PrivateRoute>} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
