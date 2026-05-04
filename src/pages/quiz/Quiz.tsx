@@ -94,12 +94,17 @@ export default function Quiz() {
   const headerLabel = modoVestibular && vestConfig ? vestConfig.nome : area.label;
   const headerDesc = modoVestibular && vestConfig ? vestConfig.desc : area.sublabel;
 
+  // Filtros de matéria e vestibular
+  const [filtroMateria, setFiltroMateria] = useState<string>("");
+  const [filtroVestibularEnem, setFiltroVestibularEnem] = useState<string>("ENEM");
+  const [mostrarFiltros, setMostrarFiltros] = useState(!modoVestibular && !areaParam);
+
   const [questoes, setQuestoes] = useState<Questao[]>([]);
   const [idx, setIdx] = useState(0);
   const [respostas, setRespostas] = useState<Record<number, number>>({});
   const [mostrarExplicacao, setMostrarExplicacao] = useState(false);
   const [finalizado, setFinalizado] = useState(false);
-  const [carregando, setCarregando] = useState(true);
+  const [carregando, setCarregando] = useState(!mostrarFiltros);
 
   const { usosHoje, limite, travadoAte, loading: loadingUso, registrar } = useUsoQuiz(profile?.id, plano);
 
@@ -108,15 +113,20 @@ export default function Quiz() {
 
   useEffect(() => {
     async function carregar() {
+      if (mostrarFiltros) return;
       let query = supabase.from("questions").select("id, question, explanation, answer_index, area, difficulty, vestibular, ano");
 
       if (modoVestibular && vestibularParam) {
         query = query.eq("vestibular", vestibularParam);
+        if (filtroMateria) query = query.eq("area", filtroMateria);
       } else if (areaParam) {
-        query = query.eq("area", areaParam).eq("vestibular", "ENEM");
+        query = query.eq("area", areaParam).eq("vestibular", filtroVestibularEnem);
+      } else {
+        query = query.eq("vestibular", filtroVestibularEnem);
+        if (filtroMateria) query = query.eq("area", filtroMateria);
       }
 
-      const { data: qs } = await query.limit(10);
+      const { data: qs } = await query.order("created_at", { ascending: false }).limit(10);
 
       if (!qs || qs.length === 0) { setCarregando(false); return; }
 
@@ -134,7 +144,7 @@ export default function Quiz() {
       setCarregando(false);
     }
     carregar();
-  }, [areaParam, vestibularParam, modoVestibular]);
+  }, [areaParam, vestibularParam, modoVestibular, filtroMateria, filtroVestibularEnem, mostrarFiltros]);
 
   async function handleResponder(optIndex: number) {
     if (respostas[idx] !== undefined) return;
@@ -172,16 +182,30 @@ export default function Quiz() {
       {/* Header */}
       <div style={{ background: headerCor, padding: "12px 16px 16px" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
-          <button onClick={() => navigate(-1)} style={{ width: 32, height: 32, borderRadius: "50%", background: "rgba(255,255,255,0.2)", border: "none", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
+          <button onClick={() => {
+            if (!mostrarFiltros) {
+              setMostrarFiltros(true); setQuestoes([]); setIdx(0); setRespostas({}); setFinalizado(false); setMostrarExplicacao(false);
+            } else {
+              navigate(-1);
+            }
+          }} style={{ width: 32, height: 32, borderRadius: "50%", background: "rgba(255,255,255,0.2)", border: "none", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
             <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round"><path d="M10 3L5 8l5 5"/></svg>
           </button>
           <div style={{ flex: 1 }}>
             <p style={{ fontSize: 15, fontWeight: 700, color: "#fff", margin: 0 }}>{headerEmoji} {headerLabel}</p>
             <p style={{ fontSize: 11, color: "rgba(255,255,255,0.7)", margin: 0 }}>{headerDesc}</p>
           </div>
-          <span style={{ fontSize: 10, fontWeight: 700, background: bloqueado ? "#fee2e2" : "rgba(255,255,255,0.2)", color: bloqueado ? "#b91c1c" : "#fff", borderRadius: 99, padding: "3px 10px" }}>
-            {badgeLabel()}
-          </span>
+          <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+            {!modoVestibular && (
+              <button onClick={() => { setMostrarFiltros(true); setQuestoes([]); setIdx(0); setRespostas({}); setFinalizado(false); }}
+                style={{ fontSize: 10, fontWeight: 700, background: "rgba(255,255,255,0.2)", color: "#fff", border: "none", borderRadius: 99, padding: "3px 10px", cursor: "pointer" }}>
+                ⚙️ Filtrar
+              </button>
+            )}
+            <span style={{ fontSize: 10, fontWeight: 700, background: bloqueado ? "#fee2e2" : "rgba(255,255,255,0.2)", color: bloqueado ? "#b91c1c" : "#fff", borderRadius: 99, padding: "3px 10px" }}>
+              {badgeLabel()}
+            </span>
+          </div>
         </div>
 
         {!finalizado && questoes.length > 0 && (
@@ -195,8 +219,70 @@ export default function Quiz() {
 
       <div style={{ flex: 1, overflowY: "auto", padding: "16px 14px 90px" }}>
 
-        {/* Bloqueado */}
-        {bloqueado && (
+        {/* Tela de seleção de filtros */}
+        {mostrarFiltros && (
+          <div style={{ padding: "8px 0" }}>
+            <p style={{ fontSize: 13, color: CORES.textSub, marginBottom: 16 }}>Escolha o vestibular e a matéria para praticar:</p>
+
+            {/* Escolher vestibular */}
+            <p style={{ fontSize: 11, fontWeight: 700, color: CORES.textSub, textTransform: "uppercase", letterSpacing: "0.06em", margin: "0 0 10px" }}>Vestibular</p>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 20 }}>
+              {[
+                { id: "ENEM", label: "ENEM", emoji: "🎯", cor: "#0057FF" },
+                { id: "ITA",  label: "ITA",  emoji: "✈️", cor: "#003D80" },
+                { id: "IME",  label: "IME",  emoji: "⚙️", cor: "#1a3a6e" },
+                { id: "FUVEST", label: "FUVEST", emoji: "🎓", cor: "#8B0000" },
+                { id: "UNICAMP", label: "UNICAMP", emoji: "🔬", cor: "#005C97" },
+                { id: "UNB", label: "UnB", emoji: "🏛️", cor: "#006400" },
+              ].map(v => (
+                <button key={v.id} onClick={() => setFiltroVestibularEnem(v.id)}
+                  style={{ padding: "8px 14px", borderRadius: 10, border: "none", cursor: "pointer", fontSize: 12, fontWeight: 600,
+                    background: filtroVestibularEnem === v.id ? v.cor : "#f3f4f6",
+                    color: filtroVestibularEnem === v.id ? "#fff" : CORES.textSub,
+                    boxShadow: filtroVestibularEnem === v.id ? `0 3px 10px ${v.cor}40` : "none",
+                  }}>
+                  {v.emoji} {v.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Escolher matéria */}
+            <p style={{ fontSize: 11, fontWeight: 700, color: CORES.textSub, textTransform: "uppercase", letterSpacing: "0.06em", margin: "0 0 10px" }}>Matéria</p>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 24 }}>
+              {[
+                { id: "",               label: "Todas",          emoji: "📚" },
+                { id: "matematica",     label: "Matemática",     emoji: "📐" },
+                { id: "natureza",       label: "Ciências",       emoji: "🔬" },
+                { id: "linguagens",     label: "Linguagens",     emoji: "📖" },
+                { id: "humanas",        label: "Humanas",        emoji: "🌍" },
+                { id: "fisica",         label: "Física",         emoji: "⚡" },
+                { id: "quimica",        label: "Química",        emoji: "⚗️" },
+                { id: "biologia",       label: "Biologia",       emoji: "🧬" },
+                { id: "geografia",      label: "Geografia",      emoji: "🌎" },
+                { id: "historia",       label: "História",       emoji: "📜" },
+                { id: "redacao",        label: "Redação",        emoji: "✏️" },
+              ].map(m => (
+                <button key={m.id} onClick={() => setFiltroMateria(m.id)}
+                  style={{ padding: "8px 14px", borderRadius: 10, border: "none", cursor: "pointer", fontSize: 12, fontWeight: 600,
+                    background: filtroMateria === m.id ? CORES.primary : "#f3f4f6",
+                    color: filtroMateria === m.id ? "#fff" : CORES.textSub,
+                  }}>
+                  {m.emoji} {m.label}
+                </button>
+              ))}
+            </div>
+
+            <button
+              onClick={() => { setMostrarFiltros(false); setCarregando(true); }}
+              style={{ width: "100%", padding: "13px 0", background: CORES.primary, color: "#fff", border: "none", borderRadius: 12, fontSize: 15, fontWeight: 700, cursor: "pointer", boxShadow: `0 4px 14px ${CORES.primary}40` }}
+            >
+              Começar quiz →
+            </button>
+          </div>
+        )}
+
+      {/* Bloqueado */}
+        {bloqueado && !mostrarFiltros && (
           <div style={{ background: "#fff1f1", border: "1px solid #fca5a5", borderRadius: 14, padding: 20, textAlign: "center" }}>
             <p style={{ fontSize: 32, margin: "0 0 8px" }}>🔒</p>
             <p style={{ fontSize: 15, fontWeight: 700, color: "#b91c1c", margin: "0 0 6px" }}>
@@ -207,7 +293,7 @@ export default function Quiz() {
         )}
 
         {/* Carregando */}
-        {carregando && !bloqueado && (
+        {carregando && !bloqueado && !mostrarFiltros && (
           <div style={{ textAlign: "center", paddingTop: 60 }}>
             <p style={{ fontSize: 32 }}>⟳</p>
             <p style={{ fontSize: 13, color: CORES.textSub }}>Carregando questões...</p>
@@ -215,7 +301,7 @@ export default function Quiz() {
         )}
 
         {/* Sem questões */}
-        {!carregando && !bloqueado && questoes.length === 0 && (
+        {!carregando && !bloqueado && !mostrarFiltros && questoes.length === 0 && (
           <div style={{ textAlign: "center", paddingTop: 40 }}>
             <p style={{ fontSize: 48, margin: "0 0 12px" }}>{headerEmoji}</p>
             <p style={{ fontSize: 15, fontWeight: 600, color: CORES.text, margin: "0 0 6px" }}>Questões em breve!</p>
@@ -224,7 +310,7 @@ export default function Quiz() {
         )}
 
         {/* Quiz ativo */}
-        {!carregando && !bloqueado && questaoAtual && !finalizado && (
+        {!carregando && !bloqueado && !mostrarFiltros && questaoAtual && !finalizado && (
           <>
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14, flexWrap: "wrap" }}>
               <span style={{ fontSize: 11, fontWeight: 600, background: headerBg, color: headerCor, borderRadius: 99, padding: "3px 10px" }}>
@@ -273,6 +359,24 @@ export default function Quiz() {
               </div>
             )}
 
+            {/* Botão Agente IA — só no modo vestibular, após responder */}
+            {mostrarExplicacao && modoVestibular && vestConfig && (
+              <button
+                onClick={() => navigate(`/agentes/${vestibularParam}`)}
+                style={{
+                  width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+                  padding: "11px 0", marginBottom: 10,
+                  background: vestConfig.bg, color: vestConfig.cor,
+                  border: `1.5px solid ${vestConfig.cor}33`,
+                  borderRadius: 12, fontSize: 13, fontWeight: 600, cursor: "pointer",
+                }}
+              >
+                <span style={{ fontSize: 16 }}>🤖</span>
+                Tirar dúvida com Prof. {vestConfig.nome}
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke={vestConfig.cor} strokeWidth="2"><path d="M6 4l4 4-4 4"/></svg>
+              </button>
+            )}
+
             {mostrarExplicacao && (
               <button onClick={proximaQuestao} style={{ width: "100%", padding: "13px 0", background: headerCor, color: "#fff", border: "none", borderRadius: 12, fontSize: 14, fontWeight: 600, cursor: "pointer", boxShadow: `0 4px 14px ${headerCor}40` }}>
                 {idx + 1 >= questoes.length ? "Ver resultado 🎉" : "Próxima questão →"}
@@ -282,7 +386,7 @@ export default function Quiz() {
         )}
 
         {/* Resultado */}
-        {finalizado && (
+        {finalizado && !mostrarFiltros && (
           <div style={{ textAlign: "center", padding: "20px 0" }}>
             <div style={{ width: 80, height: 80, borderRadius: "50%", background: acertos >= total * 0.7 ? "#EDFAF3" : "#E6EEFF", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px", fontSize: 40 }}>
               {acertos >= total * 0.7 ? "🏆" : acertos >= total * 0.5 ? "👍" : "💪"}

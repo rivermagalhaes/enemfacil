@@ -6,6 +6,27 @@ import { useAuth } from "@/hooks/useAuth";
 import BottomNav from "@/components/layout/BottomNav";
 import { AREAS, CORES, LIMITES_DIA } from "@/styles/theme";
 
+const VESTIBULARES_SIMULADO = [
+  { id: "ENEM",    nome: "ENEM",    emoji: "🎯", cor: "#0057FF", bg: "#E6EEFF",
+    desc: "Exame Nacional do Ensino Médio", foco: "Linguagens · Matemática · Humanas · Natureza",
+    questoes: 45, tempo: 45, badge: null },
+  { id: "ITA",     nome: "ITA",     emoji: "✈️", cor: "#003D80", bg: "#E6F0FF",
+    desc: "Instituto Tecnológico de Aeronáutica", foco: "Matemática · Física · Química · Inglês",
+    questoes: 20, tempo: 30, badge: "Top 1" },
+  { id: "IME",     nome: "IME",     emoji: "⚙️", cor: "#1a3a6e", bg: "#E6EEFF",
+    desc: "Instituto Militar de Engenharia", foco: "Matemática · Física · Química · Desenho",
+    questoes: 20, tempo: 30, badge: "Top 2" },
+  { id: "FUVEST",  nome: "FUVEST",  emoji: "🎓", cor: "#8B0000", bg: "#FFE6E6",
+    desc: "Universidade de São Paulo — USP", foco: "Todas as áreas · Interpretação",
+    questoes: 20, tempo: 30, badge: "USP" },
+  { id: "UNICAMP", nome: "UNICAMP", emoji: "🔬", cor: "#005C97", bg: "#E6F4FF",
+    desc: "Universidade Estadual de Campinas", foco: "Interdisciplinar · Contextualizado",
+    questoes: 20, tempo: 30, badge: null },
+  { id: "UNB",     nome: "UnB",     emoji: "🏛️", cor: "#006400", bg: "#E6FFE6",
+    desc: "Universidade de Brasília + PAS", foco: "Atualidades · PAS · Humanas",
+    questoes: 15, tempo: 20, badge: "PAS" },
+];
+
 interface Questao {
   id: string;
   question: string;
@@ -72,6 +93,7 @@ export default function Simulado() {
   const { profile } = useAuth();
   const plano = String((profile as any)?.plan ?? (profile as any)?.plano ?? "free");
 
+  const [vestSelecionado, setVestSelecionado] = useState(VESTIBULARES_SIMULADO[0]);
   const [etapa, setEtapa] = useState<"inicio" | "quiz" | "resultado">("inicio");
   const [questoes, setQuestoes] = useState<Questao[]>([]);
   const [idx, setIdx] = useState(0);
@@ -91,9 +113,10 @@ export default function Simulado() {
     return () => clearInterval(t);
   }, [etapa, tempo]);
 
+  const TEMPO_VEST = vestSelecionado.tempo * 60;
   const minutos = Math.floor(tempo / 60).toString().padStart(2, "0");
   const segundos = (tempo % 60).toString().padStart(2, "0");
-  const tempoPerc = (tempo / TEMPO_TOTAL) * 100;
+  const tempoPerc = (tempo / TEMPO_VEST) * 100;
   const tempoCor = tempo < 300 ? CORES.error : tempo < 600 ? CORES.warning : CORES.success;
 
   async function iniciarSimulado() {
@@ -101,37 +124,39 @@ export default function Simulado() {
     if (!ok) return;
     setCarregando(true);
 
-    // Busca 9 questões por área (5 áreas × 9 = 45)
     const todasQuestoes: Questao[] = [];
-    for (const area of AREAS.slice(0, 4)) { // 4 áreas × 9 = 36 + redação separada
+    const isEnem = vestSelecionado.id === "ENEM";
+
+    if (isEnem) {
+      for (const area of AREAS.slice(0, 4)) {
+        const { data: qs } = await supabase
+          .from("questions")
+          .select("id, question, explanation, answer_index, area, difficulty, ano")
+          .eq("area", area.id).eq("vestibular", "ENEM").limit(9);
+        if (qs?.length) {
+          const ids = qs.map((q: any) => q.id);
+          const { data: opts } = await supabase.from("question_options").select("id, question_id, option_index, label").in("question_id", ids).order("option_index");
+          todasQuestoes.push(...qs.map((q: any) => ({ ...q, options: (opts ?? []).filter((o: any) => o.question_id === q.id) })));
+        }
+      }
+    } else {
       const { data: qs } = await supabase
         .from("questions")
         .select("id, question, explanation, answer_index, area, difficulty, ano")
-        .eq("area", area.id)
-        .eq("vestibular", "ENEM")
-        .limit(9);
-
-      if (qs && qs.length > 0) {
+        .eq("vestibular", vestSelecionado.id)
+        .limit(vestSelecionado.questoes);
+      if (qs?.length) {
         const ids = qs.map((q: any) => q.id);
-        const { data: opts } = await supabase
-          .from("question_options")
-          .select("id, question_id, option_index, label")
-          .in("question_id", ids)
-          .order("option_index");
-
-        todasQuestoes.push(...qs.map((q: any) => ({
-          ...q,
-          options: (opts ?? []).filter((o: any) => o.question_id === q.id),
-        })));
+        const { data: opts } = await supabase.from("question_options").select("id, question_id, option_index, label").in("question_id", ids).order("option_index");
+        todasQuestoes.push(...qs.map((q: any) => ({ ...q, options: (opts ?? []).filter((o: any) => o.question_id === q.id) })));
       }
     }
 
-    // Embaralha
-    const embaralhadas = todasQuestoes.sort(() => Math.random() - 0.5).slice(0, 45);
+    const embaralhadas = todasQuestoes.sort(() => Math.random() - 0.5);
     setQuestoes(embaralhadas);
     setIdx(0);
     setRespostas({});
-    setTempo(TEMPO_TOTAL);
+    setTempo(vestSelecionado.tempo * 60);
     setEtapa("quiz");
     setCarregando(false);
   }
@@ -162,13 +187,13 @@ export default function Simulado() {
   return (
     <div style={{ display: "flex", flexDirection: "column", minHeight: "100dvh", background: CORES.bg }}>
       {/* Header */}
-      <div style={{ background: `linear-gradient(135deg, ${CORES.bgDark}, #0D1F3C)`, padding: "12px 16px 16px" }}>
+      <div style={{ background: `linear-gradient(135deg, ${etapa === "quiz" ? vestSelecionado.cor : CORES.bgDark}, ${etapa === "quiz" ? vestSelecionado.cor + "dd" : "#0D1F3C"})`, padding: "12px 16px 16px" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: etapa === "quiz" ? 12 : 0 }}>
-          <button onClick={() => etapa === "quiz" ? setEtapa("resultado") : navigate(-1)} style={{ width: 32, height: 32, borderRadius: "50%", background: "rgba(255,255,255,0.15)", border: "none", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
+          <button onClick={() => etapa === "quiz" ? setEtapa("inicio") : etapa === "resultado" ? setEtapa("inicio") : navigate(-1)} style={{ width: 32, height: 32, borderRadius: "50%", background: "rgba(255,255,255,0.15)", border: "none", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
             <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round"><path d="M10 3L5 8l5 5"/></svg>
           </button>
           <div style={{ flex: 1 }}>
-            <p style={{ fontSize: 15, fontWeight: 700, color: "#fff", margin: 0 }}>📝 Simulado ENEM</p>
+            <p style={{ fontSize: 15, fontWeight: 700, color: "#fff", margin: 0 }}>📝 Simulado {vestSelecionado.nome}</p>
             {etapa === "quiz" && <p style={{ fontSize: 11, color: "rgba(255,255,255,0.6)", margin: 0 }}>Questão {idx + 1}/{questoes.length} · {respondidas} respondidas</p>}
           </div>
           {etapa === "quiz" && (
@@ -206,32 +231,50 @@ export default function Simulado() {
               </div>
             )}
 
-            <div style={{ background: CORES.bgCard, borderRadius: 16, padding: 20, marginBottom: 16, border: `1px solid ${CORES.border}` }}>
-              <p style={{ fontSize: 18, fontWeight: 700, color: CORES.text, margin: "0 0 8px" }}>Simulado Completo</p>
-              <p style={{ fontSize: 13, color: CORES.textSub, margin: "0 0 16px", lineHeight: 1.6 }}>
-                45 questões do ENEM divididas entre as 4 áreas do conhecimento. Tempo total: 45 minutos.
-              </p>
-
-              <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 20 }}>
-                {AREAS.slice(0, 4).map(area => (
-                  <div key={area.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 12px", borderRadius: 10, background: area.bg }}>
-                    <span style={{ fontSize: 16 }}>{area.emoji}</span>
-                    <div style={{ flex: 1 }}>
-                      <p style={{ fontSize: 12, fontWeight: 600, color: area.cor, margin: 0 }}>{area.label}</p>
-                    </div>
-                    <span style={{ fontSize: 11, color: area.cor, fontWeight: 600 }}>~9 questões</span>
+            {/* Cards de vestibulares */}
+            <p style={{ fontSize: 11, fontWeight: 700, color: CORES.textSub, textTransform: "uppercase", letterSpacing: "0.06em", margin: "0 0 12px" }}>Escolha o simulado</p>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 20 }}>
+              {VESTIBULARES_SIMULADO.map(v => (
+                <button
+                  key={v.id}
+                  onClick={() => setVestSelecionado(v)}
+                  style={{
+                    display: "flex", alignItems: "center", gap: 14,
+                    padding: "14px 16px", borderRadius: 16,
+                    background: vestSelecionado.id === v.id ? v.bg : CORES.bgCard,
+                    border: vestSelecionado.id === v.id ? `2px solid ${v.cor}` : `1.5px solid ${CORES.border}`,
+                    cursor: "pointer", textAlign: "left",
+                    boxShadow: vestSelecionado.id === v.id ? `0 4px 16px ${v.cor}25` : "0 1px 4px rgba(0,0,0,0.06)",
+                    transition: "all 0.2s",
+                  }}
+                >
+                  <div style={{ width: 46, height: 46, borderRadius: 12, background: vestSelecionado.id === v.id ? v.cor : v.bg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24, flexShrink: 0 }}>
+                    {vestSelecionado.id === v.id ? <span style={{ filter: "brightness(10)" }}>{v.emoji}</span> : v.emoji}
                   </div>
-                ))}
-              </div>
-
-              <button
-                onClick={iniciarSimulado}
-                disabled={bloqueado || carregando}
-                style={{ width: "100%", padding: "13px 0", background: bloqueado ? "#ccc" : CORES.primary, color: "#fff", border: "none", borderRadius: 12, fontSize: 15, fontWeight: 700, cursor: bloqueado ? "not-allowed" : "pointer", boxShadow: bloqueado ? "none" : `0 4px 16px ${CORES.primary}40` }}
-              >
-                {carregando ? "Preparando simulado..." : bloqueado ? "🔒 Bloqueado" : "Iniciar simulado →"}
-              </button>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}>
+                      <p style={{ fontSize: 14, fontWeight: 700, color: vestSelecionado.id === v.id ? v.cor : CORES.text, margin: 0 }}>{v.nome}</p>
+                      {v.badge && <span style={{ fontSize: 9, fontWeight: 700, background: v.cor, color: "#fff", borderRadius: 4, padding: "1px 6px" }}>{v.badge}</span>}
+                    </div>
+                    <p style={{ fontSize: 11, color: CORES.textSub, margin: "0 0 2px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{v.foco}</p>
+                    <p style={{ fontSize: 10, color: v.cor, margin: 0, fontWeight: 500 }}>{v.questoes} questões · {v.tempo} min</p>
+                  </div>
+                  {vestSelecionado.id === v.id && (
+                    <div style={{ width: 22, height: 22, borderRadius: "50%", background: v.cor, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                      <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 6l3 3 5-5" stroke="#fff" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                    </div>
+                  )}
+                </button>
+              ))}
             </div>
+
+            <button
+              onClick={iniciarSimulado}
+              disabled={bloqueado || carregando}
+              style={{ width: "100%", padding: "13px 0", background: bloqueado ? "#ccc" : vestSelecionado.cor, color: "#fff", border: "none", borderRadius: 12, fontSize: 15, fontWeight: 700, cursor: bloqueado ? "not-allowed" : "pointer", boxShadow: bloqueado ? "none" : `0 4px 16px ${vestSelecionado.cor}40`, marginBottom: 12 }}
+            >
+              {carregando ? "Preparando simulado..." : bloqueado ? "🔒 Bloqueado" : `Iniciar simulado ${vestSelecionado.nome} →`}
+            </button>
 
             {!loadingUso && !bloqueado && (
               <p style={{ fontSize: 12, color: CORES.textSub, textAlign: "center" }}>
@@ -244,6 +287,15 @@ export default function Simulado() {
         {/* QUIZ */}
         {etapa === "quiz" && questaoAtual && (
           <>
+            {/* Botão voltar para seleção */}
+            <button
+              onClick={() => setEtapa("inicio")}
+              style={{ display: "flex", alignItems: "center", gap: 6, background: "transparent", border: "none", color: CORES.textSub, fontSize: 13, cursor: "pointer", padding: "0 0 14px", fontWeight: 500 }}
+            >
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M10 3L5 8l5 5"/></svg>
+              Escolher outro simulado
+            </button>
+
             {/* Badge de área */}
             {(() => {
               const area = AREAS.find(a => a.id === questaoAtual.area);

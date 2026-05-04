@@ -5,11 +5,24 @@ import BottomNav from "@/components/layout/BottomNav";
 import { AREAS, CORES } from "@/styles/theme";
 
 const VESTIBULARES = [
-  { id: "ITA",     nome: "ITA",     emoji: "✈️", cor: "#003D80", bg: "#E6F0FF", desc: "Inst. Tecnológico de Aeronáutica" },
-  { id: "IME",     nome: "IME",     emoji: "⚙️", cor: "#1a3a6e", bg: "#E6EEFF", desc: "Instituto Militar de Engenharia" },
-  { id: "FUVEST",  nome: "FUVEST",  emoji: "🎓", cor: "#8B0000", bg: "#FFE6E6", desc: "Universidade de São Paulo" },
-  { id: "UNICAMP", nome: "UNICAMP", emoji: "🔬", cor: "#005C97", bg: "#E6F4FF", desc: "Universidade de Campinas" },
-  { id: "UNB",     nome: "UnB",     emoji: "🏛️", cor: "#006400", bg: "#E6FFE6", desc: "Universidade de Brasília" },
+  { id: "ENEM",    nome: "ENEM",    emoji: "🎯", cor: "#0057FF", bg: "#E6EEFF",
+    desc: "Exame Nacional do Ensino Médio", foco: "Linguagens · Matemática · Humanas · Natureza",
+    dificuldade: "⭐⭐⭐", badge: null },
+  { id: "ITA",     nome: "ITA",     emoji: "✈️", cor: "#003D80", bg: "#E6F0FF",
+    desc: "Instituto Tecnológico de Aeronáutica", foco: "Matemática · Física · Química · Inglês",
+    dificuldade: "⭐⭐⭐⭐⭐", badge: "Top 1" },
+  { id: "IME",     nome: "IME",     emoji: "⚙️", cor: "#1a3a6e", bg: "#E6EEFF",
+    desc: "Instituto Militar de Engenharia", foco: "Matemática · Física · Química · Desenho",
+    dificuldade: "⭐⭐⭐⭐⭐", badge: "Top 2" },
+  { id: "FUVEST",  nome: "FUVEST",  emoji: "🎓", cor: "#8B0000", bg: "#FFE6E6",
+    desc: "Universidade de São Paulo — USP", foco: "Todas as áreas · Interpretação",
+    dificuldade: "⭐⭐⭐⭐", badge: "USP" },
+  { id: "UNICAMP", nome: "UNICAMP", emoji: "🔬", cor: "#005C97", bg: "#E6F4FF",
+    desc: "Universidade Estadual de Campinas", foco: "Interdisciplinar · Contextualizado",
+    dificuldade: "⭐⭐⭐⭐", badge: null },
+  { id: "UNB",     nome: "UnB",     emoji: "🏛️", cor: "#006400", bg: "#E6FFE6",
+    desc: "Universidade de Brasília + PAS", foco: "Atualidades · PAS · Humanas",
+    dificuldade: "⭐⭐⭐", badge: "PAS" },
 ];
 
 export default function Home() {
@@ -92,7 +105,7 @@ export default function Home() {
             <p style={{ fontSize: 11, color: "rgba(255,255,255,0.7)", margin: 0 }}>45 questões</p>
           </button>
 
-          <button onClick={() => navigate("/agente")} style={{
+          <button onClick={() => navigate("/agentes")} style={{
             flex: 1, padding: "14px 12px", borderRadius: 14,
             background: "linear-gradient(135deg, #6D28D9, #4C1D95)",
             border: "none", cursor: "pointer", textAlign: "left",
@@ -115,63 +128,41 @@ export default function Home() {
           </button>
         </div>
 
-        {/* Áreas do ENEM */}
-        <p style={{ fontSize: 13, fontWeight: 700, color: CORES.text, textTransform: "uppercase", letterSpacing: "0.08em", margin: "0 0 12px" }}>
-          Estudar por área
-        </p>
-
+        {/* Vestibulares */}
+        <p style={{ fontSize: 13, fontWeight: 700, color: CORES.text, textTransform: "uppercase", letterSpacing: "0.08em", margin: "0 0 12px" }}>Vestibulares</p>
         <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 24 }}>
-          {AREAS.map(area => (
+          {VESTIBULARES.map(v => (
             <button
-              key={area.id}
-              onClick={() => navigate(`/quiz/${area.id}`)}
+              key={v.id}
+              onClick={() => navigate(`/vestibular/${v.id}`)}
               style={{
                 display: "flex", alignItems: "center", gap: 14,
                 padding: "14px 16px", borderRadius: 16,
-                background: CORES.bgCard, border: `1.5px solid ${area.cor}22`,
+                background: CORES.bgCard, border: `1.5px solid ${v.cor}22`,
                 cursor: "pointer", textAlign: "left",
                 boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
-                transition: "transform 0.15s",
               }}
             >
-              {/* Ícone */}
-              <div style={{
-                width: 48, height: 48, borderRadius: 14, flexShrink: 0,
-                background: area.bg,
-                display: "flex", alignItems: "center", justifyContent: "center",
-                fontSize: 24,
-                border: `1.5px solid ${area.cor}22`,
-              }}>
-                {area.emoji}
+              <div style={{ width: 50, height: 50, borderRadius: 14, background: v.bg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 26, flexShrink: 0, border: `1.5px solid ${v.cor}22` }}>
+                {v.emoji}
               </div>
-
-              {/* Info */}
               <div style={{ flex: 1, minWidth: 0 }}>
-                <p style={{ fontSize: 14, fontWeight: 700, color: area.cor, margin: "0 0 2px" }}>{area.label}</p>
-                <p style={{ fontSize: 11, color: CORES.textSub, margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{area.sublabel}</p>
+                <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}>
+                  <p style={{ fontSize: 15, fontWeight: 700, color: v.cor, margin: 0 }}>{v.nome}</p>
+                  {v.badge && <span style={{ fontSize: 9, fontWeight: 700, background: v.cor, color: "#fff", borderRadius: 4, padding: "1px 6px" }}>{v.badge}</span>}
+                </div>
+                <p style={{ fontSize: 11, color: CORES.textSub, margin: "0 0 3px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{v.desc}</p>
+                <p style={{ fontSize: 10, color: v.cor, margin: 0, fontWeight: 500 }}>{v.foco}</p>
               </div>
-
-              {/* Seta */}
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke={area.cor} strokeWidth="2" strokeLinecap="round" style={{ flexShrink: 0, opacity: 0.6 }}>
-                <path d="M6 4l4 4-4 4"/>
-              </svg>
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4, flexShrink: 0 }}>
+                <span style={{ fontSize: 10 }}>{v.dificuldade}</span>
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke={v.cor} strokeWidth="2"><path d="M6 4l4 4-4 4"/></svg>
+              </div>
             </button>
           ))}
         </div>
 
-        {/* Vestibulares */}
-        <p style={{ fontSize: 13, fontWeight: 700, color: CORES.text, textTransform: "uppercase", letterSpacing: "0.08em", margin: "0 0 12px" }}>Vestibulares</p>
-        <div style={{ display: "flex", gap: 10, overflowX: "auto", paddingBottom: 8, marginBottom: 24 }}>
-          {VESTIBULARES.map(v => (
-            <button key={v.id} onClick={() => navigate(`/quiz/vestibular/${v.id}`)} style={{ flexShrink: 0, width: 110, padding: "14px 12px", borderRadius: 14, background: v.bg, border: `1.5px solid ${v.cor}33`, cursor: "pointer", textAlign: "center", boxShadow: "0 2px 8px rgba(0,0,0,0.06)" }}>
-              <div style={{ fontSize: 28, marginBottom: 6 }}>{v.emoji}</div>
-              <p style={{ fontSize: 14, fontWeight: 800, color: v.cor, margin: "0 0 2px" }}>{v.nome}</p>
-              <p style={{ fontSize: 9, color: v.cor, opacity: 0.7, margin: 0, lineHeight: 1.3 }}>{v.desc}</p>
-            </button>
-          ))}
-        </div>
-
-        {/* Banner de upgrade se free */}
+                {/* Banner de upgrade se free */}
         {plano === "free" && (
           <div style={{
             background: `linear-gradient(135deg, #0A0F1E, #0D1F3C)`,
