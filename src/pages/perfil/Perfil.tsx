@@ -93,6 +93,62 @@ export default function Perfil() {
   const nome = (profile as any).nome ?? (profile as any).username ?? "Estudante";
   const xp = (profile as any).xp_total ?? 0;
   const sequencia = (profile as any).sequencia ?? 0;
+  const role = (profile as any).role ?? "student";
+
+  // ── Tela especial para admin e professor ──────────────────
+  if (role === "admin" || role === "professor") {
+    const isAdmin = role === "admin";
+    const corRole = isAdmin ? "#ef4444" : "#0A7C4B";
+    const bgRole  = isAdmin ? "#FFF1F1" : "#EDFAF3";
+    return (
+      <div style={{ display:"flex",flexDirection:"column",minHeight:"100dvh",background:CORES.bg }}>
+        <div style={{ background:`linear-gradient(135deg,${isAdmin?"#1a0a0a, #3a0a0a":"#0a1a0f, #0a3a1f"})`,padding:"16px 16px 20px" }}>
+          <div style={{ display:"flex",alignItems:"center",gap:12 }}>
+            <div style={{ width:52,height:52,borderRadius:"50%",background:corRole,display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,fontWeight:700,color:"#fff",border:"2px solid rgba(255,255,255,0.2)" }}>
+              {nome[0].toUpperCase()}
+            </div>
+            <div style={{ flex:1 }}>
+              <p style={{ fontSize:16,fontWeight:700,color:"#fff",margin:"0 0 4px" }}>{nome}</p>
+              <span style={{ fontSize:11,fontWeight:700,borderRadius:99,padding:"2px 12px",background:bgRole,color:corRole }}>
+                {isAdmin ? "🛡️ Administrador" : "👨‍🏫 Professor"}
+              </span>
+            </div>
+            <button onClick={() => navigate(isAdmin ? "/admin" : "/professor")} style={{ padding:"8px 14px",background:corRole,color:"#fff",border:"none",borderRadius:10,fontSize:12,fontWeight:700,cursor:"pointer" }}>
+              {isAdmin ? "🛡️ Painel" : "📁 Painel"}
+            </button>
+          </div>
+        </div>
+
+        <div style={{ flex:1,overflowY:"auto",padding:"16px 14px 90px" }}>
+
+          {/* Atalhos do painel */}
+          <p style={{ fontSize:11,fontWeight:700,color:CORES.textSub,textTransform:"uppercase",letterSpacing:"0.06em",margin:"0 0 10px" }}>Atalhos</p>
+          <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:20 }}>
+            {(isAdmin ? [
+              { emoji:"📁", label:"Materiais",  path:"/admin",     cor:"#0057FF" },
+              { emoji:"📝", label:"Questões",   path:"/admin",     cor:"#7C3AED" },
+              { emoji:"👥", label:"Usuários",   path:"/admin",     cor:"#22c55e" },
+              { emoji:"🏆", label:"Rankings",   path:"/admin",     cor:"#f59e0b" },
+            ] : [
+              { emoji:"📁", label:"Materiais",  path:"/professor", cor:"#0A7C4B" },
+              { emoji:"📝", label:"Questões",   path:"/professor", cor:"#0057FF" },
+            ]).map((item,i) => (
+              <button key={i} onClick={() => navigate(item.path)} style={{ display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:6,padding:"16px 0",borderRadius:14,background:CORES.bgCard,border:`1.5px solid ${item.cor}22`,cursor:"pointer",boxShadow:"0 2px 8px rgba(0,0,0,0.06)" }}>
+                <span style={{ fontSize:24 }}>{item.emoji}</span>
+                <span style={{ fontSize:12,fontWeight:600,color:item.cor }}>{item.label}</span>
+              </button>
+            ))}
+          </div>
+
+          {/* Sair */}
+          <button onClick={() => signOut().then(() => navigate("/login"))} style={{ width:"100%",padding:"11px 0",border:`1px solid ${CORES.border}`,background:CORES.bgCard,borderRadius:8,fontSize:14,fontWeight:500,cursor:"pointer",color:"#EF4444" }}>
+            Sair da conta
+          </button>
+        </div>
+        <BottomNav />
+      </div>
+    );
+  }
 
   return (
     <div style={{ display: "flex", flexDirection: "column", minHeight: "100dvh", background: CORES.bg }}>
