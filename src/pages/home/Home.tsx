@@ -2,7 +2,7 @@
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import BottomNav from "@/components/layout/BottomNav";
-import { AREAS, CORES } from "@/styles/theme";
+import { CORES } from "@/styles/theme";
 
 const VESTIBULARES = [
   { id: "ENEM",    nome: "ENEM",    emoji: "🎯", cor: "#0057FF", bg: "#E6EEFF",
