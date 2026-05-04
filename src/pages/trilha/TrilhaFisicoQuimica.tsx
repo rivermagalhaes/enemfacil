@@ -6,6 +6,7 @@ import { useAuth } from "@/hooks/useAuth";
 import BottomNav from "@/components/layout/BottomNav";
 import { CORES } from "@/styles/theme";
 import { addXP } from "@/lib/xpService";
+import MapaMental from "@/components/MapaMental";
 
 // ── Ementa de Físico-Química ───────────────────────────────────
 const UNIDADES = [
@@ -331,6 +332,7 @@ export default function TrilhaFisicoQuimica() {
 
   const [progresso, setProgresso] = useState<Record<string, Progresso>>({});
   const [unidadeAberta, setUnidadeAberta] = useState<typeof UNIDADES[0] | null>(null);
+  const [mapaMentalAberto, setMapaMentalAberto] = useState(false);
   const [loading, setLoading] = useState(true);
 
   const vestUpper = vestibular.toUpperCase();
@@ -389,6 +391,19 @@ export default function TrilhaFisicoQuimica() {
   return (
     <div style={{ display: "flex", flexDirection: "column", minHeight: "100dvh", background: CORES.bg }}>
 
+      {mapaMentalAberto && (
+        <MapaMental
+          unidades={UNIDADES}
+          titulo="Físico-Química — Ensino Médio"
+          onClose={() => setMapaMentalAberto(false)}
+          onSelecionarUnidade={(id) => {
+            const u = UNIDADES.find(u => u.id === id);
+            if (u) setUnidadeAberta(u);
+          }}
+          progresso={progresso}
+        />
+      )}
+
       {/* Modal de questões */}
       {unidadeAberta && (
         <ModalQuestoes
@@ -411,7 +426,12 @@ export default function TrilhaFisicoQuimica() {
           </div>
           <div style={{ textAlign: "right" }}>
             <p style={{ fontSize: 18, fontWeight: 700, color: "#fbbf24", margin: 0 }}>⚡ {totalXP} XP</p>
-            <p style={{ fontSize: 10, color: "rgba(255,255,255,0.7)", margin: 0 }}>{concluidas}/{UNIDADES.length} unidades</p>
+            <button
+              onClick={() => setMapaMentalAberto(true)}
+              style={{ fontSize: 10, background: "rgba(255,255,255,0.15)", border: "none", color: "#fff", borderRadius: 99, padding: "3px 10px", cursor: "pointer", fontWeight: 600 }}
+            >
+              🗺️ Mapa Mental
+            </button>
           </div>
         </div>
 

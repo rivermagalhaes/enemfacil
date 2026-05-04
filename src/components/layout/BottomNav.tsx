@@ -1,5 +1,6 @@
 // src/components/layout/BottomNav.tsx
 import { useNavigate, useLocation } from "react-router-dom";
+import { useAuth } from "@/hooks/useAuth";
 import { CORES } from "@/styles/theme";
 
 const TABS = [
@@ -13,6 +14,8 @@ const TABS = [
 export default function BottomNav() {
   const navigate = useNavigate();
   const { pathname } = useLocation();
+  const { profile } = useAuth();
+  const role = (profile as any)?.role;
 
   return (
     <div style={{
@@ -53,6 +56,31 @@ export default function BottomNav() {
           </button>
         );
       })}
+      {(role === "admin" || role === "professor") && (
+        <button
+          onClick={() => navigate(role === "admin" ? "/admin" : "/professor")}
+          style={{
+            flex: 1, display: "flex", flexDirection: "column",
+            alignItems: "center", gap: 2, border: "none",
+            background: "transparent", cursor: "pointer", padding: "4px 0",
+          }}
+        >
+          <div style={{
+            width: 36, height: 36, borderRadius: 12,
+            background: pathname.startsWith("/admin") || pathname.startsWith("/professor") ? "#FFF1F1" : "transparent",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            fontSize: 18, transition: "all 0.2s",
+          }}>
+            {role === "admin" ? "🛡️" : "👨‍🏫"}
+          </div>
+          <span style={{
+            fontSize: 10, fontWeight: pathname.startsWith("/admin") || pathname.startsWith("/professor") ? 700 : 400,
+            color: pathname.startsWith("/admin") || pathname.startsWith("/professor") ? "#ef4444" : CORES.textSub,
+          }}>
+            {role === "admin" ? "Admin" : "Prof"}
+          </span>
+        </button>
+      )}
     </div>
   );
 }

@@ -5,6 +5,7 @@ import { supabase } from "@/lib/supabaseClient";
 import { useAuth } from "@/hooks/useAuth";
 import BottomNav from "@/components/layout/BottomNav";
 import { CORES } from "@/styles/theme";
+import MapaMental from "@/components/MapaMental";
 
 const UNIDADES = [
   { id: "fundamentos-mat", numero: 1, titulo: "Fundamentos", emoji: "🔢", cor: "#6366f1", bg: "#eef2ff", topic: null, topicos: ["Conjuntos numéricos", "Funções", "Progressões", "Logaritmos"], xp: 50 },
@@ -23,6 +24,7 @@ export default function TrilhaMatematica() {
   const { user } = useAuth();
   const [progresso, setProgresso] = useState<Record<string, any>>({});
   const [unidadeAberta, setUnidadeAberta] = useState<typeof UNIDADES[0] | null>(null);
+  const [mapaMentalAberto, setMapaMentalAberto] = useState(false);
   const [loading, setLoading] = useState(true);
   const vestUpper = vestibular.toUpperCase();
   const corVest = COR_VEST[vestUpper] ?? "#003D80";
@@ -50,6 +52,19 @@ export default function TrilhaMatematica() {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", minHeight: "100dvh", background: CORES.bg }}>
+      {mapaMentalAberto && (
+        <MapaMental
+          unidades={UNIDADES}
+          titulo="Matemática — Ensino Médio"
+          onClose={() => setMapaMentalAberto(false)}
+          onSelecionarUnidade={(id) => {
+            const u = UNIDADES.find(u => u.id === id);
+            if (u) setUnidadeAberta(u);
+          }}
+          progresso={progresso}
+        />
+      )}
+
       {unidadeAberta && <ModalQuestoes unidade={unidadeAberta} vestibular={vestUpper} onClose={() => setUnidadeAberta(null)} onConcluir={() => concluirUnidade(unidadeAberta.id, unidadeAberta.xp)} />}
       <div style={{ background: `linear-gradient(135deg, ${corVest}, ${corVest}dd)`, padding: "16px 16px 20px", flexShrink: 0 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
@@ -60,9 +75,11 @@ export default function TrilhaMatematica() {
             <p style={{ fontSize: 16, fontWeight: 700, color: "#fff", margin: 0 }}>📐 Trilha de Matemática</p>
             <p style={{ fontSize: 11, color: "rgba(255,255,255,0.7)", margin: 0 }}>{vestUpper}</p>
           </div>
-          <div style={{ textAlign: "right" }}>
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4 }}>
             <p style={{ fontSize: 18, fontWeight: 700, color: "#fbbf24", margin: 0 }}>⚡ {totalXP} XP</p>
-            <p style={{ fontSize: 10, color: "rgba(255,255,255,0.7)", margin: 0 }}>{concluidas}/{UNIDADES.length} unidades</p>
+            <button onClick={() => setMapaMentalAberto(true)} style={{ fontSize: 10, background: "rgba(255,255,255,0.15)", border: "none", color: "#fff", borderRadius: 99, padding: "3px 10px", cursor: "pointer", fontWeight: 600 }}>
+              🗺️ Mapa Mental
+            </button>
           </div>
         </div>
         <div>

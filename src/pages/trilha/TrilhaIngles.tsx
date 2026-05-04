@@ -5,6 +5,7 @@ import { supabase } from "@/lib/supabaseClient";
 import { useAuth } from "@/hooks/useAuth";
 import BottomNav from "@/components/layout/BottomNav";
 import { CORES } from "@/styles/theme";
+import MapaMental from "@/components/MapaMental";
 
 const UNIDADES = [
   { id: "reading-comprehension", numero: 1, titulo: "Reading Comprehension", emoji: "📰", cor: "#0369a1", bg: "#e0f2fe", topic: null, topicos: ["Main idea", "Inference", "Vocabulary in context", "Text structure"], xp: 80 },
@@ -22,6 +23,7 @@ export default function TrilhaIngles() {
   const { user } = useAuth();
   const [progresso, setProgresso] = useState<Record<string, any>>({});
   const [unidadeAberta, setUnidadeAberta] = useState<typeof UNIDADES[0] | null>(null);
+  const [mapaMentalAberto, setMapaMentalAberto] = useState(false);
   const [loading, setLoading] = useState(true);
   const vestUpper = vestibular.toUpperCase();
   const corVest = COR_VEST[vestUpper] ?? "#003D80";
@@ -48,6 +50,19 @@ export default function TrilhaIngles() {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", minHeight: "100dvh", background: CORES.bg }}>
+      {mapaMentalAberto && (
+        <MapaMental
+          unidades={UNIDADES}
+          titulo="English Track"
+          onClose={() => setMapaMentalAberto(false)}
+          onSelecionarUnidade={(id) => {
+            const u = UNIDADES.find(u => u.id === id);
+            if (u) setUnidadeAberta(u);
+          }}
+          progresso={progresso}
+        />
+      )}
+
       {unidadeAberta && (
         <div style={{ position: "fixed", inset: 0, zIndex: 999, background: "rgba(0,0,0,0.6)", display: "flex", alignItems: "flex-end", justifyContent: "center" }}>
           <div style={{ background: "#fff", borderRadius: "20px 20px 0 0", width: "100%", maxWidth: 480, maxHeight: "90dvh", overflow: "hidden", display: "flex", flexDirection: "column" }}>
@@ -78,9 +93,11 @@ export default function TrilhaIngles() {
             <p style={{ fontSize: 16, fontWeight: 700, color: "#fff", margin: 0 }}>🇺🇸 English Track</p>
             <p style={{ fontSize: 11, color: "rgba(255,255,255,0.7)", margin: 0 }}>{vestUpper} · Scientific English</p>
           </div>
-          <div style={{ textAlign: "right" }}>
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4 }}>
             <p style={{ fontSize: 18, fontWeight: 700, color: "#fbbf24", margin: 0 }}>⚡ {totalXP} XP</p>
-            <p style={{ fontSize: 10, color: "rgba(255,255,255,0.7)", margin: 0 }}>{concluidas}/{UNIDADES.length} units</p>
+            <button onClick={() => setMapaMentalAberto(true)} style={{ fontSize: 10, background: "rgba(255,255,255,0.15)", border: "none", color: "#fff", borderRadius: 99, padding: "3px 10px", cursor: "pointer", fontWeight: 600 }}>
+              🗺️ Mapa Mental
+            </button>
           </div>
         </div>
         <div>
