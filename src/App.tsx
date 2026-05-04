@@ -7,7 +7,7 @@ import Quiz from "@/pages/quiz/Quiz";
 import Simulado from "@/pages/simulado/Simulado";
 import AgenteEnem from "@/pages/agente/AgenteEnem";
 import AgentesHome from "@/pages/agente/AgentesHome";
-import AgenteVestibular from "@/pages/agente/AgenteVestibularatual";
+import AgenteVestibular from "@/pages/agente/AgenteVestibular";
 import Perfil from "@/pages/perfil/Perfil";
 import Assinatura from "@/pages/perfil/Assinatura";
 import Redacao from "@/pages/redacao/Redacao";
