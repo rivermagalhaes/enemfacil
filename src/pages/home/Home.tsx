@@ -1,5 +1,7 @@
 // src/pages/home/Home.tsx
 import { useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { supabase } from "@/lib/supabaseClient";
 import { useAuth } from "@/hooks/useAuth";
 import BottomNav from "@/components/layout/BottomNav";
 import { CORES } from "@/styles/theme";
@@ -33,6 +35,33 @@ export default function Home() {
   const nome = ((profile as any)?.nome ?? (profile as any)?.username) ?? "Estudante";
   const xp = profile?.xp_total ?? 0;
   const sequencia = profile?.sequencia ?? 0;
+
+  const [salasAbertas, setSalasAbertas] = useState<any[]>([]);
+  const [modalSalas, setModalSalas] = useState(false);
+  const [entrando, setEntrando] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!modalSalas) return;
+    supabase
+      .from("salas_virtuais")
+      .select("*")
+      .in("status", ["aguardando", "ativa"])
+      .order("criada_em", { ascending: false })
+      .then(({ data }) => setSalasAbertas(data ?? []));
+  }, [modalSalas]);
+
+  async function entrarNaSala(sala: any) {
+    if (!sala || entrando) return;
+    setEntrando(sala.id);
+    await supabase.from("sala_participantes").upsert({
+      sala_id: sala.id,
+      user_id: (profile as any)?.id,
+      nome_exibicao: (profile as any)?.nome ?? "Aluno",
+    }, { onConflict: "sala_id,user_id" });
+    setEntrando(null);
+    setModalSalas(false);
+    navigate("/sala", { state: { salaId: sala.id, codigo: sala.codigo } });
+  }
 
   const horaAtual = new Date().getHours();
   const saudacao = horaAtual < 12 ? "Bom dia" : horaAtual < 18 ? "Boa tarde" : "Boa noite";
@@ -126,7 +155,68 @@ export default function Home() {
             <p style={{ fontSize: 13, fontWeight: 700, color: "#fff", margin: "0 0 2px" }}>Redação</p>
             <p style={{ fontSize: 11, color: "rgba(255,255,255,0.7)", margin: 0 }}>Praticar</p>
           </button>
+
+          <button onClick={() => setModalSalas(true)} style={{
+            flex: 1, padding: "14px 12px", borderRadius: 14,
+            background: "linear-gradient(135deg, #7C3AED, #5B21B6)",
+            border: "none", cursor: "pointer", textAlign: "left",
+            boxShadow: "0 8px 24px rgba(124,58,237,0.4)",
+          }}>
+            <div style={{ fontSize: 24, marginBottom: 6 }}>🏫</div>
+            <p style={{ fontSize: 13, fontWeight: 700, color: "#fff", margin: "0 0 2px" }}>Sala</p>
+            <p style={{ fontSize: 11, color: "rgba(255,255,255,0.7)", margin: 0 }}>Ao vivo</p>
+          </button>
         </div>
+
+        {/* Modal salas abertas */}
+        {modalSalas && (
+          <>
+            <div onClick={() => setModalSalas(false)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 1000 }} />
+            <div style={{ position: "fixed", bottom: 0, left: 0, right: 0, zIndex: 1001, background: "#0f172a", borderRadius: "20px 20px 0 0", padding: 20, maxHeight: "70dvh", overflowY: "auto", boxShadow: "0 -8px 40px rgba(0,0,0,0.4)" }}>
+              <div style={{ width: 40, height: 4, borderRadius: 2, background: "rgba(255,255,255,0.1)", margin: "0 auto 16px" }} />
+              <p style={{ fontSize: 16, fontWeight: 700, color: "#fff", margin: "0 0 4px" }}>🏫 Salas Abertas</p>
+              <p style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", margin: "0 0 16px" }}>Clique para entrar em uma sala ao vivo</p>
+
+              {salasAbertas.length === 0 ? (
+                <div style={{ textAlign: "center", padding: "32px 0" }}>
+                  <p style={{ fontSize: 32, margin: "0 0 8px" }}>😴</p>
+                  <p style={{ fontSize: 14, color: "rgba(255,255,255,0.4)" }}>Nenhuma sala aberta no momento</p>
+                </div>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                  {salasAbertas.map(sala => (
+                    <button
+                      key={sala.id}
+                      onClick={() => entrarNaSala(sala)}
+                      disabled={entrando === sala.id}
+                      style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 16px", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 14, cursor: "pointer", textAlign: "left" }}
+                    >
+                      <div style={{ width: 44, height: 44, borderRadius: 12, background: sala.status === "ativa" ? "rgba(78,206,154,0.15)" : "rgba(255,255,255,0.08)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, flexShrink: 0 }}>
+                        {sala.materia === "quimica" ? "🧪" : sala.materia === "fisica" ? "⚡" : sala.materia === "matematica" ? "📐" : sala.materia === "portugues" ? "📝" : sala.materia === "ingles" ? "🌎" : sala.materia === "biologia" ? "🔬" : "🎯"}
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <p style={{ fontSize: 14, fontWeight: 700, color: "#fff", margin: "0 0 3px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{sala.nome}</p>
+                        <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                          <span style={{ fontSize: 10, fontWeight: 700, borderRadius: 99, padding: "2px 8px", background: sala.status === "ativa" ? "rgba(78,206,154,0.2)" : "rgba(255,200,0,0.15)", color: sala.status === "ativa" ? "#4ece9a" : "#fbbf24" }}>
+                            {sala.status === "ativa" ? "● Ao vivo" : "⏳ Aguardando"}
+                          </span>
+                          <span style={{ fontSize: 10, color: "rgba(255,255,255,0.3)" }}>{sala.max_questoes} questões</span>
+                        </div>
+                      </div>
+                      <div style={{ fontSize: 20, fontWeight: 900, color: "#0ea5e9", flexShrink: 0, letterSpacing: "0.05em" }}>
+                        {entrando === sala.id ? "⏳" : "→"}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              <button onClick={() => { setModalSalas(false); navigate("/sala"); }} style={{ width: "100%", marginTop: 14, padding: "11px 0", background: "transparent", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 10, color: "rgba(255,255,255,0.4)", fontSize: 12, cursor: "pointer" }}>
+                Tenho um código → entrar manualmente
+              </button>
+            </div>
+          </>
+        )}
 
         {/* Vestibulares */}
         <p style={{ fontSize: 13, fontWeight: 700, color: CORES.text, textTransform: "uppercase", letterSpacing: "0.08em", margin: "0 0 12px" }}>Vestibulares</p>

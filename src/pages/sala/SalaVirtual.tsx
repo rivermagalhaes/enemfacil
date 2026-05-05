@@ -1,6 +1,6 @@
 // src/pages/sala/SalaVirtual.tsx
 import { useState, useEffect, useRef } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { supabase } from "@/lib/supabaseClient";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -40,6 +40,20 @@ export default function SalaVirtual() {
   const [tempoRestante, setTempoRestante] = useState<number | null>(null);
   const [erro, setErro] = useState("");
   const [entrando, setEntrando] = useState(false);
+  const location = useLocation();
+
+  // Auto-entrar se vier da Home com salaId
+  useEffect(() => {
+    const state = location.state as { salaId?: string; codigo?: string } | null;
+    if (state?.salaId) {
+      supabase.from("salas_virtuais").select("*").eq("id", state.salaId).single().then(({ data }) => {
+        if (!data) return;
+        setSala(data);
+        if (data.status === "ativa") { carregarQuestoes(data); setFase("quiz"); }
+        else setFase("aguardando");
+      });
+    }
+  }, []);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const realtimeRef = useRef<any>(null);
 
