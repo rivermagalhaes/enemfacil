@@ -6,6 +6,7 @@ import { useAuth } from "@/hooks/useAuth";
 import BottomNav from "@/components/layout/BottomNav";
 import { AREAS, CORES, LIMITES_DIA } from "@/styles/theme";
 import { addXP, XP } from "@/lib/xpService";
+import FeedbackModal from "@/components/ui/FeedbackModal";
 
 const VESTIBULARES_SIMULADO = [
   { id: "ENEM",    nome: "ENEM",    emoji: "🎯", cor: "#0057FF", bg: "#E6EEFF",
@@ -40,7 +41,7 @@ interface Questao {
 }
 
 const TRAVA_DIAS = [3, 21, 90];
-const TEMPO_TOTAL = 45 * 60; // 45 minutos em segundos
+const TEMPO_TOTAL = 45 * 60;
 
 function useUsoSimulado(userId: string | undefined, plano: string) {
   const limite = LIMITES_DIA[plano] ?? 3;
@@ -101,6 +102,7 @@ export default function Simulado() {
   const [respostas, setRespostas] = useState<Record<number, number>>({});
   const [tempo, setTempo] = useState(TEMPO_TOTAL);
   const [carregando, setCarregando] = useState(false);
+  const [feedbackAberto, setFeedbackAberto] = useState(false);
 
   const { usosHoje, limite, travadoAte, loading: loadingUso, registrar } = useUsoSimulado(profile?.id, plano);
   const travado = travadoAte && travadoAte > new Date();
@@ -113,6 +115,14 @@ export default function Simulado() {
     const t = setInterval(() => setTempo(s => s - 1), 1000);
     return () => clearInterval(t);
   }, [etapa, tempo]);
+
+  // Abre feedback automaticamente após entrar no resultado
+  useEffect(() => {
+    if (etapa === "resultado") {
+      const timer = setTimeout(() => setFeedbackAberto(true), 1500);
+      return () => clearTimeout(timer);
+    }
+  }, [etapa]);
 
   const TEMPO_VEST = vestSelecionado.tempo * 60;
   const minutos = Math.floor(tempo / 60).toString().padStart(2, "0");
@@ -170,7 +180,6 @@ export default function Simulado() {
   async function proximaQuestao() {
     if (idx + 1 >= questoes.length) {
       setEtapa("resultado");
-      // XP ao concluir simulado: base + bônus por acerto
       if (profile?.id) {
         const totalAcertos = Object.entries(respostas).filter(
           ([i, r]) => questoes[Number(i)]?.answer_index === r
@@ -187,7 +196,6 @@ export default function Simulado() {
   const acertos = Object.entries(respostas).filter(([i, r]) => questoes[Number(i)]?.answer_index === r).length;
   const respondidas = Object.keys(respostas).length;
 
-  // Acertos por área
   const porArea = AREAS.map(area => {
     const qs = questoes.filter(q => q.area === area.id);
     const acertosArea = qs.filter((q, _i) => respostas[questoes.indexOf(q)] === q.answer_index).length;
@@ -243,7 +251,6 @@ export default function Simulado() {
               </div>
             )}
 
-            {/* Cards de vestibulares */}
             <p style={{ fontSize: 11, fontWeight: 700, color: CORES.textSub, textTransform: "uppercase", letterSpacing: "0.06em", margin: "0 0 12px" }}>Escolha o simulado</p>
             <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 20 }}>
               {VESTIBULARES_SIMULADO.map(v => (
@@ -299,7 +306,6 @@ export default function Simulado() {
         {/* QUIZ */}
         {etapa === "quiz" && questaoAtual && (
           <>
-            {/* Botão voltar para seleção */}
             <button
               onClick={() => setEtapa("inicio")}
               style={{ display: "flex", alignItems: "center", gap: 6, background: "transparent", border: "none", color: CORES.textSub, fontSize: 13, cursor: "pointer", padding: "0 0 14px", fontWeight: 500 }}
@@ -308,7 +314,6 @@ export default function Simulado() {
               Escolher outro simulado
             </button>
 
-            {/* Badge de área */}
             {(() => {
               const area = AREAS.find(a => a.id === questaoAtual.area);
               return area ? (
@@ -378,12 +383,10 @@ export default function Simulado() {
               </p>
             </div>
 
-            {/* Barra geral */}
             <div style={{ height: 10, background: "#f1f5f9", borderRadius: 99, overflow: "hidden", marginBottom: 20 }}>
               <div style={{ height: "100%", width: `${(acertos / Math.max(respondidas, 1)) * 100}%`, background: acertos >= respondidas * 0.7 ? CORES.success : acertos >= respondidas * 0.5 ? CORES.primary : CORES.warning, borderRadius: 99 }} />
             </div>
 
-            {/* Por área */}
             {porArea.length > 0 && (
               <>
                 <p style={{ fontSize: 12, fontWeight: 700, color: CORES.textSub, textTransform: "uppercase", letterSpacing: "0.05em", margin: "0 0 10px" }}>Desempenho por área</p>
@@ -406,6 +409,20 @@ export default function Simulado() {
               </>
             )}
 
+            {/* Botão manual para abrir feedback */}
+            <button
+              onClick={() => setFeedbackAberto(true)}
+              style={{
+                width: "100%", padding: "11px 0", marginBottom: 10,
+                background: "#f4f6fb", color: CORES.textSub,
+                border: `1px solid ${CORES.border}`, borderRadius: 10,
+                fontSize: 13, fontWeight: 500, cursor: "pointer",
+                display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+              }}
+            >
+              ⭐ Avaliar o simulado
+            </button>
+
             <div style={{ display: "flex", gap: 10 }}>
               <button onClick={() => setEtapa("inicio")} style={{ flex: 1, padding: "12px 0", background: CORES.bgCard, color: CORES.text, border: `1px solid ${CORES.border}`, borderRadius: 10, fontSize: 13, fontWeight: 500, cursor: "pointer" }}>
                 Novo simulado
@@ -417,7 +434,15 @@ export default function Simulado() {
           </div>
         )}
       </div>
+
       <BottomNav />
+
+      {/* Modal de feedback */}
+      <FeedbackModal
+        isOpen={feedbackAberto}
+        onClose={() => setFeedbackAberto(false)}
+        contexto={`simulado_${vestSelecionado.id}`}
+      />
     </div>
   );
 }
