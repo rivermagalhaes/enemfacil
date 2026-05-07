@@ -8,6 +8,7 @@ const CORES = { bg:"#F4F6FB",card:"#FFFFFF",primary:"#0057FF",text:"#1a1a2e",sub
 const ABAS = [
   { id:"materiais", label:"Meus Materiais", emoji:"📁" },
   { id:"questoes",  label:"Questões",       emoji:"📝" },
+  { id:"salas",     label:"Salas Virtuais", emoji:"🏫" },
 ];
 
 interface Material { id:string; titulo:string; tipo:string; url:string; vestibular:string|null; materia:string|null; }
@@ -167,6 +168,23 @@ export default function ProfessorDashboard() {
                 <button onClick={()=>deletarMaterial(m.id)} style={{ padding:"5px 10px",background:"#FFF1F1",color:"#ef4444",border:"none",borderRadius:6,fontSize:11,fontWeight:600,cursor:"pointer" }}>Del</button>
               </div>
             ))}
+          </div>
+        )}
+
+        {/* SALAS VIRTUAIS */}
+        {aba === "salas" && (
+          <div style={{ display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:"40px 20px",gap:16 }}>
+            <div style={{ fontSize:52 }}>🏫</div>
+            <p style={{ fontSize:18,fontWeight:800,color:CORES.text,margin:0,textAlign:"center" }}>Salas Virtuais</p>
+            <p style={{ fontSize:13,color:CORES.sub,margin:0,textAlign:"center",lineHeight:1.6 }}>
+              Crie e gerencie salas ao vivo para seus alunos. Compartilhe o código e inicie quizzes em tempo real.
+            </p>
+            <button
+              onClick={() => navigate("/sala/professor")}
+              style={{ marginTop:8,padding:"14px 32px",background:"linear-gradient(90deg,#065C37,#0A7C4B)",color:"#fff",border:"none",borderRadius:12,fontSize:15,fontWeight:700,cursor:"pointer" }}
+            >
+              🚀 Acessar Salas Virtuais
+            </button>
           </div>
         )}
 
