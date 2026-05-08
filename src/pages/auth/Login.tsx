@@ -12,6 +12,7 @@ export default function Login() {
   const [erro, setErro] = useState<string | null>(null);
   const [modo, setModo] = useState<"login" | "cadastro">("login");
   const [sucesso, setSucesso] = useState(false);
+  const [codigoConvite, setCodigoConvite] = useState("");
 
   async function handleSubmit() {
     if (!email || !senha) { setErro("Preencha todos os campos."); return; }
@@ -22,8 +23,38 @@ export default function Login() {
       if (error) { setErro("Email ou senha incorretos."); setLoading(false); return; }
       navigate("/");
     } else {
-      const { error } = await supabase.auth.signUp({ email, password: senha });
+      // Detecta e-mail institucional .edu.br
+      const isEduBr = email.toLowerCase().endsWith(".edu.br");
+
+      // Valida código de convite se não for .edu.br
+      let roleDefinido: string = "student";
+      if (isEduBr) {
+        roleDefinido = "professor";
+      } else if (codigoConvite.trim()) {
+        const { data: convite } = await supabase
+          .from("codigos_convite")
+          .select("id, usado")
+          .eq("codigo", codigoConvite.trim().toUpperCase())
+          .eq("usado", false)
+          .single();
+        if (!convite) {
+          setErro("Código de convite inválido ou já utilizado.");
+          setLoading(false);
+          return;
+        }
+        roleDefinido = "professor";
+        // Marca código como usado
+        await supabase.from("codigos_convite").update({ usado: true, usado_em: new Date().toISOString() }).eq("id", convite.id);
+      }
+
+      const { data: authData, error } = await supabase.auth.signUp({ email, password: senha });
       if (error) { setErro("Erro ao criar conta. Tente outro email."); setLoading(false); return; }
+
+      // Atualiza role no profile se for professor
+      if (roleDefinido === "professor" && authData.user) {
+        await supabase.from("profiles").update({ role: "professor" }).eq("id", authData.user.id);
+      }
+
       setSucesso(true);
     }
     setLoading(false);
@@ -109,6 +140,22 @@ export default function Login() {
                   onKeyDown={e => e.key === "Enter" && handleSubmit()}
                 />
               </div>
+
+              {modo === "cadastro" && (
+                <div>
+                  <label style={{ fontSize: 12, fontWeight: 600, color: CORES.textSub, display: "block", marginBottom: 6 }}>
+                    Código de convite <span style={{ fontWeight: 400, color: CORES.textSub }}>(opcional — para professores)</span>
+                  </label>
+                  <input
+                    type="text" value={codigoConvite} onChange={e => setCodigoConvite(e.target.value.toUpperCase())}
+                    placeholder="Ex: PROF2026"
+                    style={{ width: "100%", padding: "12px 14px", borderRadius: 10, border: `1.5px solid ${CORES.border}`, fontSize: 14, outline: "none", boxSizing: "border-box" as const, background: "#fff", color: CORES.text, letterSpacing: "0.1em", fontWeight: 600 }}
+                  />
+                  <p style={{ fontSize: 11, color: CORES.textSub, margin: "4px 0 0" }}>
+                    Ou use seu e-mail <strong>.edu.br</strong> para acesso automático como professor
+                  </p>
+                </div>
+              )}
             </div>
 
             <button
