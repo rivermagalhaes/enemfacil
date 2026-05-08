@@ -10,11 +10,12 @@ const CORES = {
 };
 
 const ABAS = [
-  { id: "visao",     label: "Visão Geral", emoji: "📊" },
-  { id: "materiais", label: "Materiais",   emoji: "📁" },
-  { id: "questoes",  label: "Questões",    emoji: "📝" },
-  { id: "usuarios",  label: "Usuários",    emoji: "👥" },
-  { id: "ranking",   label: "Rankings",    emoji: "🏆" },
+  { id: "visao",       label: "Visão Geral",  emoji: "📊" },
+  { id: "materiais",   label: "Materiais",    emoji: "📁" },
+  { id: "questoes",    label: "Questões",     emoji: "📝" },
+  { id: "professores", label: "Professores",  emoji: "👨‍🏫" },
+  { id: "usuarios",    label: "Usuários",     emoji: "👥" },
+  { id: "ranking",     label: "Rankings",     emoji: "🏆" },
 ];
 
 const ESTADOS_REGIOES: Record<string, string> = {
@@ -27,12 +28,12 @@ const ESTADOS_REGIOES: Record<string, string> = {
 };
 
 interface Usuario {
-  id: string; nome: string | null; plano: string; role: string;
-  xp_total: number; sequencia: number; estado: string | null; criado_em: string;
+  id: string; nome: string | null; email: string | null; plano: string; role: string;
+  xp_total: number; sequencia: number; estado: string | null; created_at: string;
 }
 interface Material {
   id: string; titulo: string; tipo: string; url: string;
-  vestibular: string | null; materia: string | null; criado_em: string;
+  vestibular: string | null; materia: string | null; create_at: string;
 }
 
 export default function AdminDashboard() {
@@ -48,6 +49,7 @@ export default function AdminDashboard() {
   const fileRef = useRef<HTMLInputElement>(null);
   const excelRef = useRef<HTMLInputElement>(null);
   const [form, setForm] = useState({ titulo: "", descricao: "", tipo: "pdf", vestibular: "ENEM", materia: "", topic: "" });
+  const [buscaProfessor, setBuscaProfessor] = useState("");
 
   useEffect(() => {
     if (!profile) return;
@@ -58,7 +60,7 @@ export default function AdminDashboard() {
   async function carregarTudo() {
     setLoading(true);
     const [{ data: profs }, { data: mats }] = await Promise.all([
-      supabase.from("profiles").select("id,nome,plano,role,xp_total,sequencia,estado,criado_em").order("xp_total", { ascending: false }),
+      supabase.from("profiles").select("id,nome,email,plano,role,xp_total,sequencia,estado,created_at").order("xp_total", { ascending: false }),
       supabase.from("materiais").select("*").order("criado_em", { ascending: false }),
     ]);
     if (profs) setUsuarios(profs);
@@ -66,7 +68,6 @@ export default function AdminDashboard() {
     setLoading(false);
   }
 
-  // Métricas calculadas
   const total = usuarios.length;
   const assinantes = usuarios.filter(u => u.plano && u.plano !== "gratis").length;
   const ativos = usuarios.filter(u => u.xp_total > 0).length;
@@ -74,7 +75,6 @@ export default function AdminDashboard() {
   const xpMedio = total ? Math.floor(xpTotal / total) : 0;
   const conversao = total ? Math.round(assinantes / total * 100) : 0;
 
-  // Rankings
   const porEstado = Object.entries(
     usuarios.reduce((acc: Record<string, {total:number;assinantes:number}>, u) => {
       const e = u.estado || "Não informado";
@@ -181,7 +181,7 @@ export default function AdminDashboard() {
 
       <div style={{ padding:"16px 20px 60px" }}>
 
-        {/* VISÃO GERAL */}
+        {/* ── VISÃO GERAL ── */}
         {aba === "visao" && (
           <div>
             <div style={{ display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10,marginBottom:20 }}>
@@ -200,14 +200,12 @@ export default function AdminDashboard() {
                 </div>
               ))}
             </div>
-
             <div style={{ background:CORES.card,borderRadius:12,padding:16,border:`1px solid ${CORES.border}`,marginBottom:16 }}>
               <p style={{ fontSize:13,fontWeight:700,margin:"0 0 10px" }}>📈 Taxa de Conversão — {conversao}%</p>
               <div style={{ height:12,background:CORES.bg,borderRadius:6,overflow:"hidden" }}>
                 <div style={{ width:`${conversao}%`,height:"100%",background:`linear-gradient(90deg,${CORES.primary},#22c55e)`,borderRadius:6 }} />
               </div>
             </div>
-
             <div style={{ background:CORES.card,borderRadius:12,padding:16,border:`1px solid ${CORES.border}` }}>
               <p style={{ fontSize:13,fontWeight:700,margin:"0 0 10px" }}>🏆 Top 5 por XP</p>
               {usuarios.slice(0,5).map((u,i) => (
@@ -224,7 +222,7 @@ export default function AdminDashboard() {
           </div>
         )}
 
-        {/* MATERIAIS */}
+        {/* ── MATERIAIS ── */}
         {aba === "materiais" && (
           <div>
             <div style={{ background:CORES.card,borderRadius:14,padding:16,border:`1px solid ${CORES.border}`,marginBottom:16 }}>
@@ -268,7 +266,7 @@ export default function AdminDashboard() {
           </div>
         )}
 
-        {/* QUESTÕES */}
+        {/* ── QUESTÕES ── */}
         {aba === "questoes" && (
           <div>
             <div style={{ background:CORES.card,borderRadius:14,padding:20,border:`1px solid ${CORES.border}`,marginBottom:16 }}>
@@ -295,7 +293,80 @@ export default function AdminDashboard() {
           </div>
         )}
 
-        {/* USUÁRIOS */}
+        {/* ── PROFESSORES ── */}
+        {aba === "professores" && (() => {
+          const professores = usuarios.filter(u => u.role === "professor");
+          const busca = buscaProfessor.toLowerCase();
+          const candidatos = usuarios.filter(u =>
+  u.role !== "professor" && u.role !== "admin" && busca.length >= 2 &&
+  (
+    (u.nome ?? "").toLowerCase().includes(busca) ||
+    (u.email ?? "").toLowerCase().includes(busca)
+  )
+  );
+          return (
+            <div>
+              <p style={{ fontSize:11,fontWeight:700,color:CORES.sub,textTransform:"uppercase",margin:"0 0 8px" }}>
+                👨‍🏫 Professores ativos ({professores.length})
+              </p>
+              {professores.length === 0 && (
+                <div style={{ background:CORES.card,borderRadius:12,padding:24,border:`1px solid ${CORES.border}`,textAlign:"center",marginBottom:16 }}>
+                  <p style={{ fontSize:13,color:CORES.sub,margin:0 }}>Nenhum professor cadastrado ainda.</p>
+                </div>
+              )}
+              {professores.map(u => (
+                <div key={u.id} style={{ background:CORES.card,borderRadius:12,padding:"12px 14px",border:"1.5px solid #22c55e33",marginBottom:8,display:"flex",alignItems:"center",gap:10 }}>
+                  <div style={{ width:38,height:38,borderRadius:"50%",background:"#0A7C4B",display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",fontWeight:700,fontSize:14,flexShrink:0 }}>
+                    {(u.nome||"?")[0].toUpperCase()}
+                  </div>
+                  <div style={{ flex:1,minWidth:0 }}>
+                    <p style={{ fontSize:13,fontWeight:700,margin:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap" }}>{u.nome||"Sem nome"}</p>
+                    <p style={{ fontSize:11,color:CORES.sub,margin:0 }}>{u.estado||"—"} · ⚡{u.xp_total}</p>
+                  </div>
+                  <button
+                    onClick={() => alterarRole(u.id, "aluno")}
+                    style={{ padding:"5px 12px",background:"#FFF1F1",color:"#ef4444",border:"1px solid #fca5a5",borderRadius:6,fontSize:11,fontWeight:700,cursor:"pointer",flexShrink:0 }}
+                  >
+                    Revogar
+                  </button>
+                </div>
+              ))}
+
+              <div style={{ background:CORES.card,borderRadius:14,padding:16,border:`1px solid ${CORES.border}`,marginTop:20 }}>
+                <p style={{ fontSize:13,fontWeight:700,margin:"0 0 4px" }}>➕ Promover aluno a professor</p>
+                <p style={{ fontSize:11,color:CORES.sub,margin:"0 0 12px" }}>Digite o nome do aluno para buscar</p>
+                <input
+                  value={buscaProfessor}
+                  onChange={e => setBuscaProfessor(e.target.value)}
+                  placeholder="Nome do aluno..."
+                  style={{ width:"100%",padding:"9px 12px",borderRadius:8,border:`1px solid ${CORES.border}`,fontSize:13,boxSizing:"border-box" as any,marginBottom:8 }}
+                />
+                {busca.length >= 2 && candidatos.length === 0 && (
+                  <p style={{ fontSize:12,color:CORES.sub,margin:0,textAlign:"center" }}>Nenhum aluno encontrado.</p>
+                )}
+                {candidatos.map(u => (
+                  <div key={u.id} style={{ display:"flex",alignItems:"center",gap:10,padding:"10px 12px",background:"#f8fafc",borderRadius:10,border:`1px solid ${CORES.border}`,marginBottom:6 }}>
+                    <div style={{ width:32,height:32,borderRadius:"50%",background:CORES.primary,display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",fontWeight:700,fontSize:12,flexShrink:0 }}>
+                      {(u.nome||"?")[0].toUpperCase()}
+                    </div>
+                    <div style={{ flex:1,minWidth:0 }}>
+                      <p style={{ fontSize:13,fontWeight:600,margin:0 }}>{u.nome||"Sem nome"}</p>
+                      <p style={{ fontSize:11,color:CORES.sub,margin:0 }}>{u.plano} · {u.estado||"—"}</p>
+                    </div>
+                    <button
+                      onClick={() => { alterarRole(u.id, "professor"); setBuscaProfessor(""); }}
+                      style={{ padding:"5px 12px",background:"#EDFAF3",color:"#15803d",border:"1px solid #86efac",borderRadius:6,fontSize:11,fontWeight:700,cursor:"pointer",flexShrink:0 }}
+                    >
+                      Promover ✓
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          );
+        })()}
+
+        {/* ── USUÁRIOS ── */}
         {aba === "usuarios" && (
           <div>
             <p style={{ fontSize:11,fontWeight:700,color:CORES.sub,textTransform:"uppercase",margin:"0 0 8px" }}>Usuários ({total})</p>
@@ -329,7 +400,7 @@ export default function AdminDashboard() {
           </div>
         )}
 
-        {/* RANKING */}
+        {/* ── RANKING ── */}
         {aba === "ranking" && (
           <div>
             <div style={{ background:CORES.card,borderRadius:14,padding:16,border:`1px solid ${CORES.border}`,marginBottom:16 }}>

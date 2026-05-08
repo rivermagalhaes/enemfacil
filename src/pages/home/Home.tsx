@@ -28,11 +28,11 @@ const VESTIBULARES = [
 ];
 
 export default function Home() {
-  const { profile, podeIA, podeRedacao, podeTrilha, podePainelProfessor, planoDisplay } = useAuth();
+  const { profile, podeIA, podeRedacao, podePainelProfessor } = useAuth();
   const navigate = useNavigate();
 
   const plano = String(profile?.plano ?? "free");
-  const pd = planoDisplay();
+
   const nome = ((profile as any)?.nome ?? (profile as any)?.username) ?? "Estudante";
   const xp = profile?.xp_total ?? 0;
   const sequencia = profile?.sequencia ?? 0;

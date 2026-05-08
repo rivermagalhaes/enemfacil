@@ -70,7 +70,6 @@ export default function SalaVirtualProfessor() {
   // Simulados
   const [tabAtiva, setTabAtiva] = useState<"salas" | "simulados">("salas");
   const [modalSimulado, setModalSimulado] = useState(false);
-  const [salaSelecionada, setSalaSelecionada] = useState<string>("");
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [submissoesResumo, setSubmissoesResumo] = useState<SubmissaoResumo[]>([]);
   const [formSimulado, setFormSimulado] = useState({
