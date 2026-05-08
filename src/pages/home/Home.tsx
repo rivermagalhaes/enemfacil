@@ -28,10 +28,11 @@ const VESTIBULARES = [
 ];
 
 export default function Home() {
-  const { profile } = useAuth();
+  const { profile, podeIA, podeRedacao, podeTrilha, podePainelProfessor, planoDisplay } = useAuth();
   const navigate = useNavigate();
 
   const plano = String(profile?.plano ?? "free");
+  const pd = planoDisplay();
   const nome = ((profile as any)?.nome ?? (profile as any)?.username) ?? "Estudante";
   const xp = profile?.xp_total ?? 0;
   const sequencia = profile?.sequencia ?? 0;
@@ -134,26 +135,32 @@ export default function Home() {
             <p style={{ fontSize: 11, color: "rgba(255,255,255,0.7)", margin: 0 }}>45 questões</p>
           </button>
 
-          <button onClick={() => navigate("/agentes")} style={{
+          <button onClick={() => podeIA ? navigate("/agentes") : navigate("/assinatura")} style={{
             flex: 1, padding: "14px 12px", borderRadius: 14,
-            background: "linear-gradient(135deg, #6D28D9, #4C1D95)",
-            border: "none", cursor: "pointer", textAlign: "left",
-            boxShadow: "0 8px 24px rgba(109,40,217,0.4)",
+            background: podeIA ? "linear-gradient(135deg, #6D28D9, #4C1D95)" : "linear-gradient(135deg, #1e293b, #0f172a)",
+            border: podeIA ? "none" : "1.5px solid rgba(255,255,255,0.08)",
+            cursor: "pointer", textAlign: "left",
+            boxShadow: podeIA ? "0 8px 24px rgba(109,40,217,0.4)" : "none",
+            position: "relative",
           }}>
+            {!podeIA && <span style={{ position: "absolute", top: 6, right: 6, fontSize: 10 }}>🔒</span>}
             <div style={{ fontSize: 24, marginBottom: 6 }}>🤖</div>
-            <p style={{ fontSize: 13, fontWeight: 700, color: "#fff", margin: "0 0 2px" }}>Agente IA</p>
-            <p style={{ fontSize: 11, color: "rgba(255,255,255,0.7)", margin: 0 }}>Tire dúvidas</p>
+            <p style={{ fontSize: 13, fontWeight: 700, color: podeIA ? "#fff" : "rgba(255,255,255,0.4)", margin: "0 0 2px" }}>Agente IA</p>
+            <p style={{ fontSize: 11, color: podeIA ? "rgba(255,255,255,0.7)" : "rgba(255,255,255,0.2)", margin: 0 }}>{podeIA ? "Tire dúvidas" : "Premium"}</p>
           </button>
 
-          <button onClick={() => navigate("/redacao")} style={{
+          <button onClick={() => podeRedacao ? navigate("/redacao") : navigate("/assinatura")} style={{
             flex: 1, padding: "14px 12px", borderRadius: 14,
-            background: "linear-gradient(135deg, #0A7C4B, #065C37)",
-            border: "none", cursor: "pointer", textAlign: "left",
-            boxShadow: "0 8px 24px rgba(10,124,75,0.4)",
+            background: podeRedacao ? "linear-gradient(135deg, #0A7C4B, #065C37)" : "linear-gradient(135deg, #1e293b, #0f172a)",
+            border: podeRedacao ? "none" : "1.5px solid rgba(255,255,255,0.08)",
+            cursor: "pointer", textAlign: "left",
+            boxShadow: podeRedacao ? "0 8px 24px rgba(10,124,75,0.4)" : "none",
+            position: "relative",
           }}>
+            {!podeRedacao && <span style={{ position: "absolute", top: 6, right: 6, fontSize: 10 }}>🔒</span>}
             <div style={{ fontSize: 24, marginBottom: 6 }}>✏️</div>
-            <p style={{ fontSize: 13, fontWeight: 700, color: "#fff", margin: "0 0 2px" }}>Redação</p>
-            <p style={{ fontSize: 11, color: "rgba(255,255,255,0.7)", margin: 0 }}>Praticar</p>
+            <p style={{ fontSize: 13, fontWeight: 700, color: podeRedacao ? "#fff" : "rgba(255,255,255,0.4)", margin: "0 0 2px" }}>Redação</p>
+            <p style={{ fontSize: 11, color: podeRedacao ? "rgba(255,255,255,0.7)" : "rgba(255,255,255,0.2)", margin: 0 }}>{podeRedacao ? "Praticar" : "Completo"}</p>
           </button>
 
           <button onClick={() => setModalSalas(true)} style={{
@@ -218,6 +225,24 @@ export default function Home() {
           </>
         )}
 
+        {/* Botão painel professor */}
+        {podePainelProfessor && (
+          <button onClick={() => navigate("/professor")} style={{
+            width: "100%", padding: "14px 16px", borderRadius: 14, marginBottom: 20,
+            background: "linear-gradient(135deg, #065C37, #0A7C4B)",
+            border: "none", cursor: "pointer", textAlign: "left",
+            boxShadow: "0 8px 24px rgba(10,124,75,0.3)",
+            display: "flex", alignItems: "center", gap: 14,
+          }}>
+            <span style={{ fontSize: 28 }}>👨‍🏫</span>
+            <div>
+              <p style={{ fontSize: 14, fontWeight: 700, color: "#fff", margin: "0 0 2px" }}>Painel do Professor</p>
+              <p style={{ fontSize: 11, color: "rgba(255,255,255,0.7)", margin: 0 }}>Questões · Salas · Simulados</p>
+            </div>
+            <svg style={{ marginLeft: "auto" }} width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="rgba(255,255,255,0.6)" strokeWidth="2"><path d="M6 4l4 4-4 4"/></svg>
+          </button>
+        )}
+
         {/* Vestibulares */}
         <p style={{ fontSize: 13, fontWeight: 700, color: CORES.text, textTransform: "uppercase", letterSpacing: "0.08em", margin: "0 0 12px" }}>Vestibulares</p>
         <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 24 }}>
@@ -253,7 +278,7 @@ export default function Home() {
         </div>
 
                 {/* Banner de upgrade se free */}
-        {plano === "free" && (
+        {(plano === "free" || plano === "gratis" || plano === "basico" || plano === "estudante") && !podePainelProfessor && (
           <div style={{
             background: `linear-gradient(135deg, #0A0F1E, #0D1F3C)`,
             borderRadius: 16, padding: 18,
