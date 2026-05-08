@@ -58,6 +58,17 @@ OTQ: {
 };
 
 const MATERIAS: Record<string, { id: string; label: string; emoji: string; trilha: string; desc: string }[]> = {
+  OBQ: [
+  { id: "natureza", label: "Química Geral",  emoji: "⚗️", trilha: "fisicoquimica", desc: "Estequiometria · Gases · Soluções" },
+  { id: "natureza", label: "Inorgânica",     emoji: "🔬", trilha: "quimica",       desc: "Funções · Reações · Nomenclatura" },
+  { id: "natureza", label: "Orgânica",       emoji: "🧬", trilha: "quimica",       desc: "Hidrocarbonetos · Funções orgânicas" },
+  { id: "natureza", label: "Físico-Química", emoji: "⚡", trilha: "fisicoquimica", desc: "Termoquímica · Cinética · Equilíbrio" },
+],
+OTQ: [
+  { id: "natureza", label: "Química Geral",  emoji: "⚗️", trilha: "fisicoquimica", desc: "Estequiometria · Gases · Soluções" },
+  { id: "natureza", label: "Inorgânica",     emoji: "🔬", trilha: "quimica",       desc: "Funções · Reações · Nomenclatura" },
+  { id: "natureza", label: "Orgânica",       emoji: "🧬", trilha: "quimica",       desc: "Hidrocarbonetos · Funções orgânicas" },
+],
   ENEM: [
     { id: "linguagens", label: "Linguagens",  emoji: "📚", trilha: "portugues",  desc: "Português · Literatura · Artes" },
     { id: "matematica", label: "Matemática",  emoji: "📐", trilha: "matematica", desc: "Álgebra · Geometria · Estatística" },
