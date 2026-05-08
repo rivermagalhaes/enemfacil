@@ -22,6 +22,7 @@ import ProfessorDashboard from "@/pages/admin/ProfessorDashboard";
 import TrilhaFisicoQuimica from "@/pages/trilha/TrilhaFisicoQuimica";
 import SalaVirtual from "@/pages/sala/SalaVirtual";
 import SalaVirtualProfessor from "@/pages/sala/SalaVirtualProfessor";
+import SimuladoAluno from "@/pages/sala/SimuladoAluno";
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
@@ -65,6 +66,7 @@ export default function App() {
         <Route path="/sala" element={<PrivateRoute><SalaVirtual /></PrivateRoute>} />
         <Route path="/sala/:id" element={<PrivateRoute><SalaVirtual /></PrivateRoute>} />
         <Route path="/sala/professor" element={<PrivateRoute><SalaVirtualProfessor /></PrivateRoute>} />
+        <Route path="/sala/:salaId/simulados" element={<PrivateRoute><SimuladoAluno /></PrivateRoute>} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
