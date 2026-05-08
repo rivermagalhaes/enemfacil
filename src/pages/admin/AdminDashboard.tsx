@@ -297,13 +297,15 @@ export default function AdminDashboard() {
         {aba === "professores" && (() => {
           const professores = usuarios.filter(u => u.role === "professor");
           const busca = buscaProfessor.toLowerCase();
-          const candidatos = usuarios.filter(u =>
-  u.role !== "professor" && u.role !== "admin" && busca.length >= 2 &&
+    // linha ~300 — troca por:
+const ROLES_STAFF = ["professor", "teacher", "admin", "super_admin"];
+const candidatos = usuarios.filter(u =>
+  !ROLES_STAFF.includes(u.role) && busca.length >= 2 &&
   (
     (u.nome ?? "").toLowerCase().includes(busca) ||
     (u.email ?? "").toLowerCase().includes(busca)
   )
-  );
+);
           return (
             <div>
               <p style={{ fontSize:11,fontWeight:700,color:CORES.sub,textTransform:"uppercase",margin:"0 0 8px" }}>
