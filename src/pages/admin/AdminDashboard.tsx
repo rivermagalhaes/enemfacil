@@ -27,13 +27,16 @@ const ESTADOS_REGIOES: Record<string, string> = {
   PR:"Sul",RS:"Sul",SC:"Sul",
 };
 
+const POR_PAGINA = 20;
+const ROLES_STAFF = ["professor", "teacher", "admin", "super_admin"];
+
 interface Usuario {
   id: string; nome: string | null; email: string | null; plano: string; role: string;
   xp_total: number; sequencia: number; estado: string | null; created_at: string;
 }
 interface Material {
   id: string; titulo: string; tipo: string; url: string;
-  vestibular: string | null; materia: string | null; create_at: string;
+  vestibular: string | null; materia: string | null; criado_em: string;
 }
 
 export default function AdminDashboard() {
@@ -51,11 +54,21 @@ export default function AdminDashboard() {
   const [form, setForm] = useState({ titulo: "", descricao: "", tipo: "pdf", vestibular: "ENEM", materia: "", topic: "" });
   const [buscaProfessor, setBuscaProfessor] = useState("");
 
+  // Paginação de usuários
+  const [paginaUsuarios, setPaginaUsuarios] = useState(0);
+  const [totalUsuarios, setTotalUsuarios] = useState(0);
+  const [usuariosPagina, setUsuariosPagina] = useState<Usuario[]>([]);
+  const [loadingUsuarios, setLoadingUsuarios] = useState(false);
+
   useEffect(() => {
     if (!profile) return;
     if ((profile as any).role !== "admin") { navigate("/"); return; }
     carregarTudo();
   }, [profile]);
+
+  useEffect(() => {
+    if (aba === "usuarios") carregarUsuariosPagina(paginaUsuarios);
+  }, [aba, paginaUsuarios]);
 
   async function carregarTudo() {
     setLoading(true);
@@ -66,6 +79,20 @@ export default function AdminDashboard() {
     if (profs) setUsuarios(profs);
     if (mats) setMateriais(mats);
     setLoading(false);
+  }
+
+  async function carregarUsuariosPagina(pagina: number) {
+    setLoadingUsuarios(true);
+    const from = pagina * POR_PAGINA;
+    const to = from + POR_PAGINA - 1;
+    const { data, count } = await supabase
+      .from("profiles")
+      .select("id,nome,email,plano,role,xp_total,sequencia,estado,created_at", { count: "exact" })
+      .order("xp_total", { ascending: false })
+      .range(from, to);
+    if (data) setUsuariosPagina(data);
+    if (count !== null) setTotalUsuarios(count);
+    setLoadingUsuarios(false);
   }
 
   const total = usuarios.length;
@@ -143,8 +170,16 @@ export default function AdminDashboard() {
     setTimeout(() => setMsg(null), 6000);
   }
 
-  async function alterarPlano(userId: string, v: string) { await supabase.from("profiles").update({ plano: v }).eq("id", userId); carregarTudo(); }
-  async function alterarRole(userId: string, v: string) { await supabase.from("profiles").update({ role: v }).eq("id", userId); carregarTudo(); }
+  async function alterarPlano(userId: string, v: string) {
+    await supabase.from("profiles").update({ plano: v }).eq("id", userId);
+    carregarTudo();
+    carregarUsuariosPagina(paginaUsuarios);
+  }
+  async function alterarRole(userId: string, v: string) {
+    await supabase.from("profiles").update({ role: v }).eq("id", userId);
+    carregarTudo();
+    carregarUsuariosPagina(paginaUsuarios);
+  }
   async function deletarMaterial(id: string) { await supabase.from("materiais").delete().eq("id", id); setMateriais(p => p.filter(m => m.id !== id)); }
 
   if (loading) return <div style={{display:"flex",alignItems:"center",justifyContent:"center",height:"100dvh",background:CORES.bg}}><p style={{color:CORES.sub}}>Carregando painel...</p></div>;
@@ -297,15 +332,13 @@ export default function AdminDashboard() {
         {aba === "professores" && (() => {
           const professores = usuarios.filter(u => u.role === "professor");
           const busca = buscaProfessor.toLowerCase();
-    // linha ~300 — troca por:
-const ROLES_STAFF = ["professor", "teacher", "admin", "super_admin"];
-const candidatos = usuarios.filter(u =>
-  !ROLES_STAFF.includes(u.role) && busca.length >= 2 &&
-  (
-    (u.nome ?? "").toLowerCase().includes(busca) ||
-    (u.email ?? "").toLowerCase().includes(busca)
-  )
-);
+          const candidatos = usuarios.filter(u =>
+            !ROLES_STAFF.includes(u.role) && busca.length >= 2 &&
+            (
+              (u.nome ?? "").toLowerCase().includes(busca) ||
+              (u.email ?? "").toLowerCase().includes(busca)
+            )
+          );
           return (
             <div>
               <p style={{ fontSize:11,fontWeight:700,color:CORES.sub,textTransform:"uppercase",margin:"0 0 8px" }}>
@@ -323,24 +356,21 @@ const candidatos = usuarios.filter(u =>
                   </div>
                   <div style={{ flex:1,minWidth:0 }}>
                     <p style={{ fontSize:13,fontWeight:700,margin:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap" }}>{u.nome||"Sem nome"}</p>
-                    <p style={{ fontSize:11,color:CORES.sub,margin:0 }}>{u.estado||"—"} · ⚡{u.xp_total}</p>
+                    <p style={{ fontSize:11,color:CORES.sub,margin:0 }}>{u.email||"—"}</p>
                   </div>
-                  <button
-                    onClick={() => alterarRole(u.id, "aluno")}
-                    style={{ padding:"5px 12px",background:"#FFF1F1",color:"#ef4444",border:"1px solid #fca5a5",borderRadius:6,fontSize:11,fontWeight:700,cursor:"pointer",flexShrink:0 }}
-                  >
+                  <button onClick={() => alterarRole(u.id, "student")}
+                    style={{ padding:"5px 12px",background:"#FFF1F1",color:"#ef4444",border:"1px solid #fca5a5",borderRadius:6,fontSize:11,fontWeight:700,cursor:"pointer",flexShrink:0 }}>
                     Revogar
                   </button>
                 </div>
               ))}
-
               <div style={{ background:CORES.card,borderRadius:14,padding:16,border:`1px solid ${CORES.border}`,marginTop:20 }}>
                 <p style={{ fontSize:13,fontWeight:700,margin:"0 0 4px" }}>➕ Promover aluno a professor</p>
-                <p style={{ fontSize:11,color:CORES.sub,margin:"0 0 12px" }}>Digite o nome do aluno para buscar</p>
+                <p style={{ fontSize:11,color:CORES.sub,margin:"0 0 12px" }}>Busque por nome ou email</p>
                 <input
                   value={buscaProfessor}
                   onChange={e => setBuscaProfessor(e.target.value)}
-                  placeholder="Nome do aluno..."
+                  placeholder="Nome ou email do aluno..."
                   style={{ width:"100%",padding:"9px 12px",borderRadius:8,border:`1px solid ${CORES.border}`,fontSize:13,boxSizing:"border-box" as any,marginBottom:8 }}
                 />
                 {busca.length >= 2 && candidatos.length === 0 && (
@@ -353,12 +383,10 @@ const candidatos = usuarios.filter(u =>
                     </div>
                     <div style={{ flex:1,minWidth:0 }}>
                       <p style={{ fontSize:13,fontWeight:600,margin:0 }}>{u.nome||"Sem nome"}</p>
-                      <p style={{ fontSize:11,color:CORES.sub,margin:0 }}>{u.plano} · {u.estado||"—"}</p>
+                      <p style={{ fontSize:11,color:CORES.sub,margin:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap" }}>{u.email||"—"}</p>
                     </div>
-                    <button
-                      onClick={() => { alterarRole(u.id, "professor"); setBuscaProfessor(""); }}
-                      style={{ padding:"5px 12px",background:"#EDFAF3",color:"#15803d",border:"1px solid #86efac",borderRadius:6,fontSize:11,fontWeight:700,cursor:"pointer",flexShrink:0 }}
-                    >
+                    <button onClick={() => { alterarRole(u.id, "professor"); setBuscaProfessor(""); }}
+                      style={{ padding:"5px 12px",background:"#EDFAF3",color:"#15803d",border:"1px solid #86efac",borderRadius:6,fontSize:11,fontWeight:700,cursor:"pointer",flexShrink:0 }}>
                       Promover ✓
                     </button>
                   </div>
@@ -371,34 +399,60 @@ const candidatos = usuarios.filter(u =>
         {/* ── USUÁRIOS ── */}
         {aba === "usuarios" && (
           <div>
-            <p style={{ fontSize:11,fontWeight:700,color:CORES.sub,textTransform:"uppercase",margin:"0 0 8px" }}>Usuários ({total})</p>
-            {usuarios.map(u => (
-              <div key={u.id} style={{ background:CORES.card,borderRadius:12,padding:"12px 14px",border:`1px solid ${CORES.border}`,marginBottom:8 }}>
-                <div style={{ display:"flex",alignItems:"center",gap:10,marginBottom:8 }}>
-                  <div style={{ width:36,height:36,borderRadius:"50%",background:CORES.primary,display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",fontWeight:700,fontSize:14 }}>
-                    {(u.nome||"?")[0].toUpperCase()}
+            <p style={{ fontSize:11,fontWeight:700,color:CORES.sub,textTransform:"uppercase",margin:"0 0 8px" }}>
+              Usuários ({totalUsuarios}) — pág. {paginaUsuarios + 1}/{Math.ceil(totalUsuarios / POR_PAGINA) || 1}
+            </p>
+            {loadingUsuarios ? (
+              <p style={{ textAlign:"center",color:CORES.sub,padding:32 }}>Carregando...</p>
+            ) : (
+              usuariosPagina.map(u => (
+                <div key={u.id} style={{ background:CORES.card,borderRadius:12,padding:"12px 14px",border:`1px solid ${CORES.border}`,marginBottom:8 }}>
+                  <div style={{ display:"flex",alignItems:"center",gap:10,marginBottom:8 }}>
+                    <div style={{ width:36,height:36,borderRadius:"50%",background:CORES.primary,display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",fontWeight:700,fontSize:14 }}>
+                      {(u.nome||"?")[0].toUpperCase()}
+                    </div>
+                    <div style={{ flex:1 }}>
+                      <p style={{ fontSize:13,fontWeight:600,margin:0 }}>{u.nome||"Sem nome"}</p>
+                      <p style={{ fontSize:11,color:CORES.sub,margin:0 }}>{u.email||"—"} · ⚡{u.xp_total} · 🔥{u.sequencia}d</p>
+                    </div>
                   </div>
-                  <div style={{ flex:1 }}>
-                    <p style={{ fontSize:13,fontWeight:600,margin:0 }}>{u.nome||"Sem nome"}</p>
-                    <p style={{ fontSize:11,color:CORES.sub,margin:0 }}>{u.estado||"—"} · ⚡{u.xp_total} · 🔥{u.sequencia}d</p>
+                  <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:6 }}>
+                    <div>
+                      <p style={{ fontSize:10,color:CORES.sub,margin:"0 0 3px" }}>PLANO</p>
+                      <select value={u.plano} onChange={e=>alterarPlano(u.id,e.target.value)} style={{ width:"100%",padding:"5px 8px",borderRadius:6,border:`1px solid ${CORES.border}`,fontSize:12 }}>
+                        {["gratis","estudante","pro","premium","ouro"].map(p=><option key={p}>{p}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <p style={{ fontSize:10,color:CORES.sub,margin:"0 0 3px" }}>ROLE</p>
+                      <select value={u.role||"student"} onChange={e=>alterarRole(u.id,e.target.value)} style={{ width:"100%",padding:"5px 8px",borderRadius:6,border:`1px solid ${CORES.border}`,fontSize:12 }}>
+                        {["student","professor","admin"].map(r=><option key={r}>{r}</option>)}
+                      </select>
+                    </div>
                   </div>
                 </div>
-                <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:6 }}>
-                  <div>
-                    <p style={{ fontSize:10,color:CORES.sub,margin:"0 0 3px" }}>PLANO</p>
-                    <select value={u.plano} onChange={e=>alterarPlano(u.id,e.target.value)} style={{ width:"100%",padding:"5px 8px",borderRadius:6,border:`1px solid ${CORES.border}`,fontSize:12 }}>
-                      {["gratis","estudante","pro","premium","ouro"].map(p=><option key={p}>{p}</option>)}
-                    </select>
-                  </div>
-                  <div>
-                    <p style={{ fontSize:10,color:CORES.sub,margin:"0 0 3px" }}>ROLE</p>
-                    <select value={u.role||"aluno"} onChange={e=>alterarRole(u.id,e.target.value)} style={{ width:"100%",padding:"5px 8px",borderRadius:6,border:`1px solid ${CORES.border}`,fontSize:12 }}>
-                      {["aluno","professor","admin"].map(r=><option key={r}>{r}</option>)}
-                    </select>
-                  </div>
-                </div>
-              </div>
-            ))}
+              ))
+            )}
+            {/* Paginação */}
+            <div style={{ display:"flex",gap:8,justifyContent:"center",marginTop:16 }}>
+              <button
+                onClick={() => setPaginaUsuarios(p => Math.max(0, p - 1))}
+                disabled={paginaUsuarios === 0}
+                style={{ padding:"8px 16px",borderRadius:8,border:`1px solid ${CORES.border}`,background:CORES.card,fontSize:13,cursor:paginaUsuarios===0?"not-allowed":"pointer",color:paginaUsuarios===0?CORES.sub:CORES.text }}
+              >
+                ← Anterior
+              </button>
+              <span style={{ padding:"8px 12px",fontSize:13,color:CORES.sub }}>
+                {paginaUsuarios + 1} / {Math.ceil(totalUsuarios / POR_PAGINA) || 1}
+              </span>
+              <button
+                onClick={() => setPaginaUsuarios(p => p + 1)}
+                disabled={(paginaUsuarios + 1) * POR_PAGINA >= totalUsuarios}
+                style={{ padding:"8px 16px",borderRadius:8,border:`1px solid ${CORES.border}`,background:CORES.card,fontSize:13,cursor:(paginaUsuarios+1)*POR_PAGINA>=totalUsuarios?"not-allowed":"pointer",color:(paginaUsuarios+1)*POR_PAGINA>=totalUsuarios?CORES.sub:CORES.text }}
+              >
+                Próximo →
+              </button>
+            </div>
           </div>
         )}
 
