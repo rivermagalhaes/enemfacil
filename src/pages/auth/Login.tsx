@@ -8,6 +8,7 @@ export default function Login() {
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
+  const [nome, setNome] = useState("");
   const [loading, setLoading] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
   const [modo, setModo] = useState<"login" | "cadastro">("login");
@@ -16,6 +17,7 @@ export default function Login() {
 
   async function handleSubmit() {
     if (!email || !senha) { setErro("Preencha todos os campos."); return; }
+    if (modo === "cadastro" && !nome.trim()) { setErro("Informe seu nome."); return; }
     setLoading(true); setErro(null);
 
     if (modo === "login") {
@@ -23,11 +25,9 @@ export default function Login() {
       if (error) { setErro("Email ou senha incorretos."); setLoading(false); return; }
       navigate("/");
     } else {
-      // Detecta e-mail institucional .edu.br
       const isEduBr = email.toLowerCase().endsWith(".edu.br");
-
-      // Valida código de convite se não for .edu.br
       let roleDefinido: string = "student";
+
       if (isEduBr) {
         roleDefinido = "professor";
       } else if (codigoConvite.trim()) {
@@ -43,16 +43,20 @@ export default function Login() {
           return;
         }
         roleDefinido = "professor";
-        // Marca código como usado
-        await supabase.from("codigos_convite").update({ usado: true, usado_em: new Date().toISOString() }).eq("id", convite.id);
+        await supabase.from("codigos_convite")
+          .update({ usado: true, usado_em: new Date().toISOString() })
+          .eq("id", convite.id);
       }
 
       const { data: authData, error } = await supabase.auth.signUp({ email, password: senha });
       if (error) { setErro("Erro ao criar conta. Tente outro email."); setLoading(false); return; }
 
-      // Atualiza role no profile se for professor
-      if (roleDefinido === "professor" && authData.user) {
-        await supabase.from("profiles").update({ role: "professor" }).eq("id", authData.user.id);
+      if (authData.user) {
+        // Salva nome e role no profile
+        await supabase.from("profiles").update({
+          nome: nome.trim(),
+          ...(roleDefinido === "professor" ? { role: "professor" } : {}),
+        }).eq("id", authData.user.id);
       }
 
       setSucesso(true);
@@ -63,8 +67,13 @@ export default function Login() {
   async function handleGoogle() {
     await supabase.auth.signInWithOAuth({
       provider: "google",
-      options: { redirectTo: `${window.location.origin}/` },
+      options: {
+        redirectTo: `${window.location.origin}/`,
+        queryParams: { prompt: "select_account" },
+      },
     });
+    // O nome do Google é salvo automaticamente via trigger no Supabase
+    // Veja: handle_new_user trigger deve copiar raw_user_meta_data->full_name para nome
   }
 
   return (
@@ -74,11 +83,8 @@ export default function Login() {
         background: `linear-gradient(135deg, ${CORES.bgDark} 0%, #0A1628 60%, #0D1F3C 100%)`,
         padding: "48px 24px 40px", textAlign: "center", position: "relative", overflow: "hidden",
       }}>
-        {/* Efeito de fundo */}
         <div style={{ position: "absolute", inset: 0, background: `radial-gradient(circle at 50% 80%, ${CORES.primary}30 0%, transparent 60%)`, pointerEvents: "none" }} />
-
         <div style={{ position: "relative" }}>
-          {/* Logo */}
           <div style={{ width: 72, height: 72, borderRadius: 20, background: CORES.primary, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px", fontSize: 36, boxShadow: `0 8px 32px ${CORES.primary}60` }}>
             🎯
           </div>
@@ -122,21 +128,36 @@ export default function Login() {
             )}
 
             <div style={{ display: "flex", flexDirection: "column", gap: 12, marginBottom: 16 }}>
+
+              {/* Campo nome — só no cadastro */}
+              {modo === "cadastro" && (
+                <div>
+                  <label style={{ fontSize: 12, fontWeight: 600, color: CORES.textSub, display: "block", marginBottom: 6 }}>Nome completo</label>
+                  <input
+                    type="text" value={nome} onChange={e => setNome(e.target.value)}
+                    placeholder="Seu nome"
+                    style={{ width: "100%", padding: "12px 14px", borderRadius: 10, border: `1.5px solid ${CORES.border}`, fontSize: 14, outline: "none", boxSizing: "border-box" as const, background: "#fff", color: CORES.text }}
+                    onKeyDown={e => e.key === "Enter" && handleSubmit()}
+                  />
+                </div>
+              )}
+
               <div>
                 <label style={{ fontSize: 12, fontWeight: 600, color: CORES.textSub, display: "block", marginBottom: 6 }}>Email</label>
                 <input
                   type="email" value={email} onChange={e => setEmail(e.target.value)}
                   placeholder="seu@email.com"
-                  style={{ width: "100%", padding: "12px 14px", borderRadius: 10, border: `1.5px solid ${CORES.border}`, fontSize: 14, outline: "none", boxSizing: "border-box", background: "#fff", color: CORES.text }}
+                  style={{ width: "100%", padding: "12px 14px", borderRadius: 10, border: `1.5px solid ${CORES.border}`, fontSize: 14, outline: "none", boxSizing: "border-box" as const, background: "#fff", color: CORES.text }}
                   onKeyDown={e => e.key === "Enter" && handleSubmit()}
                 />
               </div>
+
               <div>
                 <label style={{ fontSize: 12, fontWeight: 600, color: CORES.textSub, display: "block", marginBottom: 6 }}>Senha</label>
                 <input
                   type="password" value={senha} onChange={e => setSenha(e.target.value)}
                   placeholder="••••••••"
-                  style={{ width: "100%", padding: "12px 14px", borderRadius: 10, border: `1.5px solid ${CORES.border}`, fontSize: 14, outline: "none", boxSizing: "border-box", background: "#fff", color: CORES.text }}
+                  style={{ width: "100%", padding: "12px 14px", borderRadius: 10, border: `1.5px solid ${CORES.border}`, fontSize: 14, outline: "none", boxSizing: "border-box" as const, background: "#fff", color: CORES.text }}
                   onKeyDown={e => e.key === "Enter" && handleSubmit()}
                 />
               </div>

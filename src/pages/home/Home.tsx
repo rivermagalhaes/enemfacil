@@ -243,6 +243,24 @@ export default function Home() {
           </button>
         )}
 
+{/* Olimpíadas */}
+<button onClick={() => navigate("/olimpiadas/quimica")} style={{
+  width: "100%", display: "flex", alignItems: "center", gap: 14,
+  padding: "14px 16px", borderRadius: 16, marginBottom: 10,
+  background: "linear-gradient(135deg, #3b0764, #6d28d9)",
+  border: "none", cursor: "pointer", textAlign: "left",
+  boxShadow: "0 8px 24px rgba(109,40,217,0.35)",
+}}>
+  <div style={{ width: 50, height: 50, borderRadius: 14, background: "rgba(255,255,255,0.15)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 26, flexShrink: 0 }}>
+    🏆
+  </div>
+  <div style={{ flex: 1 }}>
+    <p style={{ fontSize: 15, fontWeight: 700, color: "#fff", margin: "0 0 2px" }}>Olimpíadas de Química</p>
+    <p style={{ fontSize: 11, color: "rgba(255,255,255,0.7)", margin: 0 }}>OBQ Nacional · OTQ Tocantins</p>
+  </div>
+  <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="rgba(255,255,255,0.6)" strokeWidth="2"><path d="M6 4l4 4-4 4"/></svg>
+</button>
+
         {/* Vestibulares */}
         <p style={{ fontSize: 13, fontWeight: 700, color: CORES.text, textTransform: "uppercase", letterSpacing: "0.08em", margin: "0 0 12px" }}>Vestibulares</p>
         <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 24 }}>

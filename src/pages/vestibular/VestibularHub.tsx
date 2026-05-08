@@ -7,6 +7,18 @@ const VESTIBULARES: Record<string, {
   nome: string; emoji: string; cor: string; bg: string;
   desc: string; dificuldade: string; foco: string[];
 }> = {
+OBQ: {
+  nome: "OBQ", emoji: "🥇", cor: "#7C3AED", bg: "#F3F0FF",
+  desc: "Olimpíada Brasileira de Química",
+  dificuldade: "⭐⭐⭐⭐ Difícil",
+  foco: ["Química Geral", "Inorgânica", "Orgânica", "Físico-Química"],
+},
+OTQ: {
+  nome: "OTQ", emoji: "🧪", cor: "#0A7C4B", bg: "#EDFAF3",
+  desc: "Olimpíada Tocantinense de Química",
+  dificuldade: "⭐⭐⭐ Médio",
+  foco: ["Química Geral", "Inorgânica", "Orgânica"],
+},
   ENEM: {
     nome: "ENEM", emoji: "🎯", cor: "#0057FF", bg: "#E6EEFF",
     desc: "Exame Nacional do Ensino Médio",
