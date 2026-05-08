@@ -87,24 +87,31 @@ export default function SalaVirtual() {
     }
   }, []);
 
-  // ✅ CORRIGIDO: só vai pro quiz quando iniciada_em mudar de null para preenchido
+  // Realtime — escuta mudanças na sala (substitui polling)
   useEffect(() => {
     if (!sala || fase === "lobby") return;
-    const interval = setInterval(async () => {
-      const { data } = await supabase
-        .from("salas_virtuais").select("*").eq("id", sala.id).single();
-      if (!data) return;
-      if (fase === "aguardando" && data.iniciada_em !== null && sala.iniciada_em === null) {
-        await carregarQuestoes(data);
-        setSala(data);
-        setFase("quiz");
-      }
-      if (data.status === "encerrada" && fase !== "resultado") {
-        await carregarRanking(data.id);
-        setFase("resultado");
-      }
-    }, 3000);
-    return () => clearInterval(interval);
+
+    const channel = supabase
+      .channel(`sala-status-${sala.id}`)
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "salas_virtuais", filter: `id=eq.${sala.id}` },
+        async (payload) => {
+          const data = payload.new as typeof sala;
+          if (fase === "aguardando" && data.iniciada_em !== null && sala.iniciada_em === null) {
+            await carregarQuestoes(data);
+            setSala(data);
+            setFase("quiz");
+          }
+          if (data.status === "encerrada" && fase !== "resultado") {
+            await carregarRanking(data.id);
+            setFase("resultado");
+          }
+        }
+      )
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
   }, [sala, fase]);
 
   useEffect(() => {
