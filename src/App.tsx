@@ -23,6 +23,7 @@ import TrilhaFisicoQuimica from "@/pages/trilha/TrilhaFisicoQuimica";
 import SalaVirtual from "@/pages/sala/SalaVirtual";
 import SalaVirtualProfessor from "@/pages/sala/SalaVirtualProfessor";
 import SimuladoAluno from "@/pages/sala/SimuladoAluno";
+import TrilhaHumanas from "@/pages/trilha/TrilhaHumanas";
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
@@ -57,6 +58,7 @@ export default function App() {
         <Route path="/trilha/:vestibular/matematica" element={<PrivateRoute><TrilhaMatematica /></PrivateRoute>} />
         <Route path="/trilha/:vestibular/portugues" element={<PrivateRoute><TrilhaPortugues /></PrivateRoute>} />
         <Route path="/trilha/:vestibular/ingles" element={<PrivateRoute><TrilhaIngles /></PrivateRoute>} />
+        <Route path="/trilha/:vestibular/humanas" element={<PrivateRoute><TrilhaHumanas /></PrivateRoute>} />
         <Route path="/trilha/:vestibular/fisicoquimica" element={<PrivateRoute><TrilhaFisicoQuimica /></PrivateRoute>} />
         <Route path="/redacao" element={<PrivateRoute><Redacao /></PrivateRoute>} />
         <Route path="/perfil" element={<PrivateRoute><Perfil /></PrivateRoute>} />
