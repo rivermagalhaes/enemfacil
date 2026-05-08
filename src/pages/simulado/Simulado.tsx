@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/lib/supabaseClient";
 import { useAuth } from "@/hooks/useAuth";
 import BottomNav from "@/components/layout/BottomNav";
-import { AREAS, CORES, LIMITES_DIA } from "@/styles/theme";
+import { AREAS, CORES, LIMITES_SIMULADO } from "@/styles/theme";
 import { addXP, XP } from "@/lib/xpService";
 import FeedbackModal from "@/components/ui/FeedbackModal";
 
@@ -44,7 +44,7 @@ const TRAVA_DIAS = [3, 21, 90];
 const TEMPO_TOTAL = 45 * 60;
 
 function useUsoSimulado(userId: string | undefined, plano: string) {
-  const limite = LIMITES_DIA[plano] ?? 3;
+  const limite = LIMITES_SIMULADO[plano] ?? Infinity;
   const [usosHoje, setUsosHoje]     = useState(0);
   const [travadoAte, setTravadoAte] = useState<Date | null>(null);
   const [travaNivel, setTravaNivel] = useState(0);
