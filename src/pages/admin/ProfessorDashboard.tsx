@@ -3,6 +3,7 @@ import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/lib/supabaseClient";
 import { useAuth } from "@/hooks/useAuth";
+import { QRCodeSVG } from "qrcode.react";
 
 const CORES = { bg:"#F4F6FB",card:"#FFFFFF",primary:"#0057FF",text:"#1a1a2e",sub:"#64748B",border:"#E2E8F0" };
 const ABAS = [
@@ -10,6 +11,7 @@ const ABAS = [
   { id:"questoes",   label:"Questões",       emoji:"📝" },
   { id:"cadastrar",  label:"Nova Questão",   emoji:"➕" },
   { id:"impressao",  label:"Imprimir Prova", emoji:"🖨️" },
+  { id:"qrcode",     label:"QR Correção",    emoji:"📷" },
   { id:"salas",      label:"Salas Virtuais", emoji:"🏫" },
 ];
 
@@ -21,6 +23,14 @@ export default function ProfessorDashboard() {
   const [aba, setAba] = useState("materiais");
   const [materiais, setMateriais] = useState<Material[]>([]);
   const [loading, setLoading] = useState(true);
+  // Estados QR Code
+  const [minhasTurmas, setMinhasTurmas] = useState<any[]>([]);
+  const [turmaSelecionada, setTurmaSelecionada] = useState<string>("");
+  const [alunosDaTurma, setAlunosDaTurma] = useState<any[]>([]);
+  const [minhasAvaliacoes, setMinhasAvaliacoes] = useState<any[]>([]);
+  const [avaliacaoSelecionada, setAvaliacaoSelecionada] = useState<string>("");
+  const [loadingQR, setLoadingQR] = useState(false);
+  const [alunoQRAberto, setAlunoQRAberto] = useState<string | null>(null);
   const [uploadando, setUploadando] = useState(false);
   const [importando, setImportando] = useState(false);
 
@@ -336,6 +346,51 @@ export default function ProfessorDashboard() {
 
   async function deletarMaterial(id: string) { await supabase.from("materiais").delete().eq("id", id); setMateriais(p=>p.filter(m=>m.id!==id)); }
 
+
+  useEffect(() => {
+    if (aba === "qrcode" && user) carregarTurmasEAvaliacoes();
+  }, [aba, user]);
+
+  useEffect(() => {
+    if (turmaSelecionada) carregarAlunosDaTurma(turmaSelecionada);
+    else setAlunosDaTurma([]);
+  }, [turmaSelecionada]);
+
+  async function carregarTurmasEAvaliacoes() {
+    setLoadingQR(true);
+    const { data: turmas } = await supabase.from("classrooms").select("id, nome, codigo").eq("professor_id", user!.id).eq("ativa", true);
+    setMinhasTurmas(turmas ?? []);
+    const { data: avs } = await supabase.from("assignments").select("id, titulo, created_at").eq("professor_id", user!.id).eq("ativo", true).order("created_at", { ascending: false });
+    setMinhasAvaliacoes(avs ?? []);
+    setLoadingQR(false);
+  }
+
+  async function carregarAlunosDaTurma(classroomId: string) {
+    const { data: membros } = await supabase.from("classroom_members").select("student_id").eq("classroom_id", classroomId);
+    if (!membros || membros.length === 0) { setAlunosDaTurma([]); return; }
+    const ids = membros.map((m: any) => m.student_id);
+    const { data: perfis } = await supabase.from("profiles").select("id, nome, email, avatar_url").in("id", ids).order("nome");
+    setAlunosDaTurma(perfis ?? []);
+  }
+
+  function gerarUrlCorrecao(studentId: string) {
+    return `${window.location.origin}/correcao/${avaliacaoSelecionada}/${studentId}`;
+  }
+
+  function imprimirQRCodes() {
+    if (!avaliacaoSelecionada || alunosDaTurma.length === 0) return;
+    const avaliacao = minhasAvaliacoes.find(a => a.id === avaliacaoSelecionada);
+    const turma = minhasTurmas.find(t => t.id === turmaSelecionada);
+    const cartoes = alunosDaTurma.map(aluno => {
+      const url = gerarUrlCorrecao(aluno.id);
+      return `<div style="border:1.5px solid #ccc;border-radius:12px;padding:16px;margin-bottom:16px;page-break-inside:avoid;display:flex;align-items:center;gap:20px;font-family:Arial,sans-serif"><div id="qr-${aluno.id}" style="width:100px;height:100px;flex-shrink:0"></div><div style="flex:1"><p style="font-size:16px;font-weight:700;margin:0 0 4px">${aluno.nome || aluno.email}</p><p style="font-size:12px;color:#64748B;margin:0 0 2px">📋 ${avaliacao?.titulo || "Avaliação"}</p><p style="font-size:12px;color:#64748B;margin:0 0 2px">🏫 ${turma?.nome || ""}</p><p style="font-size:10px;color:#94a3b8;margin:0;word-break:break-all">${url}</p></div><div style="text-align:center;flex-shrink:0"><p style="font-size:10px;color:#94a3b8;margin:0 0 4px">Nota:</p><div style="width:60px;height:32px;border:1.5px solid #ccc;border-radius:6px"></div></div></div>`;
+    }).join("");
+    const urlsJson = JSON.stringify(alunosDaTurma.map(a => ({ id: a.id, url: gerarUrlCorrecao(a.id) })));
+    const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>QR Codes</title><script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script><style>body{font-family:Arial,sans-serif;max-width:800px;margin:0 auto;padding:24px}@media print{.no-print{display:none}}</style></head><body><div class="no-print" style="text-align:center;margin-bottom:20px"><button onclick="window.print()" style="padding:10px 24px;background:#0A7C4B;color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer">🖨️ Imprimir</button></div><h2>${avaliacao?.titulo || "Avaliação"}</h2><p style="color:#64748B">${turma?.nome || ""} · ${alunosDaTurma.length} alunos</p>${cartoes}<script>const urls=${urlsJson};urls.forEach(function(item){var el=document.getElementById("qr-"+item.id);if(el)QRCode.toCanvas(document.createElement("canvas"),item.url,{width:100,margin:1},function(err,canvas){if(!err&&canvas)el.appendChild(canvas);});});setTimeout(function(){window.print();},1200);</script></body></html>`;
+    const win = window.open("", "_blank");
+    if (win) { win.document.write(html); win.document.close(); }
+  }
+
   if (loading) return <div style={{display:"flex",alignItems:"center",justifyContent:"center",height:"100dvh"}}><p>Carregando...</p></div>;
 
   return (
@@ -360,9 +415,9 @@ export default function ProfessorDashboard() {
       )}
 
       {/* Abas */}
-      <div style={{ display:"flex",gap:4,padding:"12px 20px 0" }}>
+      <div style={{ display:"flex",gap:4,padding:"12px 20px 0",overflowX:"auto",scrollbarWidth:"none" }}>
         {ABAS.map(a => (
-          <button key={a.id} onClick={()=>setAba(a.id)} style={{ padding:"8px 16px",borderRadius:10,border:"none",cursor:"pointer",fontWeight:600,fontSize:12,background:aba===a.id?"#0A7C4B":CORES.card,color:aba===a.id?"#fff":CORES.sub }}>
+          <button key={a.id} onClick={()=>setAba(a.id)} style={{ padding:"6px 10px",borderRadius:10,border:"none",cursor:"pointer",fontWeight:600,fontSize:11,background:aba===a.id?"#0A7C4B":CORES.card,color:aba===a.id?"#fff":CORES.sub }}>
             {a.emoji} {a.label}
           </button>
         ))}
@@ -671,6 +726,105 @@ export default function ProfessorDashboard() {
         )}
 
         {/* SALAS VIRTUAIS */}
+
+        {/* QR CODE DE CORREÇÃO */}
+        {aba === "qrcode" && (
+          <div>
+            <div style={{ background:CORES.card,borderRadius:14,padding:16,border:`1px solid ${CORES.border}`,marginBottom:16 }}>
+              <p style={{ fontSize:15,fontWeight:700,margin:"0 0 4px" }}>📷 Gerar QR Codes para Correção</p>
+              <p style={{ fontSize:12,color:CORES.sub,margin:"0 0 16px",lineHeight:1.6 }}>
+                Selecione uma avaliação e uma turma. Cada aluno recebe um QR Code único. O professor escaneia a folha e corrige direto no celular.
+              </p>
+              {loadingQR ? (
+                <p style={{ color:CORES.sub,fontSize:13,textAlign:"center",padding:16 }}>Carregando...</p>
+              ) : (
+                <div style={{ display:"flex",flexDirection:"column",gap:10 }}>
+                  <div>
+                    <p style={{ fontSize:11,fontWeight:600,color:CORES.sub,margin:"0 0 4px",textTransform:"uppercase" }}>Avaliação</p>
+                    <select value={avaliacaoSelecionada} onChange={e => setAvaliacaoSelecionada(e.target.value)}
+                      style={{ width:"100%",padding:"10px 12px",borderRadius:10,border:`1px solid ${CORES.border}`,fontSize:13,background:"#fff" }}>
+                      <option value="">Selecione uma avaliação...</option>
+                      {minhasAvaliacoes.map(a => (<option key={a.id} value={a.id}>{a.titulo}</option>))}
+                    </select>
+                    {minhasAvaliacoes.length === 0 && (
+                      <p style={{ fontSize:11,color:"#f59e0b",margin:"4px 0 0" }}>⚠️ Nenhuma avaliação ativa encontrada.</p>
+                    )}
+                  </div>
+                  <div>
+                    <p style={{ fontSize:11,fontWeight:600,color:CORES.sub,margin:"0 0 4px",textTransform:"uppercase" }}>Turma</p>
+                    <select value={turmaSelecionada} onChange={e => setTurmaSelecionada(e.target.value)}
+                      style={{ width:"100%",padding:"10px 12px",borderRadius:10,border:`1px solid ${CORES.border}`,fontSize:13,background:"#fff" }}>
+                      <option value="">Selecione uma turma...</option>
+                      {minhasTurmas.map(t => (<option key={t.id} value={t.id}>{t.nome} {t.codigo ? `(${t.codigo})` : ""}</option>))}
+                    </select>
+                    {minhasTurmas.length === 0 && (
+                      <p style={{ fontSize:11,color:"#f59e0b",margin:"4px 0 0" }}>⚠️ Nenhuma turma ativa.</p>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {alunosDaTurma.length > 0 && avaliacaoSelecionada && (
+              <div>
+                <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12 }}>
+                  <p style={{ fontSize:13,fontWeight:700,margin:0 }}>{alunosDaTurma.length} alunos encontrados</p>
+                  <button onClick={imprimirQRCodes}
+                    style={{ padding:"8px 16px",background:"linear-gradient(90deg,#065C37,#0A7C4B)",color:"#fff",border:"none",borderRadius:10,fontSize:12,fontWeight:700,cursor:"pointer" }}>
+                    🖨️ Imprimir QR Codes
+                  </button>
+                </div>
+                <div style={{ display:"flex",flexDirection:"column",gap:10 }}>
+                  {alunosDaTurma.map(aluno => {
+                    const url = gerarUrlCorrecao(aluno.id);
+                    const aberto = alunoQRAberto === aluno.id;
+                    return (
+                      <div key={aluno.id} style={{ background:CORES.card,borderRadius:14,border:`1px solid ${CORES.border}`,overflow:"hidden" }}>
+                        <div onClick={() => setAlunoQRAberto(aberto ? null : aluno.id)}
+                          style={{ display:"flex",alignItems:"center",gap:12,padding:"12px 16px",cursor:"pointer" }}>
+                          <div style={{ width:36,height:36,borderRadius:"50%",background:"linear-gradient(135deg,#065C37,#0A7C4B)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:16,flexShrink:0 }}>👤</div>
+                          <div style={{ flex:1,minWidth:0 }}>
+                            <p style={{ fontSize:13,fontWeight:700,margin:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap" }}>{aluno.nome || aluno.email}</p>
+                            <p style={{ fontSize:11,color:CORES.sub,margin:0 }}>{aluno.email}</p>
+                          </div>
+                          <div style={{ display:"flex",alignItems:"center",gap:8 }}>
+                            <button onClick={e => { e.stopPropagation(); navigate(`/correcao/${avaliacaoSelecionada}/${aluno.id}`); }}
+                              style={{ padding:"5px 10px",background:"#E6EEFF",color:CORES.primary,border:"none",borderRadius:8,fontSize:11,fontWeight:700,cursor:"pointer" }}>
+                              ✏️ Corrigir
+                            </button>
+                            <span style={{ fontSize:11,color:CORES.sub,display:"inline-block",transform:aberto?"rotate(180deg)":"rotate(0deg)",transition:"transform 0.2s" }}>▼</span>
+                          </div>
+                        </div>
+                        {aberto && (
+                          <div style={{ borderTop:`1px solid ${CORES.border}`,padding:"16px",display:"flex",alignItems:"center",gap:20,background:"#f8fafc" }}>
+                            <div style={{ flexShrink:0,padding:8,background:"#fff",borderRadius:10,border:`1px solid ${CORES.border}` }}>
+                              <QRCodeSVG value={url} size={100} level="M" />
+                            </div>
+                            <div style={{ flex:1,minWidth:0 }}>
+                              <p style={{ fontSize:12,fontWeight:700,margin:"0 0 4px" }}>QR Code de correção</p>
+                              <p style={{ fontSize:10,color:CORES.sub,margin:"0 0 10px",wordBreak:"break-all",lineHeight:1.4 }}>{url}</p>
+                              <button onClick={() => navigate(`/correcao/${avaliacaoSelecionada}/${aluno.id}`)}
+                                style={{ padding:"8px 16px",background:"linear-gradient(90deg,#065C37,#0A7C4B)",color:"#fff",border:"none",borderRadius:8,fontSize:12,fontWeight:700,cursor:"pointer" }}>
+                                Abrir correção →
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+            {turmaSelecionada && alunosDaTurma.length === 0 && !loadingQR && (
+              <div style={{ background:CORES.card,borderRadius:14,padding:32,border:`1px solid ${CORES.border}`,textAlign:"center" }}>
+                <p style={{ fontSize:40,margin:"0 0 8px" }}>🏫</p>
+                <p style={{ color:CORES.sub,fontSize:13 }}>Nenhum aluno nesta turma ainda.</p>
+              </div>
+            )}
+          </div>
+        )}
+
         {aba === "salas" && (
           <div style={{ display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:"40px 20px",gap:16 }}>
             <div style={{ fontSize:52 }}>🏫</div>

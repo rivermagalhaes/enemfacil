@@ -6,6 +6,7 @@ import { useAuth } from "@/hooks/useAuth";
 import BottomNav from "@/components/layout/BottomNav";
 import { CORES } from "@/styles/theme";
 import MapaMental from "@/components/MapaMental";
+import ModalUnidade from "@/components/trilha/ModalUnidade";
 
 const UNIDADES = [
   { id: "introducao-cinematica", numero: 1, titulo: "Introdução à Cinemática", emoji: "📏", cor: "#6366f1", bg: "#eef2ff", topic: null, topicos: ["Movimento e repouso", "Referencial", "Trajetória", "Grandezas escalares e vetoriais"], xp: 50 },
@@ -56,13 +57,9 @@ export default function TrilhaFisica() {
   const concluidas = Object.values(progresso).filter((p: any) => p.status === "concluido").length;
   const pct = Math.round((concluidas / UNIDADES.length) * 100);
 
-  return <TrilhaBase titulo="Física" emoji="⚡" vestUpper={vestUpper} corVest={corVest} unidades={UNIDADES} progresso={progresso} loading={loading} unidadeAberta={unidadeAberta} setUnidadeAberta={setUnidadeAberta} concluirUnidade={concluirUnidade} totalXP={totalXP} concluidas={concluidas} pct={pct} navigate={navigate} mapaMentalAberto={mapaMentalAberto} setMapaMentalAberto={setMapaMentalAberto} />;
-}
-
-// ── Componente base reutilizável ──────────────────────────────
-function TrilhaBase({ titulo, emoji, vestUpper, corVest, unidades, progresso, loading, unidadeAberta, setUnidadeAberta, concluirUnidade, totalXP, pct, navigate, mapaMentalAberto, setMapaMentalAberto }: any) {
   return (
     <div style={{ display: "flex", flexDirection: "column", minHeight: "100dvh", background: CORES.bg }}>
+
       {mapaMentalAberto && (
         <MapaMental
           unidades={UNIDADES}
@@ -76,14 +73,23 @@ function TrilhaBase({ titulo, emoji, vestUpper, corVest, unidades, progresso, lo
         />
       )}
 
-      {unidadeAberta && <ModalQuestoes unidade={unidadeAberta} vestibular={vestUpper} onClose={() => setUnidadeAberta(null)} onConcluir={() => concluirUnidade(unidadeAberta.id, unidadeAberta.xp)} />}
+      {unidadeAberta && (
+        <ModalUnidade
+          unidade={unidadeAberta}
+          vestibular={vestUpper}
+          materia="fisica"
+          onClose={() => setUnidadeAberta(null)}
+          onConcluir={() => concluirUnidade(unidadeAberta.id, unidadeAberta.xp)}
+        />
+      )}
+
       <div style={{ background: `linear-gradient(135deg, ${corVest}, ${corVest}dd)`, padding: "16px 16px 20px", flexShrink: 0 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
           <button onClick={() => navigate(-1)} style={{ width: 32, height: 32, borderRadius: "50%", background: "rgba(255,255,255,0.2)", border: "none", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
             <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round"><path d="M10 3L5 8l5 5"/></svg>
           </button>
           <div style={{ flex: 1 }}>
-            <p style={{ fontSize: 16, fontWeight: 700, color: "#fff", margin: 0 }}>{emoji} Trilha de {titulo}</p>
+            <p style={{ fontSize: 16, fontWeight: 700, color: "#fff", margin: 0 }}>⚡ Trilha de Física</p>
             <p style={{ fontSize: 11, color: "rgba(255,255,255,0.7)", margin: 0 }}>{vestUpper}</p>
           </div>
           <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4 }}>
@@ -103,16 +109,18 @@ function TrilhaBase({ titulo, emoji, vestUpper, corVest, unidades, progresso, lo
           </div>
         </div>
       </div>
+
       <div style={{ flex: 1, overflowY: "auto", padding: "16px 14px 90px" }}>
         {loading ? <p style={{ textAlign: "center", color: CORES.textSub, padding: 32 }}>Carregando...</p> : (
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            {unidades.map((u: any, i: number) => {
+            {UNIDADES.map((u, i) => {
               const prog = progresso[u.id];
               const concluida = prog?.status === "concluido";
-              const anterior = i === 0 || progresso[unidades[i-1].id]?.status === "concluido";
+              const anterior = i === 0 || progresso[UNIDADES[i-1].id]?.status === "concluido";
               const bloqueada = !anterior && !concluida;
               return (
-                <button key={u.id} onClick={() => !bloqueada && setUnidadeAberta(u)} style={{ display: "flex", alignItems: "center", gap: 14, padding: "14px 16px", borderRadius: 16, background: bloqueada ? "#f9fafb" : concluida ? u.bg : CORES.bgCard, border: concluida ? `2px solid ${u.cor}44` : bloqueada ? "1.5px solid #e5e7eb" : `1.5px solid ${u.cor}22`, cursor: bloqueada ? "not-allowed" : "pointer", textAlign: "left", boxShadow: concluida ? `0 2px 12px ${u.cor}20` : "0 1px 4px rgba(0,0,0,0.06)", opacity: bloqueada ? 0.6 : 1 }}>
+                <button key={u.id} onClick={() => !bloqueada && setUnidadeAberta(u)}
+                  style={{ display: "flex", alignItems: "center", gap: 14, padding: "14px 16px", borderRadius: 16, background: bloqueada ? "#f9fafb" : concluida ? u.bg : CORES.bgCard, border: concluida ? `2px solid ${u.cor}44` : bloqueada ? "1.5px solid #e5e7eb" : `1.5px solid ${u.cor}22`, cursor: bloqueada ? "not-allowed" : "pointer", textAlign: "left", boxShadow: concluida ? `0 2px 12px ${u.cor}20` : "0 1px 4px rgba(0,0,0,0.06)", opacity: bloqueada ? 0.6 : 1 }}>
                   <div style={{ width: 52, height: 52, borderRadius: 14, flexShrink: 0, background: bloqueada ? "#f3f4f6" : u.bg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 26, border: `1.5px solid ${bloqueada ? "#e5e7eb" : u.cor + "33"}`, position: "relative" }}>
                     {bloqueada ? "🔒" : u.emoji}
                     {concluida && <div style={{ position: "absolute", bottom: -4, right: -4, width: 18, height: 18, borderRadius: "50%", background: "#22c55e", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, color: "#fff", border: "2px solid #fff" }}>✓</div>}
@@ -136,116 +144,6 @@ function TrilhaBase({ titulo, emoji, vestUpper, corVest, unidades, progresso, lo
         )}
       </div>
       <BottomNav />
-    </div>
-  );
-}
-
-// ── Modal de questões ─────────────────────────────────────────
-function ModalQuestoes({ unidade, vestibular, onClose, onConcluir }: any) {
-  const [questoes, setQuestoes] = useState<any[]>([]);
-  const [opcoes, setOpcoes] = useState<Record<string, string[]>>({});
-  const [idx, setIdx] = useState(0);
-  const [resposta, setResposta] = useState<number | null>(null);
-  const [acertos, setAcertos] = useState(0);
-  const [loading, setLoading] = useState(true);
-  const [fim, setFim] = useState(false);
-
-  useEffect(() => { if (unidade.topic) carregarQuestoes(); else setLoading(false); }, []);
-
-  async function carregarQuestoes() {
-    const { data: qs } = await supabase.from("questions").select("id, question, explanation, answer_index, difficulty, ano").eq("vestibular", vestibular).eq("topic", unidade.topic).limit(5);
-    if (!qs?.length) { setLoading(false); return; }
-    const { data: ops } = await supabase.from("question_options").select("question_id, option_index, label").in("question_id", qs.map((q: any) => q.id));
-    const opMap: Record<string, string[]> = {};
-    ops?.forEach((op: any) => { if (!opMap[op.question_id]) opMap[op.question_id] = []; opMap[op.question_id][op.option_index] = op.label; });
-    setQuestoes(qs); setOpcoes(opMap); setLoading(false);
-  }
-
-  function responder(i: number) {
-    if (resposta !== null) return;
-    setResposta(i);
-    if (i === questoes[idx].answer_index) setAcertos(a => a + 1);
-  }
-
-  function proxima() {
-    if (idx + 1 >= questoes.length) setFim(true);
-    else { setIdx(i => i + 1); setResposta(null); }
-  }
-
-  const q = questoes[idx];
-  const letras = ["A", "B", "C", "D", "E"];
-
-  return (
-    <div style={{ position: "fixed", inset: 0, zIndex: 999, background: "rgba(0,0,0,0.6)", display: "flex", alignItems: "flex-end", justifyContent: "center" }}>
-      <div style={{ background: "#fff", borderRadius: "20px 20px 0 0", width: "100%", maxWidth: 480, maxHeight: "90dvh", overflow: "hidden", display: "flex", flexDirection: "column" }}>
-        <div style={{ background: unidade.cor, padding: "14px 16px", display: "flex", alignItems: "center", gap: 10 }}>
-          <span style={{ fontSize: 24 }}>{unidade.emoji}</span>
-          <div style={{ flex: 1 }}><p style={{ fontSize: 14, fontWeight: 700, color: "#fff", margin: 0 }}>{unidade.titulo}</p><p style={{ fontSize: 11, color: "rgba(255,255,255,0.7)", margin: 0 }}>{questoes.length} questões do {vestibular}</p></div>
-          <button onClick={onClose} style={{ background: "rgba(255,255,255,0.2)", border: "none", borderRadius: "50%", width: 32, height: 32, cursor: "pointer", color: "#fff", fontSize: 16 }}>✕</button>
-        </div>
-        <div style={{ flex: 1, overflowY: "auto", padding: 16 }}>
-          {loading ? <p style={{ textAlign: "center", color: CORES.textSub, padding: 32 }}>Carregando questões...</p>
-          : !unidade.topic || questoes.length === 0 ? (
-            <div style={{ textAlign: "center", padding: 32 }}>
-              <p style={{ fontSize: 32, margin: "0 0 12px" }}>📝</p>
-              <p style={{ fontSize: 14, fontWeight: 600, color: CORES.text, margin: "0 0 8px" }}>Sem questões ainda</p>
-              <p style={{ fontSize: 12, color: CORES.textSub, margin: "0 0 20px" }}>Esta unidade ainda não tem questões mapeadas.</p>
-              <button onClick={() => { onConcluir(); onClose(); }} style={{ padding: "10px 24px", background: unidade.cor, color: "#fff", border: "none", borderRadius: 10, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Marcar como estudado ✓</button>
-            </div>
-          ) : fim ? (
-            <div style={{ textAlign: "center", padding: 24 }}>
-              <p style={{ fontSize: 48, margin: "0 0 12px" }}>{acertos >= questoes.length * 0.7 ? "🎉" : "📚"}</p>
-              <p style={{ fontSize: 18, fontWeight: 700, color: CORES.text, margin: "0 0 8px" }}>{acertos}/{questoes.length} acertos</p>
-              <p style={{ fontSize: 13, color: CORES.textSub, margin: "0 0 20px" }}>{acertos >= questoes.length * 0.7 ? "Ótimo! Unidade concluída." : "Continue praticando!"}</p>
-              <div style={{ display: "flex", gap: 8 }}>
-                <button onClick={onClose} style={{ flex: 1, padding: "11px 0", background: "#f3f4f6", color: CORES.text, border: "none", borderRadius: 10, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Fechar</button>
-                <button onClick={() => { onConcluir(); onClose(); }} style={{ flex: 1, padding: "11px 0", background: unidade.cor, color: "#fff", border: "none", borderRadius: 10, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Concluir ✓ +{unidade.xp} XP</button>
-              </div>
-            </div>
-          ) : (
-            <div>
-              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 12 }}>
-                <span style={{ fontSize: 12, color: CORES.textSub }}>Questão {idx + 1}/{questoes.length}</span>
-                <span style={{ fontSize: 11, background: unidade.bg, color: unidade.cor, borderRadius: 6, padding: "2px 8px", fontWeight: 600 }}>{q.ano}</span>
-              </div>
-              <div style={{ height: 3, background: "#f3f4f6", borderRadius: 2, marginBottom: 16 }}>
-                <div style={{ width: `${(idx / questoes.length) * 100}%`, height: "100%", background: unidade.cor, borderRadius: 2 }} />
-              </div>
-              <div style={{ background: unidade.bg, borderRadius: 12, padding: 14, marginBottom: 14, border: `1px solid ${unidade.cor}22` }}>
-                <p style={{ fontSize: 13, color: CORES.text, lineHeight: 1.65, margin: 0 }}>{q.question}</p>
-              </div>
-              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                {(opcoes[q.id] ?? []).map((op: string, i: number) => {
-                  const correta = i === q.answer_index;
-                  const selecionada = i === resposta;
-                  let bg = "#f9fafb", cor = CORES.text, border = "1px solid #e5e7eb";
-                  if (resposta !== null) {
-                    if (correta) { bg = "#dcfce7"; cor = "#15803d"; border = "1px solid #86efac"; }
-                    else if (selecionada) { bg = "#fee2e2"; cor = "#b91c1c"; border = "1px solid #fca5a5"; }
-                  }
-                  return (
-                    <button key={i} onClick={() => responder(i)} style={{ display: "flex", alignItems: "flex-start", gap: 10, padding: "10px 12px", borderRadius: 10, border, background: bg, cursor: resposta !== null ? "default" : "pointer", textAlign: "left" }}>
-                      <span style={{ width: 22, height: 22, borderRadius: "50%", background: selecionada || (resposta !== null && correta) ? unidade.cor : "#e5e7eb", color: selecionada || (resposta !== null && correta) ? "#fff" : "#666", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 700, flexShrink: 0 }}>{letras[i]}</span>
-                      <span style={{ fontSize: 13, color: cor, lineHeight: 1.5 }}>{op}</span>
-                    </button>
-                  );
-                })}
-              </div>
-              {resposta !== null && (
-                <div style={{ background: "#f0f9ff", border: "1px solid #bae6fd", borderRadius: 10, padding: 12, marginTop: 12 }}>
-                  <p style={{ fontSize: 11, fontWeight: 700, color: "#0284c7", margin: "0 0 4px" }}>💡 Explicação</p>
-                  <p style={{ fontSize: 12, color: CORES.text, margin: 0, lineHeight: 1.6 }}>{q.explanation}</p>
-                </div>
-              )}
-              {resposta !== null && (
-                <button onClick={proxima} style={{ width: "100%", marginTop: 14, padding: "12px 0", background: unidade.cor, color: "#fff", border: "none", borderRadius: 10, fontSize: 14, fontWeight: 600, cursor: "pointer" }}>
-                  {idx + 1 >= questoes.length ? "Ver resultado 🎉" : "Próxima →"}
-                </button>
-              )}
-            </div>
-          )}
-        </div>
-      </div>
     </div>
   );
 }

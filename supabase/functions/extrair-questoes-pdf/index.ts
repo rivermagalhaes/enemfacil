@@ -58,13 +58,21 @@ Deno.serve(async (req) => {
               },
               {
                 type: "input_text",
-                text: `Extraia TODAS as questões deste PDF e retorne SOMENTE um JSON válido (sem markdown, sem backticks) com este formato exato:
+                text: `Analise este PDF em DUAS etapas antes de responder:
+
+ETAPA 1 — GABARITO: Procure no PDF por um gabarito explícito. Ele pode estar:
+- No final do documento (ex: "Gabarito: 1-C 2-A 3-B..." ou tabela com respostas)
+- Em página separada intitulada "Gabarito" ou "Respostas"
+- Junto a cada questão (ex: "Resposta: B" ou "(B)" destacado)
+Se encontrar o gabarito, mapeie cada número de questão para o índice da alternativa correta (A=0, B=1, C=2, D=3, E=4).
+
+ETAPA 2 — EXTRAÇÃO: Extraia TODAS as questões e retorne SOMENTE um JSON válido (sem markdown, sem backticks) com este formato exato:
 [
   {
     "question": "enunciado completo da questão",
     "options": ["alternativa A", "alternativa B", "alternativa C", "alternativa D", "alternativa E"],
-    "answer_index": 0,
-    "explanation": "explicação da resposta correta se disponível",
+    "answer_index": 2,
+    "explanation": "explicação da resposta correta se disponível, senão string vazia",
     "topic": "tópico específico da questão",
     "area": "ciencias_natureza",
     "difficulty": "medio",
@@ -73,12 +81,12 @@ Deno.serve(async (req) => {
   }
 ]
 Regras obrigatórias:
-- answer_index: número inteiro 0-4 da alternativa correta (0=A, 1=B, 2=C, 3=D, 4=E). Se não souber, use 0.
+- answer_index: número inteiro 0-4 da alternativa correta (0=A, 1=B, 2=C, 3=D, 4=E). Use o gabarito encontrado na ETAPA 1. Se não houver gabarito explícito e não for possível inferir com certeza, use null (não use 0 como padrão — null indica "não identificado").
 - area: use EXATAMENTE um destes valores: ciencias_natureza | ciencias_humanas | linguagens | matematica. Infira pela temática (Química/Física/Biologia → ciencias_natureza; História/Geografia/Sociologia/Filosofia → ciencias_humanas; Português/Literatura/Inglês/Espanhol → linguagens; Matemática/Estatística → matematica).
 - difficulty: use EXATAMENTE um destes valores: facil | medio | dificil.
-- vestibular: se identificar no PDF (ENEM, FUVEST, UNICAMP, etc), use esse nome; caso contrário use PROPRIO.
+- vestibular: se identificar no PDF (ENEM, FUVEST, UNICAMP, ITA, IME, CEFET, etc), use esse nome; caso contrário use PROPRIO.
 - ano: número inteiro com o ano da prova. Se não souber, use 2025.
-- options: sempre um array com as alternativas como strings simples.
+- options: sempre um array com as alternativas como strings simples, sem prefixo de letra (ex: "A)" ou "a)").
 - Retorne APENAS o array JSON, sem nenhum texto antes ou depois.`,
               },
             ],

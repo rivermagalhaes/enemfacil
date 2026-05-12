@@ -30,13 +30,19 @@ const ESTADOS_REGIOES: Record<string, string> = {
 const POR_PAGINA = 20;
 const ROLES_STAFF = ["professor", "teacher", "admin", "super_admin"];
 
+const TIPO_EMOJI: Record<string, string> = {
+  pdf: "📄", video: "🎥", ppt: "📊", excel: "📗", lista: "📝", outro: "📦",
+};
+
 interface Usuario {
   id: string; nome: string | null; email: string | null; plano: string; role: string;
   xp_total: number; sequencia: number; estado: string | null; created_at: string;
 }
 interface Material {
   id: string; titulo: string; tipo: string; url: string;
-  vestibular: string | null; materia: string | null; criado_em: string;
+  vestibular: string | null; materia: string | null; topic: string | null;
+  criado_em: string; criado_por: string | null;
+  professor_nome?: string | null; professor_email?: string | null;
 }
 
 export default function AdminDashboard() {
@@ -53,6 +59,11 @@ export default function AdminDashboard() {
   const excelRef = useRef<HTMLInputElement>(null);
   const [form, setForm] = useState({ titulo: "", descricao: "", tipo: "pdf", vestibular: "ENEM", materia: "", topic: "" });
   const [buscaProfessor, setBuscaProfessor] = useState("");
+
+  // Filtros de materiais
+  const [filtroMateria, setFiltroMateria] = useState("");
+  const [filtroTipo, setFiltroTipo] = useState("");
+  const [filtroProfessor, setFiltroProfessor] = useState("");
 
   // Paginação de usuários
   const [paginaUsuarios, setPaginaUsuarios] = useState(0);
@@ -77,7 +88,16 @@ export default function AdminDashboard() {
       supabase.from("materiais").select("*").order("criado_em", { ascending: false }),
     ]);
     if (profs) setUsuarios(profs);
-    if (mats) setMateriais(mats);
+    if (mats) {
+      // Enriquecer com nome/email do professor
+      const profilesMap = new Map((profs ?? []).map((p: any) => [p.id, p]));
+      const matsEnriquecidos: Material[] = mats.map((m: any) => ({
+        ...m,
+        professor_nome: m.criado_por ? (profilesMap.get(m.criado_por) as any)?.nome ?? null : null,
+        professor_email: m.criado_por ? (profilesMap.get(m.criado_por) as any)?.email ?? null : null,
+      }));
+      setMateriais(matsEnriquecidos);
+    }
     setLoading(false);
   }
 
@@ -121,6 +141,24 @@ export default function AdminDashboard() {
       return acc;
     }, {})
   ).map(([regiao, d]) => ({ regiao, ...d })).sort((a, b) => b.total - a.total);
+
+  // Materiais filtrados
+  const materiaisFiltrados = materiais.filter(m => {
+    if (filtroTipo && m.tipo !== filtroTipo) return false;
+    if (filtroMateria && !(m.materia ?? "").toLowerCase().includes(filtroMateria.toLowerCase())) return false;
+    if (filtroProfessor && !(
+      (m.professor_nome ?? "").toLowerCase().includes(filtroProfessor.toLowerCase()) ||
+      (m.professor_email ?? "").toLowerCase().includes(filtroProfessor.toLowerCase())
+    )) return false;
+    return true;
+  });
+
+  // Estatísticas de materiais
+  const totalMateriais = materiais.length;
+  const materiaisPorTipo = materiais.reduce((acc: Record<string, number>, m) => {
+    acc[m.tipo] = (acc[m.tipo] ?? 0) + 1; return acc;
+  }, {});
+  const professoresComMaterial = new Set(materiais.filter(m => m.criado_por).map(m => m.criado_por)).size;
 
   async function uploadMaterial(e: React.ChangeEvent<HTMLInputElement>) {
     if (!e.target.files?.[0] || !user || !form.titulo) return;
@@ -180,7 +218,10 @@ export default function AdminDashboard() {
     carregarTudo();
     carregarUsuariosPagina(paginaUsuarios);
   }
-  async function deletarMaterial(id: string) { await supabase.from("materiais").delete().eq("id", id); setMateriais(p => p.filter(m => m.id !== id)); }
+  async function deletarMaterial(id: string) {
+    await supabase.from("materiais").delete().eq("id", id);
+    setMateriais(p => p.filter(m => m.id !== id));
+  }
 
   if (loading) return <div style={{display:"flex",alignItems:"center",justifyContent:"center",height:"100dvh",background:CORES.bg}}><p style={{color:CORES.sub}}>Carregando painel...</p></div>;
 
@@ -260,8 +301,43 @@ export default function AdminDashboard() {
         {/* ── MATERIAIS ── */}
         {aba === "materiais" && (
           <div>
+            {/* Cards de resumo */}
+            <div style={{ display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10,marginBottom:16 }}>
+              <div style={{ background:CORES.card,borderRadius:12,padding:"12px 14px",border:`1px solid ${CORES.border}`,textAlign:"center" }}>
+                <p style={{ fontSize:22,fontWeight:700,color:CORES.primary,margin:"0 0 2px" }}>{totalMateriais}</p>
+                <p style={{ fontSize:11,color:CORES.sub,margin:0 }}>Total</p>
+              </div>
+              <div style={{ background:CORES.card,borderRadius:12,padding:"12px 14px",border:`1px solid ${CORES.border}`,textAlign:"center" }}>
+                <p style={{ fontSize:22,fontWeight:700,color:"#0A7C4B",margin:"0 0 2px" }}>{professoresComMaterial}</p>
+                <p style={{ fontSize:11,color:CORES.sub,margin:0 }}>Professores</p>
+              </div>
+              <div style={{ background:CORES.card,borderRadius:12,padding:"12px 14px",border:`1px solid ${CORES.border}`,textAlign:"center" }}>
+                <p style={{ fontSize:22,fontWeight:700,color:"#7C3AED",margin:"0 0 2px" }}>{materiaisPorTipo["pdf"] ?? 0}</p>
+                <p style={{ fontSize:11,color:CORES.sub,margin:0 }}>PDFs</p>
+              </div>
+            </div>
+
+            {/* Filtros */}
+            <div style={{ background:CORES.card,borderRadius:12,padding:"12px 14px",border:`1px solid ${CORES.border}`,marginBottom:12 }}>
+              <p style={{ fontSize:11,fontWeight:700,color:CORES.sub,textTransform:"uppercase",margin:"0 0 8px" }}>🔍 Filtrar</p>
+              <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:8 }}>
+                <input value={filtroProfessor} onChange={e=>setFiltroProfessor(e.target.value)} placeholder="Professor..." style={{ padding:"8px 10px",borderRadius:8,border:`1px solid ${CORES.border}`,fontSize:12 }} />
+                <input value={filtroMateria} onChange={e=>setFiltroMateria(e.target.value)} placeholder="Matéria..." style={{ padding:"8px 10px",borderRadius:8,border:`1px solid ${CORES.border}`,fontSize:12 }} />
+                <select value={filtroTipo} onChange={e=>setFiltroTipo(e.target.value)} style={{ padding:"8px 10px",borderRadius:8,border:`1px solid ${CORES.border}`,fontSize:12,gridColumn:"1 / -1" }}>
+                  <option value="">Todos os tipos</option>
+                  <option value="pdf">📄 PDF</option>
+                  <option value="video">🎥 Vídeo</option>
+                  <option value="ppt">📊 PowerPoint</option>
+                  <option value="excel">📗 Excel</option>
+                  <option value="lista">📝 Lista</option>
+                  <option value="outro">📦 Outro</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Adicionar novo material */}
             <div style={{ background:CORES.card,borderRadius:14,padding:16,border:`1px solid ${CORES.border}`,marginBottom:16 }}>
-              <p style={{ fontSize:13,fontWeight:700,margin:"0 0 12px" }}>📤 Novo Material</p>
+              <p style={{ fontSize:13,fontWeight:700,margin:"0 0 12px" }}>📤 Adicionar Material</p>
               <div style={{ display:"flex",flexDirection:"column",gap:8 }}>
                 <input value={form.titulo} onChange={e=>setForm(p=>({...p,titulo:e.target.value}))} placeholder="Título *" style={{ padding:"9px 12px",borderRadius:8,border:`1px solid ${CORES.border}`,fontSize:13 }} />
                 <input value={form.descricao} onChange={e=>setForm(p=>({...p,descricao:e.target.value}))} placeholder="Descrição" style={{ padding:"9px 12px",borderRadius:8,border:`1px solid ${CORES.border}`,fontSize:13 }} />
@@ -277,8 +353,8 @@ export default function AdminDashboard() {
                   <select value={form.vestibular} onChange={e=>setForm(p=>({...p,vestibular:e.target.value}))} style={{ padding:"9px 12px",borderRadius:8,border:`1px solid ${CORES.border}`,fontSize:13 }}>
                     {["ENEM","ITA","IME","FUVEST","UNICAMP","UNB"].map(v=><option key={v}>{v}</option>)}
                   </select>
-                  <input value={form.materia} onChange={e=>setForm(p=>({...p,materia:e.target.value}))} placeholder="Matéria (ex: quimica)" style={{ padding:"9px 12px",borderRadius:8,border:`1px solid ${CORES.border}`,fontSize:13 }} />
-                  <input value={form.topic} onChange={e=>setForm(p=>({...p,topic:e.target.value}))} placeholder="Tópico (ex: termoquimica)" style={{ padding:"9px 12px",borderRadius:8,border:`1px solid ${CORES.border}`,fontSize:13 }} />
+                  <input value={form.materia} onChange={e=>setForm(p=>({...p,materia:e.target.value}))} placeholder="Matéria" style={{ padding:"9px 12px",borderRadius:8,border:`1px solid ${CORES.border}`,fontSize:13 }} />
+                  <input value={form.topic} onChange={e=>setForm(p=>({...p,topic:e.target.value}))} placeholder="Tópico" style={{ padding:"9px 12px",borderRadius:8,border:`1px solid ${CORES.border}`,fontSize:13 }} />
                 </div>
                 <input ref={fileRef} type="file" accept=".pdf,.ppt,.pptx,.xlsx,.xls,.doc,.docx,.mp4,.zip" onChange={uploadMaterial} style={{ display:"none" }} />
                 <button onClick={()=>fileRef.current?.click()} disabled={!form.titulo||uploadando} style={{ padding:"10px 0",background:!form.titulo||uploadando?"#e2e8f0":CORES.primary,color:!form.titulo||uploadando?CORES.sub:"#fff",border:"none",borderRadius:8,fontSize:13,fontWeight:600,cursor:!form.titulo||uploadando?"not-allowed":"pointer" }}>
@@ -286,16 +362,42 @@ export default function AdminDashboard() {
                 </button>
               </div>
             </div>
-            <p style={{ fontSize:11,fontWeight:700,color:CORES.sub,textTransform:"uppercase",margin:"0 0 8px" }}>Cadastrados ({materiais.length})</p>
-            {materiais.map(m => (
-              <div key={m.id} style={{ background:CORES.card,borderRadius:12,padding:"12px 14px",border:`1px solid ${CORES.border}`,marginBottom:8,display:"flex",alignItems:"center",gap:10 }}>
-                <span style={{ fontSize:22 }}>{m.tipo==="pdf"?"📄":m.tipo==="video"?"🎥":m.tipo==="ppt"?"📊":m.tipo==="excel"?"📗":"📦"}</span>
-                <div style={{ flex:1,minWidth:0 }}>
-                  <p style={{ fontSize:13,fontWeight:600,margin:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap" }}>{m.titulo}</p>
-                  <p style={{ fontSize:11,color:CORES.sub,margin:0 }}>{m.vestibular} · {m.materia||"geral"}</p>
+
+            {/* Lista de materiais */}
+            <p style={{ fontSize:11,fontWeight:700,color:CORES.sub,textTransform:"uppercase",margin:"0 0 8px" }}>
+              Todos os materiais ({materiaisFiltrados.length}{materiaisFiltrados.length !== totalMateriais ? ` de ${totalMateriais}` : ""})
+            </p>
+            {materiaisFiltrados.length === 0 && (
+              <div style={{ background:CORES.card,borderRadius:12,padding:24,border:`1px solid ${CORES.border}`,textAlign:"center" }}>
+                <p style={{ fontSize:13,color:CORES.sub,margin:0 }}>Nenhum material encontrado.</p>
+              </div>
+            )}
+            {materiaisFiltrados.map(m => (
+              <div key={m.id} style={{ background:CORES.card,borderRadius:12,padding:"12px 14px",border:`1px solid ${CORES.border}`,marginBottom:8 }}>
+                <div style={{ display:"flex",alignItems:"flex-start",gap:10 }}>
+                  <span style={{ fontSize:24,flexShrink:0 }}>{TIPO_EMOJI[m.tipo] ?? "📦"}</span>
+                  <div style={{ flex:1,minWidth:0 }}>
+                    <p style={{ fontSize:13,fontWeight:600,margin:"0 0 2px",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap" }}>{m.titulo}</p>
+                    <div style={{ display:"flex",gap:6,flexWrap:"wrap",marginBottom:4 }}>
+                      {m.vestibular && <span style={{ fontSize:10,background:"#E6EEFF",color:CORES.primary,borderRadius:4,padding:"1px 6px",fontWeight:600 }}>{m.vestibular}</span>}
+                      {m.materia && <span style={{ fontSize:10,background:"#f1f5f9",color:CORES.sub,borderRadius:4,padding:"1px 6px" }}>{m.materia}</span>}
+                      {m.topic && <span style={{ fontSize:10,background:"#f1f5f9",color:CORES.sub,borderRadius:4,padding:"1px 6px" }}>{m.topic}</span>}
+                    </div>
+                    {/* Quem enviou */}
+                    <div style={{ display:"flex",alignItems:"center",gap:6 }}>
+                      <div style={{ width:18,height:18,borderRadius:"50%",background:"#0A7C4B",display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",fontWeight:700,fontSize:9,flexShrink:0 }}>
+                        {(m.professor_nome || m.professor_email || "?")[0].toUpperCase()}
+                      </div>
+                      <p style={{ fontSize:11,color:CORES.sub,margin:0 }}>
+                        {m.professor_nome ?? m.professor_email ?? "Desconhecido"} · {new Date(m.criado_em).toLocaleDateString("pt-BR")}
+                      </p>
+                    </div>
+                  </div>
+                  <div style={{ display:"flex",gap:4,flexShrink:0 }}>
+                    <a href={m.url} target="_blank" rel="noreferrer" style={{ padding:"5px 10px",background:"#E6EEFF",color:CORES.primary,borderRadius:6,fontSize:11,fontWeight:600,textDecoration:"none" }}>Ver</a>
+                    <button onClick={()=>deletarMaterial(m.id)} style={{ padding:"5px 10px",background:"#FFF1F1",color:"#ef4444",border:"none",borderRadius:6,fontSize:11,fontWeight:600,cursor:"pointer" }}>Del</button>
+                  </div>
                 </div>
-                <a href={m.url} target="_blank" rel="noreferrer" style={{ padding:"5px 10px",background:"#E6EEFF",color:CORES.primary,borderRadius:6,fontSize:11,fontWeight:600,textDecoration:"none" }}>Ver</a>
-                <button onClick={()=>deletarMaterial(m.id)} style={{ padding:"5px 10px",background:"#FFF1F1",color:"#ef4444",border:"none",borderRadius:6,fontSize:11,fontWeight:600,cursor:"pointer" }}>Del</button>
               </div>
             ))}
           </div>
@@ -349,21 +451,24 @@ export default function AdminDashboard() {
                   <p style={{ fontSize:13,color:CORES.sub,margin:0 }}>Nenhum professor cadastrado ainda.</p>
                 </div>
               )}
-              {professores.map(u => (
-                <div key={u.id} style={{ background:CORES.card,borderRadius:12,padding:"12px 14px",border:"1.5px solid #22c55e33",marginBottom:8,display:"flex",alignItems:"center",gap:10 }}>
-                  <div style={{ width:38,height:38,borderRadius:"50%",background:"#0A7C4B",display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",fontWeight:700,fontSize:14,flexShrink:0 }}>
-                    {(u.nome||"?")[0].toUpperCase()}
+              {professores.map(u => {
+                const qtdMateriais = materiais.filter(m => m.criado_por === u.id).length;
+                return (
+                  <div key={u.id} style={{ background:CORES.card,borderRadius:12,padding:"12px 14px",border:"1.5px solid #22c55e33",marginBottom:8,display:"flex",alignItems:"center",gap:10 }}>
+                    <div style={{ width:38,height:38,borderRadius:"50%",background:"#0A7C4B",display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",fontWeight:700,fontSize:14,flexShrink:0 }}>
+                      {(u.nome||"?")[0].toUpperCase()}
+                    </div>
+                    <div style={{ flex:1,minWidth:0 }}>
+                      <p style={{ fontSize:13,fontWeight:700,margin:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap" }}>{u.nome||"Sem nome"}</p>
+                      <p style={{ fontSize:11,color:CORES.sub,margin:0 }}>{u.email||"—"} · 📁 {qtdMateriais} materiais</p>
+                    </div>
+                    <button onClick={() => alterarRole(u.id, "student")}
+                      style={{ padding:"5px 12px",background:"#FFF1F1",color:"#ef4444",border:"1px solid #fca5a5",borderRadius:6,fontSize:11,fontWeight:700,cursor:"pointer",flexShrink:0 }}>
+                      Revogar
+                    </button>
                   </div>
-                  <div style={{ flex:1,minWidth:0 }}>
-                    <p style={{ fontSize:13,fontWeight:700,margin:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap" }}>{u.nome||"Sem nome"}</p>
-                    <p style={{ fontSize:11,color:CORES.sub,margin:0 }}>{u.email||"—"}</p>
-                  </div>
-                  <button onClick={() => alterarRole(u.id, "student")}
-                    style={{ padding:"5px 12px",background:"#FFF1F1",color:"#ef4444",border:"1px solid #fca5a5",borderRadius:6,fontSize:11,fontWeight:700,cursor:"pointer",flexShrink:0 }}>
-                    Revogar
-                  </button>
-                </div>
-              ))}
+                );
+              })}
               <div style={{ background:CORES.card,borderRadius:14,padding:16,border:`1px solid ${CORES.border}`,marginTop:20 }}>
                 <p style={{ fontSize:13,fontWeight:700,margin:"0 0 4px" }}>➕ Promover aluno a professor</p>
                 <p style={{ fontSize:11,color:CORES.sub,margin:"0 0 12px" }}>Busque por nome ou email</p>
@@ -433,23 +538,16 @@ export default function AdminDashboard() {
                 </div>
               ))
             )}
-            {/* Paginação */}
             <div style={{ display:"flex",gap:8,justifyContent:"center",marginTop:16 }}>
-              <button
-                onClick={() => setPaginaUsuarios(p => Math.max(0, p - 1))}
-                disabled={paginaUsuarios === 0}
-                style={{ padding:"8px 16px",borderRadius:8,border:`1px solid ${CORES.border}`,background:CORES.card,fontSize:13,cursor:paginaUsuarios===0?"not-allowed":"pointer",color:paginaUsuarios===0?CORES.sub:CORES.text }}
-              >
+              <button onClick={() => setPaginaUsuarios(p => Math.max(0, p - 1))} disabled={paginaUsuarios === 0}
+                style={{ padding:"8px 16px",borderRadius:8,border:`1px solid ${CORES.border}`,background:CORES.card,fontSize:13,cursor:paginaUsuarios===0?"not-allowed":"pointer",color:paginaUsuarios===0?CORES.sub:CORES.text }}>
                 ← Anterior
               </button>
               <span style={{ padding:"8px 12px",fontSize:13,color:CORES.sub }}>
                 {paginaUsuarios + 1} / {Math.ceil(totalUsuarios / POR_PAGINA) || 1}
               </span>
-              <button
-                onClick={() => setPaginaUsuarios(p => p + 1)}
-                disabled={(paginaUsuarios + 1) * POR_PAGINA >= totalUsuarios}
-                style={{ padding:"8px 16px",borderRadius:8,border:`1px solid ${CORES.border}`,background:CORES.card,fontSize:13,cursor:(paginaUsuarios+1)*POR_PAGINA>=totalUsuarios?"not-allowed":"pointer",color:(paginaUsuarios+1)*POR_PAGINA>=totalUsuarios?CORES.sub:CORES.text }}
-              >
+              <button onClick={() => setPaginaUsuarios(p => p + 1)} disabled={(paginaUsuarios + 1) * POR_PAGINA >= totalUsuarios}
+                style={{ padding:"8px 16px",borderRadius:8,border:`1px solid ${CORES.border}`,background:CORES.card,fontSize:13,cursor:(paginaUsuarios+1)*POR_PAGINA>=totalUsuarios?"not-allowed":"pointer",color:(paginaUsuarios+1)*POR_PAGINA>=totalUsuarios?CORES.sub:CORES.text }}>
                 Próximo →
               </button>
             </div>

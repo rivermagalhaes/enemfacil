@@ -47,7 +47,6 @@ export default function SalaVirtual() {
   const [tempoRestante, setTempoRestante] = useState<number | null>(null);
   const [erro, setErro] = useState("");
   const [entrando, setEntrando] = useState(false);
-  const [materiais, setMateriais] = useState<{ id: string; titulo: string; tipo: string; url: string; materia: string | null; topic: string | null }[]>([]);
 
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -84,7 +83,6 @@ export default function SalaVirtual() {
         if (!data) return;
         setSala(data);
         setFase("aguardando");
-        carregarMateriais(data);
       });
     }
   }, []);
@@ -155,7 +153,6 @@ export default function SalaVirtual() {
     setSala(salaData);
     setFase("aguardando");
     setEntrando(false);
-    carregarMateriais(salaData);
   }
 
   async function carregarQuestoes(s: Sala) {
@@ -195,16 +192,6 @@ export default function SalaVirtual() {
     setRanking(Object.entries(mapa)
       .map(([uid, v]) => ({ user_id: uid, nome: nomes[uid] ?? "Aluno", ...v }))
       .sort((a, b) => b.certas - a.certas || b.total - a.total));
-  }
-
-  async function carregarMateriais(s: Sala) {
-    const { data } = await supabase
-      .from("materiais")
-      .select("id, titulo, tipo, url, materia, topic")
-      .or(`materia.ilike.%${s.materia}%,vestibular.eq.${s.vestibular}`)
-      .order("criado_em", { ascending: false })
-      .limit(10);
-    setMateriais(data ?? []);
   }
 
   async function responder(optIdx: number) {
@@ -343,31 +330,6 @@ export default function SalaVirtual() {
       <button onClick={voltarAoLobby} style={{ marginTop: 20, background: "none", border: "none", color: "rgba(255,255,255,0.3)", fontSize: 13, cursor: "pointer" }}>
         ← Voltar ao lobby
       </button>
-
-      {/* Materiais de apoio */}
-      {materiais.length > 0 && (
-        <div style={{ width: "100%", maxWidth: 360, marginTop: 24 }}>
-          <p style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", margin: "0 0 10px", textTransform: "uppercase", letterSpacing: "0.08em", fontWeight: 700 }}>
-            📚 Materiais de apoio — estude enquanto aguarda
-          </p>
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            {materiais.map(m => (
-              <a key={m.id} href={m.url} target="_blank" rel="noreferrer"
-                style={{ display: "flex", alignItems: "center", gap: 10, background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 12, padding: "10px 14px", textDecoration: "none" }}>
-                <span style={{ fontSize: 20, flexShrink: 0 }}>
-                  {m.tipo === "pdf" ? "📄" : m.tipo === "video" ? "🎥" : m.tipo === "ppt" ? "📊" : "📦"}
-                </span>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <p style={{ fontSize: 13, fontWeight: 600, color: "#fff", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{m.titulo}</p>
-                  {m.topic && <p style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", margin: 0 }}>{m.topic}</p>}
-                </div>
-                <span style={{ fontSize: 10, color: "#0ea5e9", fontWeight: 700, flexShrink: 0 }}>Abrir →</span>
-              </a>
-            ))}
-          </div>
-        </div>
-      )}
-
       <style>{`@keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.1)}}`}</style>
     </div>
   );
@@ -460,30 +422,6 @@ export default function SalaVirtual() {
             </div>
           ))}
         </div>
-        {/* Materiais para revisão */}
-        {materiais.length > 0 && (
-          <div style={{ marginBottom: 20 }}>
-            <p style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: "0.08em", margin: "0 0 10px" }}>
-              📚 Revise o conteúdo
-            </p>
-            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              {materiais.map(m => (
-                <a key={m.id} href={m.url} target="_blank" rel="noreferrer"
-                  style={{ display: "flex", alignItems: "center", gap: 10, background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 12, padding: "10px 14px", textDecoration: "none" }}>
-                  <span style={{ fontSize: 20, flexShrink: 0 }}>
-                    {m.tipo === "pdf" ? "📄" : m.tipo === "video" ? "🎥" : m.tipo === "ppt" ? "📊" : "📦"}
-                  </span>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <p style={{ fontSize: 13, fontWeight: 600, color: "#fff", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{m.titulo}</p>
-                    {m.topic && <p style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", margin: 0 }}>{m.topic}</p>}
-                  </div>
-                  <span style={{ fontSize: 10, color: "#0ea5e9", fontWeight: 700, flexShrink: 0 }}>Abrir →</span>
-                </a>
-              ))}
-            </div>
-          </div>
-        )}
-
         <button onClick={voltarAoLobby} style={{ width: "100%", padding: "14px 0", background: "linear-gradient(90deg,#0057FF,#0ea5e9)", color: "#fff", border: "none", borderRadius: 12, fontSize: 15, fontWeight: 700, cursor: "pointer" }}>
           Voltar ao lobby
         </button>

@@ -153,7 +153,8 @@ export default function VestibularHub() {
             <p style={{ fontSize: 12, color: "rgba(255,255,255,0.75)", margin: 0 }}>{v.desc}</p>
           </div>
           <div style={{ width: 72, height: 72, borderRadius: 14, background: "rgba(255,255,255,0.95)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, overflow: "hidden" }}>
-            <img src={`/logo-${vestibular.toLowerCase()}.png`} alt={v.nome} style={{ width: "100%", height: "100%", objectFit: "contain", padding: 4 }} onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
+            <img src={`/logo-${vestibular.toLowerCase()}.png`} alt={v.nome} style={{ width: "100%", height: "100%", objectFit: "cover", padding: 0, borderRadius: 14 }} onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
+   
           </div>
         </div>
         <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
