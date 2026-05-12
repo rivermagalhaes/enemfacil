@@ -32,9 +32,6 @@ export default function ProfessorDashboard() {
   });
   const [salvandoQ, setSalvandoQ] = useState(false);
   const [qMsg, setQMsg] = useState<{tipo:"ok"|"erro";texto:string}|null>(null);
-  const imgQuestaoRef = useRef<HTMLInputElement>(null);
-  const [imgQuestaoUrl, setImgQuestaoUrl] = useState<string>("");
-  const [uploadandoImgQ, setUploadandoImgQ] = useState(false);
   const [questoesCadastradas, setQuestoesCadastradas] = useState<any[]>([]);
   const [loadingQ, setLoadingQ] = useState(false);
 
@@ -69,19 +66,23 @@ export default function ProfessorDashboard() {
     if (!profile) return;
     const role = (profile as any).role;
     if (role !== "professor" && role !== "admin") { navigate("/"); return; }
+    carregarMateriais();
+    carregarQuestoes();
+  }, [profile]);
+
+  useEffect(() => {
+    if (!profile) return;
     setLogoUrl((profile as any)?.logo_url ?? "");
     setCabecalho(p => ({
       ...p,
       escola: (profile as any)?.nome_escola ?? "",
       professor: (profile as any)?.nome_professor ?? "",
     }));
-    carregarMateriais();
-    carregarQuestoes();
   }, [profile]);
 
   async function carregarQuestoes() {
     setLoadingQ(true);
-    const { data } = await supabase.from("questions").select("id, question, vestibular, area, difficulty, ano, topic, answer_index, explanation, image_url").order("created_at", { ascending: false }).limit(20);
+    const { data } = await supabase.from("questions").select("id, question, vestibular, area, difficulty, ano, topic, answer_index, explanation").order("created_at", { ascending: false }).limit(20);
     if (data) setQuestoesCadastradas(data);
     setLoadingQ(false);
   }
@@ -161,7 +162,6 @@ export default function ProfessorDashboard() {
         answer_index: q.answer_index ?? 0, vestibular: q.vestibular || "PROPRIO",
         topic: q.topic || null, area: q.area || "ciencias_natureza",
         difficulty: q.difficulty || "medio", ano: q.ano || new Date().getFullYear(),
-        image_url: q.image_url || null,
       }).select("id").single();
       if (error || !qSalva) { err++; continue; }
       const opts = (q.options || []).filter(Boolean).map((label: string, i: number) => ({ question_id: qSalva.id, option_index: i, label }));
@@ -214,13 +214,11 @@ export default function ProfessorDashboard() {
       answer_index: qForm.answer_index, vestibular: qForm.vestibular,
       topic: qForm.topic || null, area: qForm.area,
       difficulty: qForm.difficulty, ano: qForm.ano,
-      image_url: imgQuestaoUrl || null,
     }).select("id").single();
     if (error || !q) { setQMsg({ tipo:"erro", texto:"Erro ao salvar: " + error?.message }); setSalvandoQ(false); return; }
     const opts = filledOptions.map((label, i) => ({ question_id: q.id, option_index: i, label }));
     await supabase.from("question_options").insert(opts);
     setQMsg({ tipo:"ok", texto:"✅ Questão cadastrada com sucesso!" });
-    setImgQuestaoUrl("");
     setQForm({ question:"", explanation:"", answer_index:0, vestibular:"ENEM", topic:"", area:"ciencias_natureza", difficulty:"medio", ano:new Date().getFullYear(), options:["","","","",""] });
     carregarQuestoes();
     setSalvandoQ(false);
@@ -231,27 +229,6 @@ export default function ProfessorDashboard() {
     await supabase.from("question_options").delete().eq("question_id", id);
     await supabase.from("questions").delete().eq("id", id);
     setQuestoesCadastradas(p => p.filter(q => q.id !== id));
-  }
-
-  async function uploadImagemQuestao(e: React.ChangeEvent<HTMLInputElement>) {
-    if (!e.target.files?.[0] || !user) return;
-    const file = e.target.files[0];
-    setUploadandoImgQ(true);
-    const path = `questoes/${Date.now()}.${file.name.split(".").pop()}`;
-    const { error } = await supabase.storage.from("materiais-vestibular").upload(path, file);
-    if (error) { setQMsg({ tipo: "erro", texto: "Erro no upload da imagem" }); setUploadandoImgQ(false); return; }
-    const { data: { publicUrl } } = supabase.storage.from("materiais-vestibular").getPublicUrl(path);
-    setImgQuestaoUrl(publicUrl);
-    setUploadandoImgQ(false);
-  }
-
-  async function uploadImagemQuestaoExistente(questaoId: string, file: File) {
-    const path = `questoes/${questaoId}-${Date.now()}.${file.name.split(".").pop()}`;
-    const { error } = await supabase.storage.from("materiais-vestibular").upload(path, file);
-    if (error) return;
-    const { data: { publicUrl } } = supabase.storage.from("materiais-vestibular").getPublicUrl(path);
-    await supabase.from("questions").update({ image_url: publicUrl }).eq("id", questaoId);
-    carregarQuestoes();
   }
 
   async function uploadLogo(e: React.ChangeEvent<HTMLInputElement>) {
@@ -281,9 +258,9 @@ export default function ProfessorDashboard() {
     let query = supabase.from("questions").select("id, question, answer_index, explanation, topic, area, difficulty, vestibular, ano");
     if (filtroImpressao.vestibular) query = query.eq("vestibular", filtroImpressao.vestibular);
     if (filtroImpressao.dificuldade) query = query.eq("difficulty", filtroImpressao.dificuldade);
-    if (filtroImpressao.materia) query = query.ilike("area", `%${filtroImpressao.materia}%`);
     if (filtroImpressao.topico) query = query.ilike("topic", `%${filtroImpressao.topico}%`);
     const { data, error } = await query.limit(100);
+    console.log("Busca questoes:", { data, error, filtro: filtroImpressao });
     // Load options for each question
     const ids = (data ?? []).map((q: any) => q.id);
     const { data: opts } = await supabase.from("question_options").select("*").in("question_id", ids);
@@ -297,42 +274,27 @@ export default function ProfessorDashboard() {
   }
 
   function gerarHTML(versao: number, questoes: any[], embaralhar: boolean) {
-    // Pré-embaralha as questões e opções UMA vez, salvando a ordem para reutilizar no gabarito
+    const qs = embaralhar ? [...questoes].sort(() => Math.random() - 0.5) : questoes;
     const letras = ["A","B","C","D","E"];
     const versaoLabel = ["A","B","C","D","E","F"][versao] ?? String(versao+1);
-
-    // Função de shuffle determinístico por índice para garantir consistência prova/gabarito
-    function shuffleArray<T>(arr: T[], seed: number): T[] {
-      const result = [...arr];
-      for (let i = result.length - 1; i > 0; i--) {
-        const j = Math.floor(((seed * (i + 1) * 9301 + 49297) % 233280) / 233280 * (i + 1));
-        [result[i], result[j]] = [result[j], result[i]];
-      }
-      return result;
-    }
-
-    const questoesOrdenadas = embaralhar ? shuffleArray(questoes, versao + 1) : questoes;
-
-    // Pré-computa opções embaralhadas para cada questão (usada tanto na prova quanto no gabarito)
-    const opcoesEmbaralhadas: { label: string; originalIndex: number }[][] = questoesOrdenadas.map((q, qi) => {
-      const comIndice = q.options.map((o: any, i: number) => ({ ...o, originalIndex: i }));
-      return embaralhar ? shuffleArray(comIndice, versao * 100 + qi + 1) : comIndice;
-    });
-
-    const questoesHTML = questoesOrdenadas.map((q, qi) => {
-      const opts = opcoesEmbaralhadas[qi];
+    const questoesHTML = qs.map((q, qi) => {
+      const optsEmbaralhadas = embaralhar
+        ? q.options.map((o: any, i: number) => ({ ...o, originalIndex: i })).sort(() => Math.random() - 0.5)
+        : q.options.map((o: any, i: number) => ({ ...o, originalIndex: i }));
       return `
         <div style="margin-bottom:24px;page-break-inside:avoid">
           <p style="margin:0 0 8px;font-weight:600;font-size:14px">${qi+1}. ${q.question}</p>
-          ${opts.map((o: any, oi: number) => `
+          ${optsEmbaralhadas.map((o: any, oi: number) => `
             <p style="margin:2px 0 2px 16px;font-size:13px">( ) ${letras[oi]}) ${o.label}</p>
           `).join("")}
         </div>`;
     }).join("");
 
-    const gabaritoHTML = questoesOrdenadas.map((q, qi) => {
-      const opts = opcoesEmbaralhadas[qi];
-      const respostaIdx = opts.findIndex((o: any) => o.originalIndex === q.answer_index);
+    const gabaritoHTML = qs.map((q, qi) => {
+      const optsEmbaralhadas = embaralhar
+        ? q.options.map((o: any, i: number) => ({ ...o, originalIndex: i })).sort(() => Math.random() - 0.5)
+        : q.options.map((o: any, i: number) => ({ ...o, originalIndex: i }));
+      const respostaIdx = optsEmbaralhadas.findIndex((o: any) => o.originalIndex === q.answer_index);
       return `<span style="margin-right:12px;font-size:12px">${qi+1}.${letras[respostaIdx]??"-"}</span>`;
     }).join("");
 
@@ -361,7 +323,6 @@ export default function ProfessorDashboard() {
     </div>
     </body></html>`;
   }
-  }
 
   function imprimirProvas() {
     const selecionadas = questoesDisponiveis.filter(q => questoesSelecionadas.has(q.id));
@@ -375,7 +336,7 @@ export default function ProfessorDashboard() {
 
   async function deletarMaterial(id: string) { await supabase.from("materiais").delete().eq("id", id); setMateriais(p=>p.filter(m=>m.id!==id)); }
 
-  if (!profile || loading) return <div style={{display:"flex",alignItems:"center",justifyContent:"center",height:"100dvh"}}><p>Carregando...</p></div>;
+  if (loading) return <div style={{display:"flex",alignItems:"center",justifyContent:"center",height:"100dvh"}}><p>Carregando...</p></div>;
 
   return (
     <div style={{ minHeight:"100dvh",background:CORES.bg,fontFamily:"system-ui,sans-serif" }}>
@@ -533,21 +494,6 @@ export default function ProfessorDashboard() {
                   style={{ width:"100%",padding:"8px 12px",borderRadius:8,border:`1px solid ${CORES.border}`,fontSize:13,boxSizing:"border-box",marginBottom:14 }} />
               </div>
 
-              {/* Imagem da questão */}
-              <div style={{ marginBottom: 14 }}>
-                <p style={{ fontSize: 11, fontWeight: 600, color: CORES.sub, margin: "0 0 6px", textTransform: "uppercase" }}>Imagem (opcional)</p>
-                {imgQuestaoUrl && (
-                  <div style={{ marginBottom: 8, borderRadius: 8, overflow: "hidden", border: `1px solid ${CORES.border}` }}>
-                    <img src={imgQuestaoUrl} style={{ width: "100%", maxHeight: 160, objectFit: "contain", background: "#f8fafc" }} />
-                  </div>
-                )}
-                <input ref={imgQuestaoRef} type="file" accept="image/*" onChange={uploadImagemQuestao} style={{ display: "none" }} />
-                <button onClick={() => imgQuestaoRef.current?.click()} disabled={uploadandoImgQ}
-                  style={{ width: "100%", padding: "9px 0", background: uploadandoImgQ ? "#e2e8f0" : "#f8fafc", color: uploadandoImgQ ? CORES.sub : CORES.text, border: `1.5px dashed ${CORES.border}`, borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: uploadandoImgQ ? "not-allowed" : "pointer" }}>
-                  {uploadandoImgQ ? "⏳ Enviando imagem..." : imgQuestaoUrl ? "🖼️ Trocar imagem" : "📷 Adicionar imagem"}
-                </button>
-              </div>
-
               <button onClick={salvarQuestao} disabled={salvandoQ}
                 style={{ width:"100%",padding:"12px 0",background:salvandoQ?"#e2e8f0":"#0A7C4B",color:salvandoQ?CORES.sub:"#fff",border:"none",borderRadius:10,fontSize:14,fontWeight:700,cursor:salvandoQ?"not-allowed":"pointer" }}>
                 {salvandoQ ? "Salvando..." : "✅ Salvar Questão"}
@@ -573,14 +519,7 @@ export default function ProfessorDashboard() {
                       <span style={{ fontSize:10,background:"#f1f5f9",color:CORES.sub,borderRadius:4,padding:"2px 6px" }}>{q.ano}</span>
                     </div>
                   </div>
-                  <div style={{ display:"flex",gap:4,flexShrink:0 }}>
-                    <label style={{ padding:"5px 10px",background:"#E6EEFF",color:CORES.primary,border:"none",borderRadius:6,fontSize:11,fontWeight:600,cursor:"pointer" }}>
-                      {q.image_url ? "🖼️" : "📷"}
-                      <input type="file" accept="image/*" style={{ display:"none" }}
-                        onChange={e => e.target.files?.[0] && uploadImagemQuestaoExistente(q.id, e.target.files[0])} />
-                    </label>
-                    <button onClick={()=>deletarQuestao(q.id)} style={{ padding:"5px 10px",background:"#FFF1F1",color:"#ef4444",border:"none",borderRadius:6,fontSize:11,fontWeight:600,cursor:"pointer" }}>Del</button>
-                  </div>
+                  <button onClick={()=>deletarQuestao(q.id)} style={{ padding:"5px 10px",background:"#FFF1F1",color:"#ef4444",border:"none",borderRadius:6,fontSize:11,fontWeight:600,cursor:"pointer",flexShrink:0 }}>Del</button>
                 </div>
               </div>
             ))}
@@ -794,43 +733,10 @@ export default function ProfessorDashboard() {
                                 </span>
                               ))}
                             </div>
-
-                            {/* Seletor de gabarito */}
-                            <div style={{ marginTop:8 }}>
-                              <p style={{ fontSize:10,fontWeight:700,color:q.answer_index==null?"#b45309":CORES.sub,margin:"0 0 4px",textTransform:"uppercase" }}>
-                                {q.answer_index==null ? "⚠️ Gabarito não identificado — selecione:" : "✅ Gabarito:"}
-                              </p>
-                              <div style={{ display:"flex",gap:4 }}>
-                                {(q.options||[]).slice(0,5).map((_:string,oi:number)=>(
-                                  <button key={oi} onClick={()=>setQuestoesExtraidas(prev=>prev.map((x,j)=>j===i?{...x,answer_index:oi}:x))}
-                                    style={{ width:32,height:28,borderRadius:6,border:"none",cursor:"pointer",fontWeight:700,fontSize:12,
-                                      background:oi===q.answer_index?"#15803d":"#f1f5f9",
-                                      color:oi===q.answer_index?"#fff":CORES.sub,
-                                      outline:oi===q.answer_index?"2px solid #15803d":"none" }}>
-                                    {String.fromCharCode(65+oi)}
-                                  </button>
-                                ))}
-                              </div>
-                            </div>
                             <div style={{ display:"flex",gap:4,marginTop:4 }}>
                               <span style={{ fontSize:10,background:"#E6EEFF",color:CORES.primary,borderRadius:4,padding:"1px 6px",fontWeight:600 }}>{q.vestibular||"PROPRIO"}</span>
                               <span style={{ fontSize:10,background:"#f1f5f9",color:CORES.sub,borderRadius:4,padding:"1px 6px" }}>{q.difficulty||"medio"}</span>
                               {q.topic&&<span style={{ fontSize:10,background:"#f1f5f9",color:CORES.sub,borderRadius:4,padding:"1px 6px" }}>{q.topic}</span>}
-                            </div>
-                            {/* Imagem para questão extraída */}
-                            <div style={{ marginTop: 6 }}>
-                              <label style={{ fontSize: 10, color: CORES.primary, cursor: "pointer", fontWeight: 600, display: "flex", alignItems: "center", gap: 4 }}>
-                                {q.image_url ? <img src={q.image_url} style={{ height: 32, borderRadius: 4, objectFit: "contain" }} /> : null}
-                                📷 {q.image_url ? "Trocar imagem" : "Adicionar imagem"}
-                                <input type="file" accept="image/*" style={{ display: "none" }} onChange={async (e) => {
-                                  if (!e.target.files?.[0] || !user) return;
-                                  const file = e.target.files[0];
-                                  const path = `questoes/tmp-${Date.now()}.${file.name.split(".").pop()}`;
-                                  await supabase.storage.from("materiais-vestibular").upload(path, file);
-                                  const { data: { publicUrl } } = supabase.storage.from("materiais-vestibular").getPublicUrl(path);
-                                  setQuestoesExtraidas(prev => prev.map((x, j) => j === i ? { ...x, image_url: publicUrl } : x));
-                                }} />
-                              </label>
                             </div>
                           </div>
                         </div>
@@ -841,11 +747,6 @@ export default function ProfessorDashboard() {
                     style={{ width:"100%",padding:"12px 0",background:salvandoExtraidas?"#e2e8f0":"#0A7C4B",color:salvandoExtraidas?CORES.sub:"#fff",border:"none",borderRadius:10,fontSize:14,fontWeight:700,cursor:salvandoExtraidas?"not-allowed":"pointer" }}>
                     {salvandoExtraidas ? "Salvando..." : `✅ Salvar ${questoesExtraidas.filter(q=>q.selecionada).length} questões selecionadas`}
                   </button>
-                  {questoesExtraidas.filter(q=>q.selecionada && q.answer_index==null).length > 0 && (
-                    <p style={{ fontSize:11,color:"#b45309",fontWeight:600,margin:"8px 0 0",textAlign:"center" }}>
-                      ⚠️ {questoesExtraidas.filter(q=>q.selecionada && q.answer_index==null).length} questão(ões) sem gabarito — serão salvas com resposta A por padrão.
-                    </p>
-                  )}
                 </div>
               )}
             </div>
