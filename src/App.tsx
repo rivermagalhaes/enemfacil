@@ -26,6 +26,7 @@ import SimuladoAluno from "@/pages/sala/SimuladoAluno";
 import TrilhaHumanas from "@/pages/trilha/TrilhaHumanas";
 import OlimpiadasQuimica from "@/pages/olimpiadas/OlimpiadasQuimica";
 import CorrecaoQR from "@/pages/admin/CorrecaoQR";
+import ModuloPage from "@/pages/trilha/ModuloPage";
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
@@ -63,6 +64,10 @@ export default function App() {
         <Route path="/olimpiadas/quimica" element={<PrivateRoute><OlimpiadasQuimica /></PrivateRoute>} />
         <Route path="/trilha/:vestibular/humanas" element={<PrivateRoute><TrilhaHumanas /></PrivateRoute>} />
         <Route path="/trilha/:vestibular/fisicoquimica" element={<PrivateRoute><TrilhaFisicoQuimica /></PrivateRoute>} />
+
+        {/* Rota do módulo com tópicos — ex: /trilha/ENEM/matematica/modulo/fundamentos */}
+        <Route path="/trilha/:vestibular/:materia/modulo/:moduloId" element={<PrivateRoute><ModuloPage /></PrivateRoute>} />
+
         <Route path="/redacao" element={<PrivateRoute><Redacao /></PrivateRoute>} />
         <Route path="/perfil" element={<PrivateRoute><Perfil /></PrivateRoute>} />
         <Route path="/assinatura" element={<PrivateRoute><Assinatura /></PrivateRoute>} />
