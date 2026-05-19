@@ -41,8 +41,8 @@ serve(async (req) => {
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
-    if (!GEMINI_API_KEY) throw new Error("GEMINI_API_KEY não configurada");
+    const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
+    if (!ANTHROPIC_API_KEY) throw new Error("ANTHROPIC_API_KEY não configurada");
 
     const modelosUsados = MODELOS.slice(0, Math.min(n_modelos, 4));
     const estiloInstrucao = estilo_extra ? `\nEstilo especial: ${estilo_extra}` : "";
@@ -103,22 +103,24 @@ Responda APENAS JSON válido, sem markdown:
   ]
 }`;
 
-    const geminiRes = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${GEMINI_API_KEY}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: { temperature: 0.8, maxOutputTokens: 4096 },
-        }),
-      }
-    );
+    const aiRes = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": ANTHROPIC_API_KEY,
+        "anthropic-version": "2023-06-01",
+      },
+      body: JSON.stringify({
+        model: "claude-haiku-4-5-20251001",
+        max_tokens: 4096,
+        messages: [{ role: "user", content: prompt }],
+      }),
+    });
 
-    if (!geminiRes.ok) throw new Error(`Gemini: ${await geminiRes.text()}`);
+    if (!aiRes.ok) throw new Error(`Anthropic error: ${await aiRes.text()}`);
 
-    const gData = await geminiRes.json();
-    const rawText = gData.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
+    const aiData = await aiRes.json();
+    const rawText = aiData.content?.find((b: any) => b.type === "text")?.text ?? "";
     const clean = rawText.replace(/```json|```/g, "").trim();
     const parsed = JSON.parse(clean);
 
