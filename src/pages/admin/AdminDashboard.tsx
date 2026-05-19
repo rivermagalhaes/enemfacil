@@ -185,7 +185,7 @@ export default function AdminDashboard() {
   async function carregarTudo() {
     setLoading(true);
     const [{ data: profs }, { data: mats }] = await Promise.all([
-      supabase.from("profiles").select("id,nome,plano,role,xp_total,sequencia,estado,criado_em").order("xp_total", { ascending: false }),
+      supabase.rpc("get_admin_profiles"),
       supabase.from("materiais").select("*").order("criado_em", { ascending: false }),
     ]);
     if (profs) setUsuarios(profs);
