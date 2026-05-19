@@ -2,6 +2,7 @@
 import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { CORES } from "@/styles/theme";
+import { useState, useEffect } from "react";
 
 const TABS = [
   { path: "/",        icon: "🏠", label: "Início"    },
@@ -16,6 +17,17 @@ export default function BottomNav() {
   const { pathname } = useLocation();
   const { profile } = useAuth();
   const role = (profile as any)?.role;
+
+  // Não renderiza no desktop — a sidebar cuida da navegação
+  const [isDesktop, setIsDesktop] = useState(
+    typeof window !== "undefined" ? window.innerWidth >= 768 : false
+  );
+  useEffect(() => {
+    const handler = () => setIsDesktop(window.innerWidth >= 768);
+    window.addEventListener("resize", handler);
+    return () => window.removeEventListener("resize", handler);
+  }, []);
+  if (isDesktop) return null;
 
   return (
     <div style={{

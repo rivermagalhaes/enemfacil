@@ -30,16 +30,22 @@ export default function TrilhaHumanas() {
   const [unidadeAberta, setUnidadeAberta] = useState<typeof UNIDADES[0] | null>(null);
   const [mapaMentalAberto, setMapaMentalAberto] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [materiais, setMateriais] = useState<{id:string;titulo:string;descricao:string;tipo:string;url:string;topic:string|null}[]>([]);
   const vestUpper = vestibular.toUpperCase();
   const corVest = vestUpper === "ITA" ? "#003D80" : vestUpper === "IME" ? "#1a3a6e" : vestUpper === "FUVEST" ? "#8B0000" : vestUpper === "UNICAMP" ? "#005C97" : vestUpper === "UNB" ? "#006400" : "#B45309";
 
   useEffect(() => { if (user?.id) carregarProgresso(); }, [user?.id]);
 
   async function carregarProgresso() {
-    const { data } = await supabase.from("trilha_progresso").select("unidade_id, status, xp_ganho").eq("user_id", user!.id).eq("vestibular", vestUpper).eq("materia", "humanas");
+    const [{ data: prog }, { data: mats }] = await Promise.all([
+      supabase.from("trilha_progresso").select("unidade_id, status, xp_ganho").eq("user_id", user!.id).eq("vestibular", vestUpper).eq("materia", "humanas"),
+      supabase.from("materiais").select("id,titulo,descricao,tipo,url,topic").eq("vestibular", vestUpper).eq("materia", "humanas").eq("ativo", true).order("criado_em", { ascending: false }),
+    ]);
     const map: Record<string, any> = {};
-    data?.forEach(p => { map[p.unidade_id] = p; });
-    setProgresso(map); setLoading(false);
+    prog?.forEach(p => { map[p.unidade_id] = p; });
+    setProgresso(map);
+    setMateriais(mats ?? []);
+    setLoading(false);
   }
 
   async function concluirUnidade(unidadeId: string, xp: number) {
@@ -126,6 +132,32 @@ export default function TrilhaHumanas() {
           <p style={{ fontSize: 12, fontWeight: 600, color: "#92400e", margin: "0 0 4px" }}>💡 Como funciona</p>
           <p style={{ fontSize: 12, color: CORES.textSub, margin: 0, lineHeight: 1.6 }}>Complete as unidades em ordem. Cada unidade tem questões reais filtradas por tema. Ganhe XP ao concluir!</p>
         </div>
+        {/* MATERIAIS DO VESTIBULAR */}
+        {materiais.length > 0 && (
+          <div style={{ marginTop: 24 }}>
+            <p style={{ fontSize: 11, fontWeight: 700, color: CORES.textSub, textTransform: "uppercase" as const, letterSpacing: "0.06em", margin: "0 0 10px" }}>
+              Materiais {vestUpper}
+            </p>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {materiais.map(m => {
+                const icone = m.tipo === "pdf" ? "📄" : m.tipo === "video" ? "🎥" : m.tipo === "ppt" ? "📊" : m.tipo === "excel" ? "📗" : "📦";
+                return (
+                  <a key={m.id} href={m.url} target="_blank" rel="noreferrer"
+                    style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 14px", borderRadius: 12, background: CORES.bgCard, border: "1px solid " + CORES.border, textDecoration: "none" }}>
+                    <span style={{ fontSize: 24, flexShrink: 0 }}>{icone}</span>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <p style={{ fontSize: 13, fontWeight: 600, color: CORES.text, margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{m.titulo}</p>
+                      {m.descricao && <p style={{ fontSize: 11, color: CORES.textSub, margin: "2px 0 0" }}>{m.descricao}</p>}
+                      {m.topic && <span style={{ fontSize: 10, color: corVest, padding: "1px 6px", borderRadius: 4, fontWeight: 600 }}>{m.topic}</span>}
+                    </div>
+                    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke={CORES.textSub} strokeWidth="2"><path d="M6 4l4 4-4 4"/></svg>
+                  </a>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
       </div>
       <BottomNav />
     </div>

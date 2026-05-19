@@ -1,6 +1,7 @@
 // src/App.tsx
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
+import AppLayout from "@/components/layout/AppLayout";
 import Login from "@/pages/auth/Login";
 import Home from "@/pages/home/Home";
 import Quiz from "@/pages/quiz/Quiz";
@@ -39,7 +40,7 @@ function PrivateRoute({ children }: { children: React.ReactNode }) {
     </div>
   );
   if (!user) return <Navigate to="/login" replace />;
-  return <>{children}</>;
+  return <AppLayout>{children}</AppLayout>;
 }
 
 export default function App() {

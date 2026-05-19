@@ -10,6 +10,7 @@ const ABAS = [
   { id:"materiais",  label:"Meus Materiais", emoji:"📁" },
   { id:"questoes",   label:"Questões",       emoji:"📝" },
   { id:"cadastrar",  label:"Nova Questão",   emoji:"➕" },
+  { id:"turmas",     label:"Turmas",         emoji:"🏫" },
   { id:"impressao",  label:"Imprimir Prova", emoji:"🖨️" },
   { id:"qrcode",     label:"QR Correção",    emoji:"📷" },
   { id:"salas",      label:"Salas Virtuais", emoji:"🏫" },
@@ -31,6 +32,18 @@ export default function ProfessorDashboard() {
   const [avaliacaoSelecionada, setAvaliacaoSelecionada] = useState<string>("");
   const [loadingQR, setLoadingQR] = useState(false);
   const [alunoQRAberto, setAlunoQRAberto] = useState<string | null>(null);
+
+  // Estados Turmas
+  const [turmas, setTurmas] = useState<any[]>([]);
+  const [loadingTurmas, setLoadingTurmas] = useState(false);
+  const [novaTurma, setNovaTurma] = useState({ nome: "", descricao: "" });
+  const [criandoTurma, setCriandoTurma] = useState(false);
+  const [turmaMsg, setTurmaMsg] = useState<{tipo:"ok"|"erro";texto:string}|null>(null);
+  const [turmaExpandida, setTurmaExpandida] = useState<string|null>(null);
+  const [alunosTurma, setAlunosTurma] = useState<Record<string,any[]>>({});
+  const [buscaAluno, setBuscaAluno] = useState<Record<string,string>>({});
+  const [resultadoBusca, setResultadoBusca] = useState<Record<string,any[]>>({});
+  const [adicionandoAluno, setAdicionandoAluno] = useState<string|null>(null);
   const [uploadando, setUploadando] = useState(false);
   const [importando, setImportando] = useState(false);
 
@@ -78,6 +91,7 @@ export default function ProfessorDashboard() {
     if (role !== "professor" && role !== "admin") { navigate("/"); return; }
     carregarMateriais();
     carregarQuestoes();
+    carregarTurmas();
   }, [profile]);
 
   useEffect(() => {
@@ -344,11 +358,98 @@ export default function ProfessorDashboard() {
     }
   }
 
+  async function carregarTurmas() {
+    if (!user?.id) return;
+    setLoadingTurmas(true);
+    const { data, error } = await supabase.from("classrooms")
+      .select("id, nome, descricao, codigo, ativa, created_at")
+      .eq("professor_id", user.id)
+      .order("created_at", { ascending: false });
+    if (!error) setTurmas(data ?? []);
+    setLoadingTurmas(false);
+  }
+
+  function gerarCodigo() {
+    return Math.random().toString(36).substring(2, 8).toUpperCase();
+  }
+
+  async function criarTurma() {
+    if (!novaTurma.nome.trim()) { setTurmaMsg({ tipo:"erro", texto:"Nome da turma é obrigatório" }); return; }
+    setCriandoTurma(true);
+    const { error } = await supabase.from("classrooms").insert({
+      professor_id: user!.id,
+      nome: novaTurma.nome.trim(),
+      descricao: novaTurma.descricao.trim() || null,
+      codigo: gerarCodigo(),
+      ativa: true,
+    });
+    if (error) {
+      setTurmaMsg({ tipo:"erro", texto:"Erro ao criar turma: " + error.message });
+    } else {
+      setTurmaMsg({ tipo:"ok", texto:"✅ Turma criada com sucesso!" });
+      setNovaTurma({ nome: "", descricao: "" });
+      carregarTurmas();
+      // Recarrega também para o QR
+      carregarTurmasEAvaliacoes();
+    }
+    setCriandoTurma(false);
+    setTimeout(() => setTurmaMsg(null), 4000);
+  }
+
+  async function toggleTurma(id: string, ativa: boolean) {
+    await supabase.from("classrooms").update({ ativa: !ativa }).eq("id", id);
+    setTurmas(p => p.map(t => t.id === id ? { ...t, ativa: !ativa } : t));
+  }
+
+  async function carregarAlunosDaTurmaLocal(turmaId: string) {
+    const { data: membros } = await supabase.from("classroom_members")
+      .select("student_id, ingressou_em").eq("classroom_id", turmaId);
+    if (!membros?.length) { setAlunosTurma(p => ({ ...p, [turmaId]: [] })); return; }
+    const ids = membros.map((m: any) => m.student_id);
+    const { data: perfis } = await supabase.from("profiles")
+      .select("id, nome, email").in("id", ids);
+    setAlunosTurma(p => ({ ...p, [turmaId]: perfis ?? [] }));
+  }
+
+  async function buscarAlunoPorEmail(turmaId: string, email: string) {
+    if (!email.trim()) return;
+    const { data } = await supabase.from("profiles")
+      .select("id, nome, email").ilike("email", `%${email.trim()}%`).limit(5);
+    setResultadoBusca(p => ({ ...p, [turmaId]: data ?? [] }));
+  }
+
+  async function adicionarAluno(turmaId: string, studentId: string) {
+    setAdicionandoAluno(studentId);
+    const { error } = await supabase.from("classroom_members").upsert({
+      classroom_id: turmaId, student_id: studentId,
+    }, { onConflict: "classroom_id,student_id" });
+    if (!error) {
+      setResultadoBusca(p => ({ ...p, [turmaId]: [] }));
+      setBuscaAluno(p => ({ ...p, [turmaId]: "" }));
+      carregarAlunosDaTurmaLocal(turmaId);
+    }
+    setAdicionandoAluno(null);
+  }
+
+  async function removerAluno(turmaId: string, studentId: string) {
+    await supabase.from("classroom_members")
+      .delete().eq("classroom_id", turmaId).eq("student_id", studentId);
+    setAlunosTurma(p => ({ ...p, [turmaId]: p[turmaId]?.filter((a: any) => a.id !== studentId) ?? [] }));
+  }
+
+  async function deletarTurma(id: string) {
+    if (!confirm("Deletar turma? Os alunos serão removidos.")) return;
+    await supabase.from("classroom_members").delete().eq("classroom_id", id);
+    await supabase.from("classrooms").delete().eq("id", id);
+    setTurmas(p => p.filter(t => t.id !== id));
+  }
+
   async function deletarMaterial(id: string) { await supabase.from("materiais").delete().eq("id", id); setMateriais(p=>p.filter(m=>m.id!==id)); }
 
 
   useEffect(() => {
     if (aba === "qrcode" && user) carregarTurmasEAvaliacoes();
+    if (aba === "turmas" && user) carregarTurmas();
   }, [aba, user]);
 
   useEffect(() => {
@@ -728,6 +829,151 @@ export default function ProfessorDashboard() {
         {/* SALAS VIRTUAIS */}
 
         {/* QR CODE DE CORREÇÃO */}
+        {/* TURMAS */}
+        {aba === "turmas" && (
+          <div>
+            {/* Criar nova turma */}
+            <div style={{ background:CORES.card,borderRadius:14,padding:16,border:`1px solid ${CORES.border}`,marginBottom:16 }}>
+              <p style={{ fontSize:13,fontWeight:700,margin:"0 0 12px" }}>➕ Nova Turma</p>
+              {turmaMsg && (
+                <div style={{ marginBottom:10,padding:"8px 12px",borderRadius:8,background:turmaMsg.tipo==="ok"?"#EDFAF3":"#FFF1F1",border:`1px solid ${turmaMsg.tipo==="ok"?"#22c55e":"#ef4444"}`,color:turmaMsg.tipo==="ok"?"#15803d":"#b91c1c",fontSize:12,fontWeight:600 }}>
+                  {turmaMsg.texto}
+                </div>
+              )}
+              <div style={{ display:"flex",flexDirection:"column",gap:8 }}>
+                <input
+                  value={novaTurma.nome}
+                  onChange={e => setNovaTurma(p => ({ ...p, nome: e.target.value }))}
+                  placeholder="Nome da turma *  (ex: 3º Ano A — ITA 2025)"
+                  style={{ padding:"9px 12px",borderRadius:8,border:`1px solid ${CORES.border}`,fontSize:13 }}
+                />
+                <input
+                  value={novaTurma.descricao}
+                  onChange={e => setNovaTurma(p => ({ ...p, descricao: e.target.value }))}
+                  placeholder="Descrição (opcional)"
+                  style={{ padding:"9px 12px",borderRadius:8,border:`1px solid ${CORES.border}`,fontSize:13 }}
+                />
+                <button onClick={criarTurma} disabled={criandoTurma || !novaTurma.nome.trim()}
+                  style={{ padding:"11px 0",background:criandoTurma||!novaTurma.nome.trim()?"#e2e8f0":"#0A7C4B",color:criandoTurma||!novaTurma.nome.trim()?CORES.sub:"#fff",border:"none",borderRadius:8,fontSize:13,fontWeight:600,cursor:criandoTurma||!novaTurma.nome.trim()?"not-allowed":"pointer" }}>
+                  {criandoTurma ? "Criando..." : "🏫 Criar turma"}
+                </button>
+              </div>
+            </div>
+
+            {/* Lista de turmas */}
+            <p style={{ fontSize:11,fontWeight:700,color:CORES.sub,textTransform:"uppercase",margin:"0 0 8px" }}>
+              Minhas turmas ({turmas.length})
+            </p>
+            {loadingTurmas && <p style={{ color:CORES.sub,fontSize:13,textAlign:"center",padding:16 }}>Carregando...</p>}
+            {!loadingTurmas && turmas.length === 0 && (
+              <div style={{ background:CORES.card,borderRadius:12,padding:32,border:`1px solid ${CORES.border}`,textAlign:"center" }}>
+                <p style={{ fontSize:36,margin:"0 0 8px" }}>🏫</p>
+                <p style={{ color:CORES.sub,fontSize:13 }}>Nenhuma turma criada ainda.</p>
+              </div>
+            )}
+            {turmas.map(t => (
+              <div key={t.id} style={{ background:CORES.card,borderRadius:12,border:`1px solid ${t.ativa?"#22c55e33":CORES.border}`,marginBottom:8,overflow:"hidden" }}>
+                {/* Header da turma */}
+                <div style={{ display:"flex",alignItems:"center",gap:10,padding:"12px 14px" }}>
+                  <div style={{ width:40,height:40,borderRadius:10,background:t.ativa?"#EDFAF3":"#f3f4f6",display:"flex",alignItems:"center",justifyContent:"center",fontSize:20,flexShrink:0 }}>
+                    🏫
+                  </div>
+                  <div style={{ flex:1,minWidth:0 }}>
+                    <p style={{ fontSize:13,fontWeight:700,margin:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap" }}>{t.nome}</p>
+                    <div style={{ display:"flex",gap:6,alignItems:"center",marginTop:2 }}>
+                      <span style={{ fontSize:10,fontWeight:700,background:"#E6EEFF",color:CORES.primary,borderRadius:4,padding:"1px 6px" }}>
+                        Código: {t.codigo}
+                      </span>
+                      <span style={{ fontSize:10,fontWeight:600,color:t.ativa?"#22c55e":"#9ca3af" }}>
+                        {t.ativa ? "● Ativa" : "○ Inativa"}
+                      </span>
+                    </div>
+                  </div>
+                  <div style={{ display:"flex",gap:6,flexShrink:0 }}>
+                    <button onClick={() => {
+                      const abrindo = turmaExpandida !== t.id;
+                      setTurmaExpandida(abrindo ? t.id : null);
+                      if (abrindo && !alunosTurma[t.id]) carregarAlunosDaTurmaLocal(t.id);
+                    }} style={{ padding:"5px 10px",background:"#E6EEFF",color:CORES.primary,border:"none",borderRadius:6,fontSize:11,fontWeight:600,cursor:"pointer" }}>
+                      {turmaExpandida === t.id ? "Fechar" : "👥 Alunos"}
+                    </button>
+                    <button onClick={() => toggleTurma(t.id, t.ativa)}
+                      style={{ padding:"5px 10px",background:t.ativa?"#FFF8E6":"#EDFAF3",color:t.ativa?"#92400e":"#15803d",border:"none",borderRadius:6,fontSize:11,fontWeight:600,cursor:"pointer" }}>
+                      {t.ativa ? "Desativar" : "Ativar"}
+                    </button>
+                    <button onClick={() => deletarTurma(t.id)}
+                      style={{ padding:"5px 10px",background:"#FFF1F1",color:"#ef4444",border:"none",borderRadius:6,fontSize:11,fontWeight:600,cursor:"pointer" }}>
+                      Del
+                    </button>
+                  </div>
+                </div>
+
+                {/* Painel de alunos */}
+                {turmaExpandida === t.id && (
+                  <div style={{ borderTop:`1px solid ${CORES.border}`,padding:"12px 14px",background:"#f8fafc" }}>
+                    {/* Buscar aluno */}
+                    <p style={{ fontSize:11,fontWeight:700,color:CORES.sub,textTransform:"uppercase",margin:"0 0 8px" }}>Adicionar aluno</p>
+                    <div style={{ display:"flex",gap:8,marginBottom:8 }}>
+                      <input
+                        value={buscaAluno[t.id] ?? ""}
+                        onChange={e => setBuscaAluno(p => ({ ...p, [t.id]: e.target.value }))}
+                        placeholder="Buscar por email..."
+                        style={{ flex:1,padding:"8px 10px",borderRadius:8,border:`1px solid ${CORES.border}`,fontSize:12 }}
+                        onKeyDown={e => e.key === "Enter" && buscarAlunoPorEmail(t.id, buscaAluno[t.id] ?? "")}
+                      />
+                      <button onClick={() => buscarAlunoPorEmail(t.id, buscaAluno[t.id] ?? "")}
+                        style={{ padding:"8px 12px",background:CORES.primary,color:"#fff",border:"none",borderRadius:8,fontSize:12,fontWeight:600,cursor:"pointer" }}>
+                        Buscar
+                      </button>
+                    </div>
+
+                    {/* Resultados da busca */}
+                    {(resultadoBusca[t.id] ?? []).map((aluno: any) => (
+                      <div key={aluno.id} style={{ display:"flex",alignItems:"center",gap:8,padding:"8px 10px",background:"#fff",borderRadius:8,border:`1px solid ${CORES.border}`,marginBottom:6 }}>
+                        <div style={{ width:28,height:28,borderRadius:"50%",background:CORES.primary,display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,fontWeight:700,color:"#fff",flexShrink:0 }}>
+                          {(aluno.nome?.[0] ?? aluno.email?.[0] ?? "?").toUpperCase()}
+                        </div>
+                        <div style={{ flex:1,minWidth:0 }}>
+                          <p style={{ fontSize:12,fontWeight:600,margin:0 }}>{aluno.nome ?? "Sem nome"}</p>
+                          <p style={{ fontSize:11,color:CORES.sub,margin:0 }}>{aluno.email}</p>
+                        </div>
+                        <button onClick={() => adicionarAluno(t.id, aluno.id)} disabled={adicionandoAluno === aluno.id}
+                          style={{ padding:"4px 10px",background:"#0A7C4B",color:"#fff",border:"none",borderRadius:6,fontSize:11,fontWeight:600,cursor:"pointer" }}>
+                          {adicionandoAluno === aluno.id ? "..." : "+ Adicionar"}
+                        </button>
+                      </div>
+                    ))}
+
+                    {/* Lista de alunos da turma */}
+                    <p style={{ fontSize:11,fontWeight:700,color:CORES.sub,textTransform:"uppercase",margin:"12px 0 8px" }}>
+                      Alunos ({(alunosTurma[t.id] ?? []).length})
+                    </p>
+                    {(alunosTurma[t.id] ?? []).length === 0 ? (
+                      <p style={{ fontSize:12,color:CORES.sub,textAlign:"center",padding:"8px 0" }}>Nenhum aluno ainda.</p>
+                    ) : (
+                      (alunosTurma[t.id] ?? []).map((aluno: any) => (
+                        <div key={aluno.id} style={{ display:"flex",alignItems:"center",gap:8,padding:"8px 10px",background:"#fff",borderRadius:8,border:`1px solid ${CORES.border}`,marginBottom:6 }}>
+                          <div style={{ width:28,height:28,borderRadius:"50%",background:"#e0f2fe",display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,fontWeight:700,color:"#0284c7",flexShrink:0 }}>
+                            {(aluno.nome?.[0] ?? aluno.email?.[0] ?? "?").toUpperCase()}
+                          </div>
+                          <div style={{ flex:1,minWidth:0 }}>
+                            <p style={{ fontSize:12,fontWeight:600,margin:0 }}>{aluno.nome ?? "Sem nome"}</p>
+                            <p style={{ fontSize:11,color:CORES.sub,margin:0 }}>{aluno.email}</p>
+                          </div>
+                          <button onClick={() => removerAluno(t.id, aluno.id)}
+                            style={{ padding:"4px 8px",background:"#FFF1F1",color:"#ef4444",border:"none",borderRadius:6,fontSize:11,cursor:"pointer" }}>
+                            Remover
+                          </button>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+
         {aba === "qrcode" && (
           <div>
             <div style={{ background:CORES.card,borderRadius:14,padding:16,border:`1px solid ${CORES.border}`,marginBottom:16 }}>

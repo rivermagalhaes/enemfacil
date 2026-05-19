@@ -33,6 +33,15 @@ export default function Home() {
 
   const plano = String(profile?.plano ?? "free");
 
+  // Vestibulares liberados por plano
+  // free/basico/estudante → só ENEM (ITA, IME etc bloqueados)
+  // pro/premium/ouro/completo → todos liberados
+  const planosCompletos = ["pro", "premium", "ouro", "completo", "professor"];
+  const acessoCompleto = planosCompletos.includes(plano) || podePainelProfessor;
+  const vestibularesLiberados = acessoCompleto
+    ? VESTIBULARES.map(v => v.id)
+    : ["ENEM"];
+
   const nome = ((profile as any)?.nome ?? (profile as any)?.username) ?? "Estudante";
   const xp = profile?.xp_total ?? 0;
   const sequencia = profile?.sequencia ?? 0;
@@ -264,35 +273,45 @@ export default function Home() {
         {/* Vestibulares */}
         <p style={{ fontSize: 13, fontWeight: 700, color: CORES.text, textTransform: "uppercase", letterSpacing: "0.08em", margin: "0 0 12px" }}>Vestibulares</p>
         <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 24 }}>
-          {VESTIBULARES.map(v => (
-            <button
-              key={v.id}
-              onClick={() => navigate(`/vestibular/${v.id}`)}
-              style={{
-                display: "flex", alignItems: "center", gap: 14,
-                padding: "14px 16px", borderRadius: 16,
-                background: CORES.bgCard, border: `1.5px solid ${v.cor}22`,
-                cursor: "pointer", textAlign: "left",
-                boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
-              }}
-            >
-              <div style={{ width: 50, height: 50, borderRadius: 14, background: v.bg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 26, flexShrink: 0, border: `1.5px solid ${v.cor}22` }}>
-                {v.emoji}
-              </div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}>
-                  <p style={{ fontSize: 15, fontWeight: 700, color: v.cor, margin: 0 }}>{v.nome}</p>
-                  {v.badge && <span style={{ fontSize: 9, fontWeight: 700, background: v.cor, color: "#fff", borderRadius: 4, padding: "1px 6px" }}>{v.badge}</span>}
+          {VESTIBULARES.map(v => {
+            const liberado = vestibularesLiberados.includes(v.id);
+            return (
+              <button
+                key={v.id}
+                onClick={() => liberado ? navigate(`/vestibular/${v.id}`) : navigate("/assinatura")}
+                style={{
+                  display: "flex", alignItems: "center", gap: 14,
+                  padding: "14px 16px", borderRadius: 16,
+                  background: liberado ? CORES.bgCard : "#f9fafb",
+                  border: liberado ? `1.5px solid ${v.cor}22` : "1.5px solid #e5e7eb",
+                  cursor: "pointer", textAlign: "left",
+                  boxShadow: liberado ? "0 2px 8px rgba(0,0,0,0.06)" : "none",
+                  opacity: liberado ? 1 : 0.7,
+                  position: "relative",
+                }}
+              >
+                <div style={{ width: 50, height: 50, borderRadius: 14, background: liberado ? v.bg : "#f3f4f6", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 26, flexShrink: 0, border: `1.5px solid ${liberado ? v.cor + "22" : "#e5e7eb"}` }}>
+                  {liberado ? v.emoji : "🔒"}
                 </div>
-                <p style={{ fontSize: 11, color: CORES.textSub, margin: "0 0 3px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{v.desc}</p>
-                <p style={{ fontSize: 10, color: v.cor, margin: 0, fontWeight: 500 }}>{v.foco}</p>
-              </div>
-              <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4, flexShrink: 0 }}>
-                <span style={{ fontSize: 10 }}>{v.dificuldade}</span>
-                <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke={v.cor} strokeWidth="2"><path d="M6 4l4 4-4 4"/></svg>
-              </div>
-            </button>
-          ))}
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}>
+                    <p style={{ fontSize: 15, fontWeight: 700, color: liberado ? v.cor : "#9ca3af", margin: 0 }}>{v.nome}</p>
+                    {v.badge && liberado && <span style={{ fontSize: 9, fontWeight: 700, background: v.cor, color: "#fff", borderRadius: 4, padding: "1px 6px" }}>{v.badge}</span>}
+                    {!liberado && <span style={{ fontSize: 9, fontWeight: 700, background: "#f59e0b", color: "#fff", borderRadius: 4, padding: "1px 6px" }}>PRO</span>}
+                  </div>
+                  <p style={{ fontSize: 11, color: CORES.textSub, margin: "0 0 3px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{v.desc}</p>
+                  <p style={{ fontSize: 10, color: liberado ? v.cor : "#9ca3af", margin: 0, fontWeight: 500 }}>{v.foco}</p>
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4, flexShrink: 0 }}>
+                  <span style={{ fontSize: 10 }}>{v.dificuldade}</span>
+                  {liberado
+                    ? <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke={v.cor} strokeWidth="2"><path d="M6 4l4 4-4 4"/></svg>
+                    : <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="#9ca3af" strokeWidth="2"><path d="M6 4l4 4-4 4"/></svg>
+                  }
+                </div>
+              </button>
+            );
+          })}
         </div>
 
                 {/* Banner de upgrade se free */}

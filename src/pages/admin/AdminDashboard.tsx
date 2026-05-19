@@ -70,6 +70,7 @@ export default function AdminDashboard() {
   const fileRef = useRef<HTMLInputElement>(null);
   const excelRef = useRef<HTMLInputElement>(null);
   const [form, setForm] = useState({ titulo: "", descricao: "", tipo: "pdf", vestibular: "ENEM", materia: "", topic: "" });
+  const [filtroVestibular, setFiltroVestibular] = useState("TODOS");
 
   // Analytics
   const [periodo, setPeriodo] = useState<PeriodoAnalytics>("30d");
@@ -640,8 +641,20 @@ export default function AdminDashboard() {
                 </button>
               </div>
             </div>
-            <p style={{ fontSize:11,fontWeight:700,color:CORES.sub,textTransform:"uppercase",margin:"0 0 8px" }}>Cadastrados ({materiais.length})</p>
-            {materiais.map(m => (
+            <div style={{ display:"flex",gap:6,flexWrap:"wrap",marginBottom:10 }}>
+              {["TODOS","ENEM","ITA","IME","FUVEST","UNICAMP","UNB"].map(v => (
+                <button key={v} onClick={() => setFiltroVestibular(v)}
+                  style={{ padding:"5px 12px",borderRadius:99,fontSize:12,fontWeight:500,cursor:"pointer",border:"none",
+                    background: filtroVestibular === v ? CORES.primary : CORES.bg,
+                    color: filtroVestibular === v ? "#fff" : CORES.sub }}>
+                  {v}
+                </button>
+              ))}
+            </div>
+            <p style={{ fontSize:11,fontWeight:700,color:CORES.sub,textTransform:"uppercase",margin:"0 0 8px" }}>
+              Cadastrados ({materiais.filter(m => filtroVestibular === "TODOS" || m.vestibular === filtroVestibular).length})
+            </p>
+            {materiais.filter(m => filtroVestibular === "TODOS" || m.vestibular === filtroVestibular).map(m => (
               <div key={m.id} style={{ background:CORES.card,borderRadius:12,padding:"12px 14px",border:`1px solid ${CORES.border}`,marginBottom:8,display:"flex",alignItems:"center",gap:10 }}>
                 <span style={{ fontSize:22 }}>{m.tipo==="pdf"?"📄":m.tipo==="video"?"🎥":m.tipo==="ppt"?"📊":m.tipo==="excel"?"📗":"📦"}</span>
                 <div style={{ flex:1,minWidth:0 }}>
