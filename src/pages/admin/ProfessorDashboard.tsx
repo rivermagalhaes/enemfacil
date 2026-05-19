@@ -10,6 +10,7 @@ const ABAS = [
   { id:"materiais",  label:"Meus Materiais", emoji:"📁" },
   { id:"questoes",   label:"Questões",       emoji:"📝" },
   { id:"cadastrar",  label:"Nova Questão",   emoji:"➕" },
+  { id:"gerador",    label:"Gerador IA",     emoji:"🧠" },
   { id:"turmas",     label:"Turmas",         emoji:"🏫" },
   { id:"impressao",  label:"Imprimir Prova", emoji:"🖨️" },
   { id:"qrcode",     label:"QR Correção",    emoji:"📷" },
@@ -32,6 +33,23 @@ export default function ProfessorDashboard() {
   const [avaliacaoSelecionada, setAvaliacaoSelecionada] = useState<string>("");
   const [loadingQR, setLoadingQR] = useState(false);
   const [alunoQRAberto, setAlunoQRAberto] = useState<string | null>(null);
+
+  // Estados Gerador IA
+  const [genDiscursiva, setGenDiscursiva]   = useState("");
+  const [genResposta, setGenResposta]       = useState("");
+  const [genDisciplina, setGenDisciplina]   = useState("Química");
+  const [genTema, setGenTema]               = useState("");
+  const [genDificuldade, setGenDificuldade] = useState("medio");
+  const [genNModelos, setGenNModelos]       = useState(3);
+  const [genLoading, setGenLoading]         = useState(false);
+  const [genLoadingMsg, setGenLoadingMsg]   = useState("");
+  const [genQuestoes, setGenQuestoes]       = useState<any[]>([]);
+  const [genAnalise, setGenAnalise]         = useState<any>(null);
+  const [genErro, setGenErro]               = useState<string|null>(null);
+  const [genSalvoMsg, setGenSalvoMsg]       = useState<string|null>(null);
+  const [genSalvando, setGenSalvando]       = useState(false);
+  const [genVestibular, setGenVestibular]   = useState("ENEM");
+  const [genAno, setGenAno]                 = useState(new Date().getFullYear());
 
   // Estados Turmas
   const [turmas, setTurmas] = useState<any[]>([]);
@@ -356,6 +374,46 @@ export default function ProfessorDashboard() {
       const win = window.open("", "_blank");
       if (win) { win.document.write(html); win.document.close(); setTimeout(() => win.print(), 500); }
     }
+  }
+
+  const GEN_MSGS = ["Analisando questão discursiva...","Identificando habilidades...","Gerando alternativas...","Criando distratores pedagógicos...","Validando questões..."];
+
+  async function gerarQuestoes(estiloExtra?: string, difOverride?: string) {
+    if (!genDiscursiva.trim()) { setGenErro("Insira a questão discursiva."); return; }
+    setGenErro(null); setGenLoading(true); setGenSalvoMsg(null);
+    let mi = 0; setGenLoadingMsg(GEN_MSGS[0]);
+    const t = setInterval(() => { mi = (mi+1) % GEN_MSGS.length; setGenLoadingMsg(GEN_MSGS[mi]); }, 1800);
+    try {
+      const { data, error } = await supabase.functions.invoke("gerar-objetivas", {
+        body: { discursiva: genDiscursiva, resposta_esperada: genResposta, disciplina: genDisciplina, tema: genTema, dificuldade: difOverride ?? genDificuldade, n_modelos: genNModelos, estilo_extra: estiloExtra ?? null },
+      });
+      if (error) throw error;
+      setGenQuestoes(data.questoes ?? []);
+      setGenAnalise(data.analise ?? null);
+    } catch(e:any) { setGenErro(e.message ?? "Erro ao gerar questões."); }
+    finally { clearInterval(t); setGenLoading(false); }
+  }
+
+  async function salvarQuestoesGeradas() {
+    setGenSalvando(true); setGenErro(null);
+    let ok = 0;
+    for (const q of genQuestoes) {
+      const corrIdx = q.alternativas.findIndex((a:any) => a.correta);
+      const { data: qd, error: qe } = await supabase.from("questions").insert({
+        question: q.enunciado, explanation: `${q.explicacao}\n\nDistratores: ${q.analise_distratores ?? ""}`,
+        answer_index: corrIdx >= 0 ? corrIdx : 0,
+        difficulty: q.dificuldade === "olimpico" ? "dificil" : q.dificuldade,
+        vestibular: genVestibular, ano: genAno, topic: q.assunto_tag, area: "ciencias_natureza",
+      }).select("id").single();
+      if (qe || !qd) continue;
+      await supabase.from("question_options").insert(
+        q.alternativas.map((a:any, i:number) => ({ question_id: qd.id, option_index: i, label: a.texto }))
+      );
+      ok++;
+    }
+    setGenSalvoMsg(`✅ ${ok} questões salvas no banco (${genVestibular})!`);
+    setGenSalvando(false);
+    carregarQuestoes();
   }
 
   async function carregarTurmas() {
@@ -829,6 +887,154 @@ export default function ProfessorDashboard() {
         {/* SALAS VIRTUAIS */}
 
         {/* QR CODE DE CORREÇÃO */}
+        {/* GERADOR IA */}
+        {aba === "gerador" && (
+          <div>
+            <div style={{ background:CORES.card,borderRadius:14,padding:16,border:`1px solid ${CORES.border}`,marginBottom:12 }}>
+              <p style={{ fontSize:13,fontWeight:700,margin:"0 0 12px" }}>🧠 Converter questão discursiva em objetiva</p>
+              <div style={{ display:"flex",flexDirection:"column",gap:10 }}>
+                <div>
+                  <p style={{ fontSize:11,color:CORES.sub,margin:"0 0 4px" }}>Questão discursiva *</p>
+                  <textarea value={genDiscursiva} onChange={e => setGenDiscursiva(e.target.value)} rows={3}
+                    placeholder="Ex: Explique por que o aumento da temperatura acelera as reações químicas."
+                    style={{ width:"100%",padding:"9px 12px",borderRadius:8,border:`1px solid ${CORES.border}`,fontSize:13,resize:"vertical" as const,fontFamily:"inherit" }} />
+                </div>
+                <div>
+                  <p style={{ fontSize:11,color:CORES.sub,margin:"0 0 4px" }}>Resposta esperada</p>
+                  <textarea value={genResposta} onChange={e => setGenResposta(e.target.value)} rows={2}
+                    placeholder="O que o aluno deveria responder..."
+                    style={{ width:"100%",padding:"9px 12px",borderRadius:8,border:`1px solid ${CORES.border}`,fontSize:13,resize:"vertical" as const,fontFamily:"inherit" }} />
+                </div>
+                <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8 }}>
+                  <div>
+                    <p style={{ fontSize:11,color:CORES.sub,margin:"0 0 4px" }}>Disciplina</p>
+                    <select value={genDisciplina} onChange={e => setGenDisciplina(e.target.value)}
+                      style={{ width:"100%",padding:"8px 10px",borderRadius:8,border:`1px solid ${CORES.border}`,fontSize:13 }}>
+                      {["Química","Física","Biologia","Matemática","História","Geografia","Português","Filosofia","Sociologia"].map(d => <option key={d}>{d}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <p style={{ fontSize:11,color:CORES.sub,margin:"0 0 4px" }}>Dificuldade</p>
+                    <select value={genDificuldade} onChange={e => setGenDificuldade(e.target.value)}
+                      style={{ width:"100%",padding:"8px 10px",borderRadius:8,border:`1px solid ${CORES.border}`,fontSize:13 }}>
+                      <option value="facil">Fácil</option>
+                      <option value="medio">Médio</option>
+                      <option value="dificil">Difícil</option>
+                      <option value="olimpico">Olímpico</option>
+                    </select>
+                  </div>
+                  <div>
+                    <p style={{ fontSize:11,color:CORES.sub,margin:"0 0 4px" }}>Modelos</p>
+                    <select value={genNModelos} onChange={e => setGenNModelos(Number(e.target.value))}
+                      style={{ width:"100%",padding:"8px 10px",borderRadius:8,border:`1px solid ${CORES.border}`,fontSize:13 }}>
+                      <option value={2}>2 modelos</option>
+                      <option value={3}>3 modelos</option>
+                      <option value={4}>4 modelos</option>
+                    </select>
+                  </div>
+                </div>
+                <div>
+                  <p style={{ fontSize:11,color:CORES.sub,margin:"0 0 4px" }}>Tema / assunto</p>
+                  <input value={genTema} onChange={e => setGenTema(e.target.value)}
+                    placeholder="Ex: Cinética química, teoria das colisões"
+                    style={{ width:"100%",padding:"8px 12px",borderRadius:8,border:`1px solid ${CORES.border}`,fontSize:13 }} />
+                </div>
+                <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:8 }}>
+                  <div>
+                    <p style={{ fontSize:11,color:CORES.sub,margin:"0 0 4px" }}>Salvar no vestibular</p>
+                    <select value={genVestibular} onChange={e => setGenVestibular(e.target.value)}
+                      style={{ width:"100%",padding:"8px 10px",borderRadius:8,border:`1px solid ${CORES.border}`,fontSize:13 }}>
+                      {["ENEM","ITA","IME","FUVEST","UNICAMP","UNB","OUTRO"].map(v => <option key={v}>{v}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <p style={{ fontSize:11,color:CORES.sub,margin:"0 0 4px" }}>Ano</p>
+                    <input type="number" value={genAno} onChange={e => setGenAno(Number(e.target.value))}
+                      style={{ width:"100%",padding:"8px 12px",borderRadius:8,border:`1px solid ${CORES.border}`,fontSize:13 }} />
+                  </div>
+                </div>
+                <button onClick={() => gerarQuestoes()} disabled={genLoading}
+                  style={{ padding:"12px 0",background:genLoading?"#e2e8f0":"#0A7C4B",color:genLoading?CORES.sub:"#fff",border:"none",borderRadius:10,fontSize:14,fontWeight:600,cursor:genLoading?"not-allowed":"pointer",fontFamily:"inherit" }}>
+                  {genLoading ? genLoadingMsg : "🪄 Gerar questões objetivas"}
+                </button>
+                <div style={{ display:"flex",gap:6,flexWrap:"wrap" as const }}>
+                  {[
+                    { label:"Estilo ENEM",    estilo:"ENEM contextualizado" },
+                    { label:"Olímpico",       estilo:"olímpico com raciocínio aprofundado" },
+                    { label:"Contextualizada",estilo:"contextualizada com situação do cotidiano" },
+                  ].map((btn,i) => (
+                    <button key={i} disabled={genLoading} onClick={() => gerarQuestoes(btn.estilo)}
+                      style={{ padding:"6px 12px",background:CORES.bg,border:`1px solid ${CORES.border}`,borderRadius:8,fontSize:12,color:CORES.sub,cursor:"pointer",fontFamily:"inherit" }}>
+                      {btn.label}
+                    </button>
+                  ))}
+                </div>
+                {genErro && <p style={{ color:"#ef4444",fontSize:12,background:"#FFF1F1",padding:"8px 12px",borderRadius:8,margin:0 }}>{genErro}</p>}
+                {genSalvoMsg && <p style={{ color:"#15803d",fontSize:12,background:"#EDFAF3",padding:"8px 12px",borderRadius:8,margin:0 }}>{genSalvoMsg}</p>}
+              </div>
+            </div>
+
+            {/* Análise */}
+            {genAnalise && (
+              <div style={{ background:CORES.card,borderRadius:12,padding:14,border:`1px solid ${CORES.border}`,marginBottom:12 }}>
+                <p style={{ fontSize:11,fontWeight:700,color:CORES.sub,textTransform:"uppercase" as const,margin:"0 0 8px" }}>📊 Análise automática</p>
+                {[["Conceito",genAnalise.conceito_principal],["Habilidade",genAnalise.habilidade_cognitiva],["Área",genAnalise.area_tematica]].map(([l,v]) => v && (
+                  <div key={l} style={{ display:"flex",justifyContent:"space-between",padding:"4px 0",borderBottom:`1px solid ${CORES.bg}` }}>
+                    <span style={{ fontSize:12,color:CORES.sub }}>{l}</span>
+                    <span style={{ fontSize:12,color:CORES.text,fontWeight:600,textAlign:"right" as const,maxWidth:"60%" }}>{v}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Questões geradas */}
+            {genQuestoes.map((q,i) => {
+              const CORS = ["#3b82f6","#10b981","#f59e0b","#ef4444"];
+              const cor = CORS[i%4];
+              return (
+                <div key={i} style={{ background:CORES.card,borderRadius:12,border:`1px solid ${CORES.border}`,overflow:"hidden",marginBottom:10 }}>
+                  <div style={{ display:"flex",alignItems:"center",gap:10,padding:"10px 14px",background:CORES.bg,borderBottom:`2px solid ${cor}` }}>
+                    <span style={{ fontSize:11,fontWeight:600,padding:"2px 8px",borderRadius:99,background:`${cor}20`,color:cor }}>{q.modelo}</span>
+                    <span style={{ fontSize:11,color:CORES.sub,marginLeft:"auto" }}>{q.dificuldade}</span>
+                  </div>
+                  <div style={{ padding:14 }}>
+                    {q.texto_base && q.texto_base !== "null" && (
+                      <div style={{ background:CORES.bg,borderLeft:`3px solid #cbd5e1`,padding:"8px 12px",marginBottom:10,borderRadius:"0 8px 8px 0" }}>
+                        <p style={{ fontSize:11,color:CORES.sub,margin:0,fontStyle:"italic" as const }}>{q.texto_base}</p>
+                      </div>
+                    )}
+                    <p style={{ fontSize:13,color:CORES.text,lineHeight:1.75,marginBottom:12 }}>{q.enunciado}</p>
+                    <div style={{ display:"flex",flexDirection:"column",gap:6,marginBottom:12 }}>
+                      {q.alternativas.map((a:any) => (
+                        <div key={a.letra} style={{ display:"flex",alignItems:"flex-start",gap:8,padding:"8px 10px",borderRadius:8,background:a.correta?"#EDFAF3":CORES.bg,border:`1px solid ${a.correta?"#86efac":CORES.border}` }}>
+                          <span style={{ width:20,height:20,borderRadius:"50%",background:a.correta?"#22c55e":"#e5e7eb",color:a.correta?"#fff":"#666",display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,fontWeight:700,flexShrink:0 }}>{a.letra}</span>
+                          <span style={{ fontSize:12,color:CORES.text,lineHeight:1.5 }}>{a.texto}</span>
+                          {a.correta && <span style={{ marginLeft:"auto",color:"#22c55e",fontWeight:700,flexShrink:0 }}>✓</span>}
+                        </div>
+                      ))}
+                    </div>
+                    <div style={{ background:"#EDFAF3",border:"1px solid #86efac",borderRadius:8,padding:"10px 12px",marginBottom:8 }}>
+                      <p style={{ fontSize:10,fontWeight:700,color:"#15803d",textTransform:"uppercase" as const,margin:"0 0 4px" }}>Gabarito</p>
+                      <p style={{ fontSize:12,color:"#166534",lineHeight:1.6,margin:0 }}>{q.gabarito_justificativa}</p>
+                    </div>
+                    <div style={{ background:CORES.bg,borderRadius:8,padding:"10px 12px" }}>
+                      <p style={{ fontSize:10,fontWeight:700,color:CORES.sub,textTransform:"uppercase" as const,margin:"0 0 4px" }}>Explicação</p>
+                      <p style={{ fontSize:12,color:CORES.text,lineHeight:1.6,margin:0 }}>{q.explicacao}</p>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+
+            {genQuestoes.length > 0 && (
+              <button onClick={salvarQuestoesGeradas} disabled={genSalvando}
+                style={{ width:"100%",padding:"13px 0",background:genSalvando?"#e2e8f0":"#0f172a",color:genSalvando?CORES.sub:"#fff",border:"none",borderRadius:10,fontSize:14,fontWeight:600,cursor:"pointer",fontFamily:"inherit",marginBottom:8 }}>
+                {genSalvando ? "Salvando..." : `💾 Salvar ${genQuestoes.length} questões no banco (${genVestibular})`}
+              </button>
+            )}
+          </div>
+        )}
+
         {/* TURMAS */}
         {aba === "turmas" && (
           <div>
