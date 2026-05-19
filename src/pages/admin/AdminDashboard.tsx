@@ -102,6 +102,10 @@ export default function AdminDashboard() {
   const [simuladoSel, setSimuladoSel]         = useState("");
   const [novoSimTitulo, setNovoSimTitulo]     = useState("");
   const [criandoSimulado, setCriandoSimulado] = useState(false);
+  // Destino das questões
+  const [genDestino, setGenDestino]           = useState<"simulado"|"banco">("banco");
+  const [genVestibular, setGenVestibular]     = useState("ENEM");
+  const [genAno, setGenAno]                   = useState(new Date().getFullYear());
 
   useEffect(() => {
     if (!profile) return;
@@ -332,28 +336,57 @@ export default function AdminDashboard() {
   }
 
   async function salvarQuestoes() {
-    if (!simuladoSel) { setGenErro("Selecione um simulado para salvar."); return; }
+    if (genDestino === "simulado" && !simuladoSel) { setGenErro("Selecione um simulado para salvar."); return; }
     setGenSalvando(true); setGenErro(null);
     let ok = 0;
-    for (const q of genQuestoes) {
-      const { data: qd, error: qe } = await supabase.from("questoes_simulado").insert({
-        simulado_id: simuladoSel,
-        enunciado: q.enunciado,
-        texto_base: q.texto_base && q.texto_base !== "null" ? q.texto_base : null,
-        explicacao: `${q.explicacao}\n\nDistratores: ${q.analise_distratores ?? ""}`,
-        assunto_tag: q.assunto_tag,
-        competencia: q.competencia,
-        habilidade: q.habilidade,
-        dificuldade: q.dificuldade,
-        fonte: "ia",
-      }).select("id").single();
-      if (qe || !qd) continue;
-      await supabase.from("alternativas_simulado").insert(
-        q.alternativas.map((a: any, i: number) => ({ questao_id: qd.id, letra: a.letra, texto: a.texto, correta: a.correta, ordem: i }))
-      );
-      ok++;
+
+    if (genDestino === "simulado") {
+      // Salva em questoes_simulado
+      for (const q of genQuestoes) {
+        const { data: qd, error: qe } = await supabase.from("questoes_simulado").insert({
+          simulado_id: simuladoSel,
+          enunciado: q.enunciado,
+          texto_base: q.texto_base && q.texto_base !== "null" ? q.texto_base : null,
+          explicacao: `${q.explicacao}\n\nDistratores: ${q.analise_distratores ?? ""}`,
+          assunto_tag: q.assunto_tag,
+          competencia: q.competencia,
+          habilidade: q.habilidade,
+          dificuldade: q.dificuldade,
+          fonte: "ia",
+        }).select("id").single();
+        if (qe || !qd) continue;
+        await supabase.from("alternativas_simulado").insert(
+          q.alternativas.map((a: any, i: number) => ({ questao_id: qd.id, letra: a.letra, texto: a.texto, correta: a.correta, ordem: i }))
+        );
+        ok++;
+      }
+    } else {
+      // Salva em questions + question_options
+      for (const q of genQuestoes) {
+        const corrIdx = q.alternativas.findIndex((a: any) => a.correta);
+        const { data: qd, error: qe } = await supabase.from("questions").insert({
+          question:     q.enunciado,
+          explanation:  `${q.explicacao}\n\nDistratores: ${q.analise_distratores ?? ""}`,
+          answer_index: corrIdx >= 0 ? corrIdx : 0,
+          difficulty:   q.dificuldade === "olimpico" ? "dificil" : q.dificuldade,
+          vestibular:   genVestibular,
+          ano:          genAno,
+          topic:        q.assunto_tag,
+          area:         "natureza",
+        }).select("id").single();
+        if (qe || !qd) continue;
+        await supabase.from("question_options").insert(
+          q.alternativas.map((a: any, i: number) => ({
+            question_id:  qd.id,
+            option_index: i,
+            label:        a.texto,
+          }))
+        );
+        ok++;
+      }
     }
-    setGenSalvoMsg(`✅ ${ok} questões salvas com sucesso!`);
+
+    setGenSalvoMsg(`✅ ${ok} questões salvas em ${genDestino === "simulado" ? "mini simulado" : genVestibular}!`);
     setGenSalvando(false);
   }
 
@@ -625,44 +658,87 @@ export default function AdminDashboard() {
         {/* ── GERADOR IA ── */}
         {aba === "gerador" && (
           <div>
-            {/* Seletor trilha + simulado */}
+            {/* Seletor de destino */}
             <div style={{ background:CORES.card,borderRadius:14,padding:16,border:`1px solid ${CORES.border}`,marginBottom:12 }}>
-              <p style={{ fontSize:13,fontWeight:700,margin:"0 0 12px" }}>🗂️ Destino das questões</p>
-              <div style={{ display:"flex",flexDirection:"column",gap:8 }}>
-                <div>
-                  <p style={{ fontSize:11,color:CORES.sub,margin:"0 0 4px" }}>Trilha</p>
-                  <select value={trilhaSel} onChange={e => carregarSimulados(e.target.value)}
-                    style={{ width:"100%",padding:"9px 12px",borderRadius:8,border:`1px solid ${CORES.border}`,fontSize:13 }}>
-                    <option value="">— Selecione uma trilha —</option>
-                    {trilhas.map(t => <option key={t.id} value={t.id}>{t.titulo} ({t.area_enem})</option>)}
-                  </select>
-                </div>
-                {trilhaSel && (
-                  <div>
-                    <p style={{ fontSize:11,color:CORES.sub,margin:"0 0 4px" }}>Simulado</p>
-                    {simulados.length > 0 && (
-                      <select value={simuladoSel} onChange={e => setSimuladoSel(e.target.value)}
-                        style={{ width:"100%",padding:"9px 12px",borderRadius:8,border:`1px solid ${CORES.border}`,fontSize:13,marginBottom:8 }}>
-                        <option value="">— Selecione —</option>
-                        {simulados.map(s => <option key={s.id} value={s.id}>{s.titulo}</option>)}
-                      </select>
-                    )}
-                    <div style={{ display:"flex",gap:8 }}>
-                      <input value={novoSimTitulo} onChange={e => setNovoSimTitulo(e.target.value)}
-                        placeholder="Novo simulado..." style={{ flex:1,padding:"8px 12px",borderRadius:8,border:`1px solid ${CORES.border}`,fontSize:13 }} />
-                      <button onClick={criarSimulado} disabled={criandoSimulado || !novoSimTitulo.trim()}
-                        style={{ padding:"8px 14px",background:CORES.primary,color:"#fff",border:"none",borderRadius:8,fontSize:13,fontWeight:600,cursor:"pointer",opacity:!novoSimTitulo.trim()?0.5:1 }}>
-                        {criandoSimulado ? "..." : "+ Criar"}
-                      </button>
-                    </div>
-                  </div>
-                )}
-                {simuladoSel && (
-                  <p style={{ fontSize:11,color:"#22c55e",background:"#EDFAF3",padding:"6px 10px",borderRadius:6,margin:0 }}>
-                    ✅ Simulado selecionado — as questões serão salvas automaticamente ao gerar.
-                  </p>
-                )}
+              <p style={{ fontSize:13,fontWeight:700,margin:"0 0 12px" }}>🎯 Destino das questões</p>
+
+              {/* Tabs destino */}
+              <div style={{ display:"flex",gap:8,marginBottom:12 }}>
+                {[
+                  { id:"banco",   label:"📚 Banco de vestibular" },
+                  { id:"simulado",label:"🎯 Mini simulado" },
+                ].map(d => (
+                  <button key={d.id} onClick={() => setGenDestino(d.id as any)}
+                    style={{ flex:1,padding:"8px 0",borderRadius:8,border:`1px solid ${genDestino===d.id?CORES.primary:CORES.border}`,
+                      background:genDestino===d.id?"#eef2ff":"transparent",
+                      color:genDestino===d.id?CORES.primary:CORES.sub,
+                      fontSize:13,fontWeight:genDestino===d.id?600:400,cursor:"pointer" }}>
+                    {d.label}
+                  </button>
+                ))}
               </div>
+
+              {/* Banco de vestibular */}
+              {genDestino === "banco" && (
+                <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:8 }}>
+                  <div>
+                    <p style={{ fontSize:11,color:CORES.sub,margin:"0 0 4px" }}>Vestibular</p>
+                    <select value={genVestibular} onChange={e => setGenVestibular(e.target.value)}
+                      style={{ width:"100%",padding:"9px 12px",borderRadius:8,border:`1px solid ${CORES.border}`,fontSize:13 }}>
+                      {["ENEM","ITA","IME","FUVEST","UNICAMP","UNB","PASS_UNB","OUTRO","PROPRIO"].map(v => (
+                        <option key={v} value={v}>{v}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <p style={{ fontSize:11,color:CORES.sub,margin:"0 0 4px" }}>Ano</p>
+                    <input type="number" value={genAno} onChange={e => setGenAno(Number(e.target.value))}
+                      style={{ width:"100%",padding:"8px 12px",borderRadius:8,border:`1px solid ${CORES.border}`,fontSize:13 }} />
+                  </div>
+                  <p style={{ gridColumn:"1/-1",fontSize:11,color:"#22c55e",background:"#EDFAF3",padding:"6px 10px",borderRadius:6,margin:0 }}>
+                    ✅ As questões serão salvas em <strong>questions</strong> e aparecerão na seção {genVestibular}.
+                  </p>
+                </div>
+              )}
+
+              {/* Mini simulado */}
+              {genDestino === "simulado" && (
+                <div style={{ display:"flex",flexDirection:"column",gap:8 }}>
+                  <div>
+                    <p style={{ fontSize:11,color:CORES.sub,margin:"0 0 4px" }}>Trilha</p>
+                    <select value={trilhaSel} onChange={e => carregarSimulados(e.target.value)}
+                      style={{ width:"100%",padding:"9px 12px",borderRadius:8,border:`1px solid ${CORES.border}`,fontSize:13 }}>
+                      <option value="">— Selecione uma trilha —</option>
+                      {trilhas.map(t => <option key={t.id} value={t.id}>{t.titulo} ({t.area_enem})</option>)}
+                    </select>
+                  </div>
+                  {trilhaSel && (
+                    <div>
+                      <p style={{ fontSize:11,color:CORES.sub,margin:"0 0 4px" }}>Simulado</p>
+                      {simulados.length > 0 && (
+                        <select value={simuladoSel} onChange={e => setSimuladoSel(e.target.value)}
+                          style={{ width:"100%",padding:"9px 12px",borderRadius:8,border:`1px solid ${CORES.border}`,fontSize:13,marginBottom:8 }}>
+                          <option value="">— Selecione —</option>
+                          {simulados.map(s => <option key={s.id} value={s.id}>{s.titulo}</option>)}
+                        </select>
+                      )}
+                      <div style={{ display:"flex",gap:8 }}>
+                        <input value={novoSimTitulo} onChange={e => setNovoSimTitulo(e.target.value)}
+                          placeholder="Novo simulado..." style={{ flex:1,padding:"8px 12px",borderRadius:8,border:`1px solid ${CORES.border}`,fontSize:13 }} />
+                        <button onClick={criarSimulado} disabled={criandoSimulado || !novoSimTitulo.trim()}
+                          style={{ padding:"8px 14px",background:CORES.primary,color:"#fff",border:"none",borderRadius:8,fontSize:13,fontWeight:600,cursor:"pointer" }}>
+                          {criandoSimulado ? "..." : "+ Criar"}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                  {simuladoSel && (
+                    <p style={{ fontSize:11,color:"#22c55e",background:"#EDFAF3",padding:"6px 10px",borderRadius:6,margin:0 }}>
+                      ✅ Simulado selecionado — questões salvas automaticamente ao gerar.
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Formulário */}
@@ -825,18 +901,16 @@ export default function AdminDashboard() {
                 })}
 
                 {/* Salvar no banco */}
-                {!simuladoSel && (
+                {!simuladoSel && genDestino === "simulado" && (
                   <div style={{ background:"#FFF8E6",border:"1px solid #fcd34d",borderRadius:12,padding:14,marginBottom:12 }}>
                     <p style={{ fontSize:12,fontWeight:600,color:"#92400e",margin:"0 0 4px" }}>⚠️ Simulado não selecionado</p>
                     <p style={{ fontSize:12,color:"#78350f",margin:0 }}>Selecione uma trilha e um simulado acima para salvar as questões no banco.</p>
                   </div>
                 )}
-                {simuladoSel && (
-                  <button onClick={salvarQuestoes} disabled={genSalvando}
-                    style={{ width:"100%",padding:"13px 0",background:genSalvando?"#e2e8f0":"#0f172a",color:genSalvando?CORES.sub:"#fff",border:"none",borderRadius:10,fontSize:14,fontWeight:600,cursor:genSalvando?"not-allowed":"pointer",marginBottom:8 }}>
-                    {genSalvando ? "Salvando..." : `💾 Salvar ${genQuestoes.length} questões no simulado`}
-                  </button>
-                )}
+                <button onClick={salvarQuestoes} disabled={genSalvando || (genDestino === "simulado" && !simuladoSel)}
+                  style={{ width:"100%",padding:"13px 0",background:genSalvando?"#e2e8f0":"#0f172a",color:genSalvando?CORES.sub:"#fff",border:"none",borderRadius:10,fontSize:14,fontWeight:600,cursor:"pointer",marginBottom:8,opacity:(genDestino==="simulado"&&!simuladoSel)?0.5:1 }}>
+                  {genSalvando ? "Salvando..." : `💾 Salvar ${genQuestoes.length} questões em ${genDestino === "banco" ? genVestibular : "mini simulado"}`}
+                </button>
               </>
             )}
           </div>
