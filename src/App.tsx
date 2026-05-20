@@ -30,6 +30,9 @@ import CorrecaoQR from "@/pages/admin/CorrecaoQR";
 import ModuloPage from "@/pages/trilha/ModuloPage";
 import MeusCertificados from "@/pages/certificados/MeusCertificados";
 import ValidarCertificado from "@/pages/certificados/ValidarCertificado";
+import OlimpiadaHub from "@/pages/olimpiadas/OlimpiadaHub";
+import ProvaOlimpiada from "@/pages/olimpiadas/ProvaOlimpiada";
+import AdminOlimpiada from "@/pages/olimpiadas/AdminOlimpiada";
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
@@ -83,6 +86,9 @@ export default function App() {
         <Route path="/correcao/:assignmentId/:studentId" element={<PrivateRoute><CorrecaoQR /></PrivateRoute>} />
        <Route path="/certificado/:codigo" element={<ValidarCertificado />} />
        <Route path="/certificados" element={<PrivateRoute><MeusCertificados /></PrivateRoute>} />
+       <Route path="/olimpiada/:id" element={<PrivateRoute><OlimpiadaHub /></PrivateRoute>} />
+       <Route path="/olimpiada/:id/prova/:provaId" element={<PrivateRoute><ProvaOlimpiada /></PrivateRoute>} />
+       <Route path="/olimpiada/:id/admin" element={<PrivateRoute><AdminOlimpiada /></PrivateRoute>} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>

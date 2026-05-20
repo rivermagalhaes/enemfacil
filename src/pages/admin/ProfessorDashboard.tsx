@@ -51,13 +51,16 @@ export default function ProfessorDashboard() {
   const [genVestibular, setGenVestibular]   = useState("ENEM");
   const [genAno, setGenAno]                 = useState(new Date().getFullYear());
   // Destino das questões
-  const [genDestino, setGenDestino]         = useState<"banco"|"simulado">("banco");
+  const [genDestino, setGenDestino]         = useState<"banco"|"simulado"|"olimpiada">("banco");
   const [trilhas, setTrilhas]               = useState<{id:string;titulo:string;area_enem:string}[]>([]);
   const [simulados, setSimulados]           = useState<{id:string;titulo:string}[]>([]);
   const [trilhaSel, setTrilhaSel]           = useState("");
   const [simuladoSel, setSimuladoSel]       = useState("");
   const [novoSimTitulo, setNovoSimTitulo]   = useState("");
   const [criandoSimulado, setCriandoSimulado] = useState(false);
+  // Prova de olimpíada
+  const [provas, setProvas]                 = useState<{id:string;titulo:string;evento:string}[]>([]);
+  const [provaSel, setProvaSel]             = useState("");
 
   // Estados Turmas
   const [turmas, setTurmas] = useState<any[]>([]);
@@ -119,6 +122,7 @@ export default function ProfessorDashboard() {
     carregarQuestoes();
     carregarTurmas();
     carregarTrilhas();
+    carregarProvas();
   }, [profile]);
 
   useEffect(() => {
@@ -408,6 +412,15 @@ export default function ProfessorDashboard() {
     if (data) setTrilhas(data);
   }
 
+  async function carregarProvas() {
+    const { data } = await supabase
+      .from("provas_olimpiada")
+      .select("id, titulo, eventos_certificaveis(sigla)")
+      .eq("ativa", true)
+      .order("created_at", { ascending: false });
+    if (data) setProvas(data.map((p: any) => ({ id: p.id, titulo: p.titulo, evento: p.eventos_certificaveis?.sigla ?? "" })));
+  }
+
   async function carregarSimulados(tId: string) {
     setTrilhaSel(tId); setSimuladoSel("");
     const { data } = await supabase.from("mini_simulados").select("id,titulo").eq("trilha_id", tId);
@@ -424,11 +437,32 @@ export default function ProfessorDashboard() {
 
   async function salvarQuestoesGeradas() {
     if (genDestino === "simulado" && !simuladoSel) { setGenErro("Selecione um simulado para salvar."); return; }
+    if (genDestino === "olimpiada" && !provaSel) { setGenErro("Selecione uma prova de olimpíada."); return; }
     setGenSalvando(true); setGenErro(null);
     let ok = 0;
+
+    // Conta questões já existentes na prova para definir ordem
+    let ordemBase = 0;
+    if (genDestino === "olimpiada") {
+      const { count } = await supabase.from("questoes_prova").select("*", { count:"exact", head:true }).eq("prova_id", provaSel);
+      ordemBase = count ?? 0;
+    }
+
     for (const q of genQuestoes) {
       const corrIdx = q.alternativas.findIndex((a:any) => a.correta);
-      if (genDestino === "simulado") {
+      if (genDestino === "olimpiada") {
+        const { error: qe } = await supabase.from("questoes_prova").insert({
+          prova_id: provaSel,
+          enunciado: q.enunciado,
+          alternativas: q.alternativas.map((a:any) => ({ texto: a.texto })),
+          resposta_correta: corrIdx >= 0 ? corrIdx : 0,
+          explicacao: `${q.explicacao}\n\nDistratores: ${q.analise_distratores ?? ""}`,
+          assunto: q.assunto_tag,
+          dificuldade: q.dificuldade,
+          ordem: ordemBase + ok + 1,
+        });
+        if (!qe) ok++;
+      } else if (genDestino === "simulado") {
         const { data: qd, error: qe } = await supabase.from("questoes_simulado").insert({
           simulado_id: simuladoSel, enunciado: q.enunciado,
           explicacao: `${q.explicacao}\n\nDistratores: ${q.analise_distratores ?? ""}`,
@@ -440,6 +474,7 @@ export default function ProfessorDashboard() {
         await supabase.from("alternativas_simulado").insert(
           q.alternativas.map((a:any, i:number) => ({ questao_id: qd.id, indice: i, texto: a.texto }))
         );
+        ok++;
       } else {
         const { data: qd, error: qe } = await supabase.from("questions").insert({
           question: q.enunciado, explanation: `${q.explicacao}\n\nDistratores: ${q.analise_distratores ?? ""}`,
@@ -451,10 +486,11 @@ export default function ProfessorDashboard() {
         await supabase.from("question_options").insert(
           q.alternativas.map((a:any, i:number) => ({ question_id: qd.id, option_index: i, label: a.texto }))
         );
+        ok++;
       }
-      ok++;
     }
-    setGenSalvoMsg(`✅ ${ok} questões salvas em ${genDestino === "simulado" ? "mini simulado" : genVestibular}!`);
+    const destLabel = genDestino === "olimpiada" ? `prova ${provas.find(p=>p.id===provaSel)?.evento}` : genDestino === "simulado" ? "mini simulado" : genVestibular;
+    setGenSalvoMsg(`✅ ${ok} questões salvas em ${destLabel}!`);
     setGenSalvando(false);
     carregarQuestoes();
   }
@@ -938,8 +974,9 @@ export default function ProfessorDashboard() {
               <p style={{ fontSize:13,fontWeight:700,margin:"0 0 12px" }}>🎯 Destino das questões</p>
               <div style={{ display:"flex",gap:8,marginBottom:12 }}>
                 {[
-                  { id:"banco",    label:"📚 Banco de vestibular" },
-                  { id:"simulado", label:"🎯 Mini simulado" },
+                  { id:"banco",     label:"📚 Banco de vestibular" },
+                  { id:"simulado",  label:"🎯 Mini simulado" },
+                  { id:"olimpiada", label:"🏆 Prova de Olimpíada" },
                 ].map(d => (
                   <button key={d.id} onClick={() => setGenDestino(d.id as any)}
                     style={{ flex:1,padding:"8px 0",borderRadius:8,border:`1px solid ${genDestino===d.id?CORES.primary:CORES.border}`,
@@ -1008,6 +1045,30 @@ export default function ProfessorDashboard() {
                   {simuladoSel && (
                     <p style={{ fontSize:11,color:"#22c55e",background:"#EDFAF3",padding:"6px 10px",borderRadius:6,margin:0 }}>
                       ✅ Simulado selecionado — questões salvas automaticamente ao gerar.
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {/* Prova de olimpíada */}
+              {genDestino === "olimpiada" && (
+                <div style={{ display:"flex",flexDirection:"column",gap:8 }}>
+                  <div>
+                    <p style={{ fontSize:11,color:CORES.sub,margin:"0 0 4px" }}>Prova ativa</p>
+                    <select value={provaSel} onChange={e => setProvaSel(e.target.value)}
+                      style={{ width:"100%",padding:"9px 12px",borderRadius:8,border:`1px solid ${CORES.border}`,fontSize:13 }}>
+                      <option value="">— Selecione a prova —</option>
+                      {provas.map(p => <option key={p.id} value={p.id}>{p.evento} — {p.titulo}</option>)}
+                    </select>
+                  </div>
+                  {provaSel && (
+                    <p style={{ fontSize:11,color:"#22c55e",background:"#EDFAF3",padding:"6px 10px",borderRadius:6,margin:0 }}>
+                      ✅ As questões serão adicionadas diretamente à prova de olimpíada selecionada.
+                    </p>
+                  )}
+                  {provas.length === 0 && (
+                    <p style={{ fontSize:11,color:"#f59e0b",background:"#fffbeb",padding:"6px 10px",borderRadius:6,margin:0 }}>
+                      ⚠️ Nenhuma prova ativa. Ative uma prova no Admin da Olimpíada primeiro.
                     </p>
                   )}
                 </div>
@@ -1139,7 +1200,7 @@ export default function ProfessorDashboard() {
             {genQuestoes.length > 0 && (
               <button onClick={salvarQuestoesGeradas} disabled={genSalvando}
                 style={{ width:"100%",padding:"13px 0",background:genSalvando?"#e2e8f0":"#0f172a",color:genSalvando?CORES.sub:"#fff",border:"none",borderRadius:10,fontSize:14,fontWeight:600,cursor:"pointer",fontFamily:"inherit",marginBottom:8 }}>
-                {genSalvando ? "Salvando..." : `💾 Salvar ${genQuestoes.length} questões em ${genDestino === "banco" ? genVestibular : "mini simulado"}`}
+                {genSalvando ? "Salvando..." : `💾 Salvar ${genQuestoes.length} questões em ${genDestino === "banco" ? genVestibular : genDestino === "olimpiada" ? "prova de olimpíada" : "mini simulado"}`}
               </button>
             )}
           </div>
