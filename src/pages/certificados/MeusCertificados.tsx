@@ -96,21 +96,21 @@ export default function MeusCertificados() {
         <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.8)", zIndex:999, display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
           <div style={{ background:"#fff", borderRadius:16, width:"100%", maxWidth:520, overflow:"hidden" }}>
             {/* Preview HTML do certificado */}
-            <div style={{ padding:16, background:CORES.bg, borderBottom:`1px solid ${CORES.border}`, display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+            <div style={{ padding:16, background:CORES.bg, borderBottom:`1px solid ${"rgba(0,0,0,0.08)"}`, display:"flex", justifyContent:"space-between", alignItems:"center" }}>
               <p style={{ fontWeight:700, fontSize:14, margin:0 }}>📜 Visualizar Certificado</p>
-              <button onClick={() => setCertAberto(null)} style={{ background:"none", border:"none", fontSize:20, cursor:"pointer", color:CORES.sub }}>✕</button>
+              <button onClick={() => setCertAberto(null)} style={{ background:"none", border:"none", fontSize:20, cursor:"pointer", color:CORES.textSub }}>✕</button>
             </div>
             <div style={{ padding:20, display:"flex", flexDirection:"column", gap:12 }}>
               {/* Info */}
               <div style={{ background:CORES.bg, borderRadius:12, padding:14 }}>
-                <p style={{ fontSize:11, color:CORES.sub, textTransform:"uppercase", letterSpacing:"0.06em", margin:"0 0 8px" }}>Detalhes</p>
+                <p style={{ fontSize:11, color:CORES.textSub, textTransform:"uppercase", letterSpacing:"0.06em", margin:"0 0 8px" }}>Detalhes</p>
                 <p style={{ fontSize:14, fontWeight:700, margin:"0 0 4px" }}>{certAberto.eventos_certificaveis.nome}</p>
-                <p style={{ fontSize:12, color:CORES.sub, margin:0 }}>Código: <strong style={{ color:CORES.text }}>{certAberto.codigo}</strong></p>
-                <p style={{ fontSize:12, color:CORES.sub, margin:"4px 0 0" }}>
+                <p style={{ fontSize:12, color:CORES.textSub, margin:0 }}>Código: <strong style={{ color:CORES.text }}>{certAberto.codigo}</strong></p>
+                <p style={{ fontSize:12, color:CORES.textSub, margin:"4px 0 0" }}>
                   Emitido em: {new Date(certAberto.emitido_em).toLocaleDateString("pt-BR")}
                 </p>
-                {certAberto.nota && <p style={{ fontSize:12, color:CORES.sub, margin:"4px 0 0" }}>Nota: <strong>{certAberto.nota}</strong></p>}
-                {certAberto.percentual && <p style={{ fontSize:12, color:CORES.sub, margin:"4px 0 0" }}>Aproveitamento: <strong>{certAberto.percentual}%</strong></p>}
+                {certAberto.nota && <p style={{ fontSize:12, color:CORES.textSub, margin:"4px 0 0" }}>Nota: <strong>{certAberto.nota}</strong></p>}
+                {certAberto.percentual && <p style={{ fontSize:12, color:CORES.textSub, margin:"4px 0 0" }}>Aproveitamento: <strong>{certAberto.percentual}%</strong></p>}
               </div>
 
               {/* QR Code */}
@@ -121,7 +121,7 @@ export default function MeusCertificados() {
                     alt="QR Code"
                     style={{ borderRadius:8 }}
                   />
-                  <p style={{ fontSize:11, color:CORES.sub, marginTop:6 }}>Escaneie para validar</p>
+                  <p style={{ fontSize:11, color:CORES.textSub, marginTop:6 }}>Escaneie para validar</p>
                 </div>
               </div>
 
@@ -141,7 +141,7 @@ export default function MeusCertificados() {
                 </button>
                 <button
                   onClick={() => navigate(`/certificado/${certAberto.codigo}`)}
-                  style={{ padding:"12px 14px", background:CORES.bg, color:CORES.sub, border:`1px solid ${CORES.border}`, borderRadius:10, fontSize:13, cursor:"pointer" }}
+                  style={{ padding:"12px 14px", background:CORES.bg, color:CORES.textSub, border:`1px solid ${"rgba(0,0,0,0.08)"}`, borderRadius:10, fontSize:13, cursor:"pointer" }}
                 >
                   🌐
                 </button>
@@ -184,13 +184,13 @@ export default function MeusCertificados() {
 
       {/* Conteúdo */}
       <div style={{ flex:1, overflowY:"auto", padding:"16px 14px 90px" }}>
-        {loading && <p style={{ textAlign:"center", color:CORES.sub, padding:32 }}>Carregando...</p>}
+        {loading && <p style={{ textAlign:"center", color:CORES.textSub, padding:32 }}>Carregando...</p>}
 
         {!loading && filtrados.length === 0 && (
           <div style={{ textAlign:"center", padding:"48px 20px" }}>
             <p style={{ fontSize:48, margin:"0 0 12px" }}>📜</p>
             <p style={{ fontSize:15, fontWeight:600, color:CORES.text, margin:"0 0 6px" }}>Nenhum certificado ainda</p>
-            <p style={{ fontSize:13, color:CORES.sub }}>Complete olimpíadas e simulados para receber seus certificados!</p>
+            <p style={{ fontSize:13, color:CORES.textSub }}>Complete olimpíadas e simulados para receber seus certificados!</p>
           </div>
         )}
 
@@ -223,12 +223,12 @@ export default function MeusCertificados() {
                     <span style={{ fontSize:10, fontWeight:700, color:cfg.cor, background:cfg.bg, borderRadius:4, padding:"1px 6px" }}>
                       {cfg.label}
                     </span>
-                    <span style={{ fontSize:10, color:CORES.sub }}>{cert.eventos_certificaveis.ano}</span>
+                    <span style={{ fontSize:10, color:CORES.textSub }}>{cert.eventos_certificaveis.ano}</span>
                   </div>
                   <p style={{ fontSize:14, fontWeight:700, color:CORES.text, margin:"0 0 2px", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
                     {cert.eventos_certificaveis.nome}
                   </p>
-                  <p style={{ fontSize:11, color:CORES.sub, margin:0 }}>
+                  <p style={{ fontSize:11, color:CORES.textSub, margin:0 }}>
                     {cert.codigo} · {new Date(cert.emitido_em).toLocaleDateString("pt-BR")}
                   </p>
                 </div>

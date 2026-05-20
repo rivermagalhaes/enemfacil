@@ -104,14 +104,14 @@ export default function CertificadosAdmin() {
       )}
 
       {/* Criar Evento */}
-      <div style={{ background:CORES.card, borderRadius:14, padding:16, border:`1px solid ${CORES.border}`, marginBottom:12 }}>
+      <div style={{ background:CORES.bgCard, borderRadius:14, padding:16, border:`1px solid ${"rgba(0,0,0,0.08)"}`, marginBottom:12 }}>
         <p style={{ fontSize:13, fontWeight:700, margin:"0 0 12px" }}>🏆 Novo Evento Certificável</p>
         <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8 }}>
-          <input value={novoEvento.nome} onChange={e => setNovoEvento(p => ({...p, nome:e.target.value}))} placeholder="Nome do evento *" style={{ padding:"8px 12px", borderRadius:8, border:`1px solid ${CORES.border}`, fontSize:13, gridColumn:"1/-1" }} />
-          <input value={novoEvento.sigla} onChange={e => setNovoEvento(p => ({...p, sigla:e.target.value.toUpperCase()}))} placeholder="Sigla (ex: OTQ)" style={{ padding:"8px 12px", borderRadius:8, border:`1px solid ${CORES.border}`, fontSize:13 }} />
-          <input value={novoEvento.edicao} onChange={e => setNovoEvento(p => ({...p, edicao:e.target.value}))} placeholder="Edição (ex: 1ª)" style={{ padding:"8px 12px", borderRadius:8, border:`1px solid ${CORES.border}`, fontSize:13 }} />
-          <input value={novoEvento.disciplina} onChange={e => setNovoEvento(p => ({...p, disciplina:e.target.value}))} placeholder="Disciplina" style={{ padding:"8px 12px", borderRadius:8, border:`1px solid ${CORES.border}`, fontSize:13 }} />
-          <input type="number" value={novoEvento.ano} onChange={e => setNovoEvento(p => ({...p, ano:parseInt(e.target.value)}))} style={{ padding:"8px 12px", borderRadius:8, border:`1px solid ${CORES.border}`, fontSize:13 }} />
+          <input value={novoEvento.nome} onChange={e => setNovoEvento(p => ({...p, nome:e.target.value}))} placeholder="Nome do evento *" style={{ padding:"8px 12px", borderRadius:8, border:`1px solid ${"rgba(0,0,0,0.08)"}`, fontSize:13, gridColumn:"1/-1" }} />
+          <input value={novoEvento.sigla} onChange={e => setNovoEvento(p => ({...p, sigla:e.target.value.toUpperCase()}))} placeholder="Sigla (ex: OTQ)" style={{ padding:"8px 12px", borderRadius:8, border:`1px solid ${"rgba(0,0,0,0.08)"}`, fontSize:13 }} />
+          <input value={novoEvento.edicao} onChange={e => setNovoEvento(p => ({...p, edicao:e.target.value}))} placeholder="Edição (ex: 1ª)" style={{ padding:"8px 12px", borderRadius:8, border:`1px solid ${"rgba(0,0,0,0.08)"}`, fontSize:13 }} />
+          <input value={novoEvento.disciplina} onChange={e => setNovoEvento(p => ({...p, disciplina:e.target.value}))} placeholder="Disciplina" style={{ padding:"8px 12px", borderRadius:8, border:`1px solid ${"rgba(0,0,0,0.08)"}`, fontSize:13 }} />
+          <input type="number" value={novoEvento.ano} onChange={e => setNovoEvento(p => ({...p, ano:parseInt(e.target.value)}))} style={{ padding:"8px 12px", borderRadius:8, border:`1px solid ${"rgba(0,0,0,0.08)"}`, fontSize:13 }} />
         </div>
         <button onClick={criarEvento} style={{ marginTop:10, width:"100%", padding:"10px 0", background:"#1a3a6e", color:"#fff", border:"none", borderRadius:8, fontSize:13, fontWeight:600, cursor:"pointer" }}>
           + Criar Evento
@@ -120,8 +120,8 @@ export default function CertificadosAdmin() {
 
       {/* Seletor de evento */}
       <div style={{ marginBottom:12 }}>
-        <p style={{ fontSize:11, color:CORES.sub, margin:"0 0 4px" }}>Selecionar evento</p>
-        <select value={eventoSel} onChange={e => setEventoSel(e.target.value)} style={{ width:"100%", padding:"9px 12px", borderRadius:8, border:`1px solid ${CORES.border}`, fontSize:13 }}>
+        <p style={{ fontSize:11, color:CORES.textSub, margin:"0 0 4px" }}>Selecionar evento</p>
+        <select value={eventoSel} onChange={e => setEventoSel(e.target.value)} style={{ width:"100%", padding:"9px 12px", borderRadius:8, border:`1px solid ${"rgba(0,0,0,0.08)"}`, fontSize:13 }}>
           <option value="">— Selecione um evento —</option>
           {eventos.map(e => <option key={e.id} value={e.id}>{e.sigla} — {e.nome} ({e.ano})</option>)}
         </select>
@@ -130,12 +130,12 @@ export default function CertificadosAdmin() {
       {eventoSel && (
         <>
           {/* Regras */}
-          <div style={{ background:CORES.card, borderRadius:14, padding:16, border:`1px solid ${CORES.border}`, marginBottom:12 }}>
+          <div style={{ background:CORES.bgCard, borderRadius:14, padding:16, border:`1px solid ${"rgba(0,0,0,0.08)"}`, marginBottom:12 }}>
             <p style={{ fontSize:13, fontWeight:700, margin:"0 0 12px" }}>📋 Regras de Emissão</p>
             {regras.map(r => (
               <div key={r.id} style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 12px", background:CORES.bg, borderRadius:8, marginBottom:6 }}>
                 <span style={{ flex:1, fontSize:13, fontWeight:500 }}>{r.titulo_cert}</span>
-                <span style={{ fontSize:11, color:CORES.sub }}>{TIPO_LABEL[r.tipo_certificado] ?? r.tipo_certificado}</span>
+                <span style={{ fontSize:11, color:CORES.textSub }}>{TIPO_LABEL[r.tipo_certificado] ?? r.tipo_certificado}</span>
                 <button onClick={() => emitirEmLote(r.id)} disabled={emitindo}
                   style={{ padding:"5px 10px", background:"#1a3a6e", color:"#fff", border:"none", borderRadius:6, fontSize:11, fontWeight:600, cursor:"pointer" }}>
                   {emitindo ? "..." : "Emitir em lote"}
@@ -144,17 +144,17 @@ export default function CertificadosAdmin() {
             ))}
 
             {/* Nova regra */}
-            <div style={{ marginTop:12, paddingTop:12, borderTop:`1px solid ${CORES.border}` }}>
-              <p style={{ fontSize:11, color:CORES.sub, margin:"0 0 8px", fontWeight:600 }}>Nova regra</p>
+            <div style={{ marginTop:12, paddingTop:12, borderTop:`1px solid ${"rgba(0,0,0,0.08)"}` }}>
+              <p style={{ fontSize:11, color:CORES.textSub, margin:"0 0 8px", fontWeight:600 }}>Nova regra</p>
               <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8 }}>
-                <select value={novaRegra.tipo_certificado} onChange={e => setNovaRegra(p => ({...p, tipo_certificado:e.target.value}))} style={{ padding:"8px 10px", borderRadius:8, border:`1px solid ${CORES.border}`, fontSize:12 }}>
+                <select value={novaRegra.tipo_certificado} onChange={e => setNovaRegra(p => ({...p, tipo_certificado:e.target.value}))} style={{ padding:"8px 10px", borderRadius:8, border:`1px solid ${"rgba(0,0,0,0.08)"}`, fontSize:12 }}>
                   {["participacao","conclusao","desempenho","ouro","prata","bronze","mencao_honrosa","organizador","professor"].map(t => (
                     <option key={t} value={t}>{TIPO_LABEL[t] ?? t}</option>
                   ))}
                 </select>
-                <input value={novaRegra.titulo_cert} onChange={e => setNovaRegra(p => ({...p, titulo_cert:e.target.value}))} placeholder="Título do certificado" style={{ padding:"8px 12px", borderRadius:8, border:`1px solid ${CORES.border}`, fontSize:12 }} />
-                <input value={novaRegra.nota_minima} onChange={e => setNovaRegra(p => ({...p, nota_minima:e.target.value}))} placeholder="Nota mínima (opcional)" style={{ padding:"8px 12px", borderRadius:8, border:`1px solid ${CORES.border}`, fontSize:12 }} />
-                <input value={novaRegra.percentual_min} onChange={e => setNovaRegra(p => ({...p, percentual_min:e.target.value}))} placeholder="% mínimo (opcional)" style={{ padding:"8px 12px", borderRadius:8, border:`1px solid ${CORES.border}`, fontSize:12 }} />
+                <input value={novaRegra.titulo_cert} onChange={e => setNovaRegra(p => ({...p, titulo_cert:e.target.value}))} placeholder="Título do certificado" style={{ padding:"8px 12px", borderRadius:8, border:`1px solid ${"rgba(0,0,0,0.08)"}`, fontSize:12 }} />
+                <input value={novaRegra.nota_minima} onChange={e => setNovaRegra(p => ({...p, nota_minima:e.target.value}))} placeholder="Nota mínima (opcional)" style={{ padding:"8px 12px", borderRadius:8, border:`1px solid ${"rgba(0,0,0,0.08)"}`, fontSize:12 }} />
+                <input value={novaRegra.percentual_min} onChange={e => setNovaRegra(p => ({...p, percentual_min:e.target.value}))} placeholder="% mínimo (opcional)" style={{ padding:"8px 12px", borderRadius:8, border:`1px solid ${"rgba(0,0,0,0.08)"}`, fontSize:12 }} />
               </div>
               <button onClick={criarRegra} style={{ marginTop:8, width:"100%", padding:"9px 0", background:CORES.primary, color:"#fff", border:"none", borderRadius:8, fontSize:12, fontWeight:600, cursor:"pointer" }}>
                 + Adicionar regra
@@ -163,16 +163,16 @@ export default function CertificadosAdmin() {
           </div>
 
           {/* Certificados emitidos */}
-          <div style={{ background:CORES.card, borderRadius:14, padding:16, border:`1px solid ${CORES.border}` }}>
+          <div style={{ background:CORES.bgCard, borderRadius:14, padding:16, border:`1px solid ${"rgba(0,0,0,0.08)"}` }}>
             <p style={{ fontSize:13, fontWeight:700, margin:"0 0 12px" }}>📜 Certificados Emitidos ({certificados.length})</p>
-            {loading && <p style={{ color:CORES.sub, fontSize:13, textAlign:"center" }}>Carregando...</p>}
+            {loading && <p style={{ color:CORES.textSub, fontSize:13, textAlign:"center" }}>Carregando...</p>}
             {certificados.map(c => (
               <div key={c.id} style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 12px", background:CORES.bg, borderRadius:8, marginBottom:6 }}>
                 <div style={{ flex:1, minWidth:0 }}>
                   <p style={{ fontSize:13, fontWeight:600, margin:0, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{c.nome_aluno}</p>
-                  <p style={{ fontSize:11, color:CORES.sub, margin:0 }}>{c.codigo} · {new Date(c.emitido_em).toLocaleDateString("pt-BR")}</p>
+                  <p style={{ fontSize:11, color:CORES.textSub, margin:0 }}>{c.codigo} · {new Date(c.emitido_em).toLocaleDateString("pt-BR")}</p>
                 </div>
-                <span style={{ fontSize:11, color:CORES.sub }}>⬇️ {c.downloads}</span>
+                <span style={{ fontSize:11, color:CORES.textSub }}>⬇️ {c.downloads}</span>
                 <button onClick={() => cancelarCertificado(c.id)} style={{ padding:"4px 8px", background:"#FFF1F1", color:"#ef4444", border:"none", borderRadius:6, fontSize:11, cursor:"pointer" }}>
                   Cancelar
                 </button>

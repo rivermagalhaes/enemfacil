@@ -275,18 +275,14 @@ INSTRUÇÕES FINAIS:
     setMsgCount(c => c + 1);
 
     try {
-      const res = await fetch("https://api.anthropic.com/v1/messages", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model: "claude-sonnet-4-20250514",
-          max_tokens: 1000,
+      const { data, error } = await supabase.functions.invoke("agente-vestibular", {
+        body: {
           system: systemPrompt,
           messages: [...msgs, userMsg].map(m => ({ role: m.role, content: m.content })),
-        }),
+        },
       });
-      const data = await res.json();
-      const text = data.content?.[0]?.text ?? "Desculpe, erro ao processar.";
+      if (error) throw error;
+      const text = data?.content?.[0]?.text ?? "Desculpe, erro ao processar.";
       setMsgs(prev => [...prev, { role: "assistant", content: text }]);
     } catch {
       setMsgs(prev => [...prev, { role: "assistant", content: "Erro de conexão. Tente novamente." }]);
