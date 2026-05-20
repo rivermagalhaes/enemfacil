@@ -3,6 +3,7 @@ import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/lib/supabaseClient";
 import { useAuth } from "@/hooks/useAuth";
+import CertificadosAdmin from "@/components/admin/CertificadosAdmin";
 
 const CORES = {
   bg: "#F4F6FB", card: "#FFFFFF", primary: "#0057FF",
@@ -18,7 +19,8 @@ const ABAS = [
   { id: "questoes",   label: "Questões",    emoji: "📝" },
   { id: "gerador",    label: "Gerador IA",  emoji: "🧠" },
   { id: "usuarios",   label: "Usuários",    emoji: "👥" },
-  { id: "ranking",    label: "Rankings",    emoji: "🏆" },
+  { id: "ranking",       label: "Rankings",      emoji: "🏆" },
+  { id: "certificados",  label: "Certificados",  emoji: "📜" },
 ];
 
 const ESTADOS_REGIOES: Record<string, string> = {
@@ -1020,6 +1022,11 @@ export default function AdminDashboard() {
               ))}
             </div>
           </div>
+        )}
+
+        {/* ── CERTIFICADOS ── */}
+        {aba === "certificados" && (
+          <CertificadosAdmin />
         )}
 
       </div>

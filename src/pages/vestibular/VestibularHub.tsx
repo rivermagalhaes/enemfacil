@@ -137,6 +137,11 @@ export default function VestibularHub() {
       desc: "Top alunos deste vestibular", cor: "#D97706", bg: "#FFFBEB",
       onClick: () => navigate(`/ranking/${vestibular.toUpperCase()}`),
     },
+    {
+      id: "certificado", emoji: "📜", titulo: "Certificado",
+      desc: `Seus certificados de ${v.nome}`, cor: "#0A7C4B", bg: "#EDFAF3",
+      onClick: () => navigate("/certificados"),
+    },
   ];
 
   return (

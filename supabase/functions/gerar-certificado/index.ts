@@ -18,6 +18,27 @@ function gerarQRCodeSVG(texto: string): string {
   return `<img src="${url}" width="120" height="120" />`;
 }
 
+// Converte caracteres especiais para HTML entities
+function encodeHtml(str: string): string {
+  return str
+    .replace(/ã/g, "&atilde;").replace(/Ã/g, "&Atilde;")
+    .replace(/á/g, "&aacute;").replace(/Á/g, "&Aacute;")
+    .replace(/â/g, "&acirc;").replace(/Â/g, "&Acirc;")
+    .replace(/à/g, "&agrave;").replace(/À/g, "&Agrave;")
+    .replace(/é/g, "&eacute;").replace(/É/g, "&Eacute;")
+    .replace(/ê/g, "&ecirc;").replace(/Ê/g, "&Ecirc;")
+    .replace(/í/g, "&iacute;").replace(/Í/g, "&Iacute;")
+    .replace(/ó/g, "&oacute;").replace(/Ó/g, "&Oacute;")
+    .replace(/ô/g, "&ocirc;").replace(/Ô/g, "&Ocirc;")
+    .replace(/õ/g, "&otilde;").replace(/Õ/g, "&Otilde;")
+    .replace(/ú/g, "&uacute;").replace(/Ú/g, "&Uacute;")
+    .replace(/ü/g, "&uuml;").replace(/Ü/g, "&Uuml;")
+    .replace(/ç/g, "&ccedil;").replace(/Ç/g, "&Ccedil;")
+    .replace(/ñ/g, "&ntilde;").replace(/—/g, "&mdash;")
+    .replace(/·/g, "&middot;").replace(/°/g, "&deg;")
+    .replace(/ª/g, "&ordf;").replace(/º/g, "&ordm;");
+}
+
 // Gera HTML do certificado
 function gerarHTMLCertificado(dados: {
   nome_aluno: string;
@@ -37,13 +58,15 @@ function gerarHTMLCertificado(dados: {
   cor_secundaria: string;
   assinatura1_nome?: string;
   assinatura1_cargo?: string;
+  assinatura1_url?: string;
   assinatura2_nome?: string;
   assinatura2_cargo?: string;
+  assinatura2_url?: string;
   logo_url?: string;
 }): string {
 
   const medalhaEmoji = dados.medalha === "ouro" ? "🥇" : dados.medalha === "prata" ? "🥈" : dados.medalha === "bronze" ? "🥉" : "";
-  const tipoLabel = {
+  const tipoLabel = encodeHtml({
     participacao: "Certificado de Participação",
     conclusao: "Certificado de Conclusão",
     desempenho: "Certificado de Desempenho",
@@ -53,20 +76,30 @@ function gerarHTMLCertificado(dados: {
     mencao_honrosa: "Menção Honrosa",
     organizador: "Certificado de Organização",
     professor: "Certificado de Orientação",
-  }[dados.tipo_certificado] ?? "Certificado";
+  }[dados.tipo_certificado] ?? "Certificado");
+
+  const nomeAluno    = encodeHtml(dados.nome_aluno);
+  const nomeEvento   = encodeHtml(dados.evento);
+  const edicaoEvento = encodeHtml(dados.edicao);
+  const disciplina   = encodeHtml(dados.disciplina);
+  const assin1Nome   = dados.assinatura1_nome ? encodeHtml(dados.assinatura1_nome) : "";
+  const assin1Cargo  = dados.assinatura1_cargo ? encodeHtml(dados.assinatura1_cargo) : "";
+  const assin2Nome   = dados.assinatura2_nome ? encodeHtml(dados.assinatura2_nome) : "";
+  const assin2Cargo  = dados.assinatura2_cargo ? encodeHtml(dados.assinatura2_cargo) : "";
 
   const dataFormatada = new Date(dados.emitido_em).toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric" });
   const validacaoUrl = `https://enem-facil-gray.vercel.app/certificado/${dados.codigo}`;
 
   const textoCorpo = dados.texto_cert
-    || `Certificamos que <strong>${dados.nome_aluno}</strong> participou ${dados.tipo_certificado === "participacao" ? "da" : "e se destacou na"} <strong>${dados.evento} — ${dados.edicao}</strong>${dados.disciplina ? `, na disciplina de <strong>${dados.disciplina}</strong>` : ""}${dados.carga_horaria ? `, com carga horária de <strong>${dados.carga_horaria} horas</strong>` : ""}.`;
+    ? encodeHtml(dados.texto_cert)
+    : `Certificamos que <strong>${nomeAluno}</strong> participou ${dados.tipo_certificado === "participacao" ? "da" : "e se destacou na"} <strong>${nomeEvento} &mdash; ${edicaoEvento}</strong>${disciplina ? `, na disciplina de <strong>${disciplina}</strong>` : ""}${dados.carga_horaria ? `, com carga hor&aacute;ria de <strong>${dados.carga_horaria} horas</strong>` : ""}.`;
 
   return `<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Certificado — ${dados.nome_aluno}</title>
+<title>Certificado &mdash; ${nomeAluno}</title>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body {
@@ -178,8 +211,8 @@ function gerarHTMLCertificado(dados: {
     <div class="header-logo">
       ${dados.logo_url ? `<img src="${dados.logo_url}" alt="Logo" />` : `<div style="width:44px;height:44px;background:${dados.cor_secundaria};border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:22px;">🎓</div>`}
       <div class="header-titulo">
-        <h1>EnemFácil · Certificação Digital</h1>
-        <h2>${dados.evento}</h2>
+        <h1>EnemF&aacute;cil &middot; Certifica&ccedil;&atilde;o Digital</h1>
+        <h2>${nomeEvento}</h2>
       </div>
     </div>
     <div class="header-ano">${dados.ano}</div>
@@ -189,7 +222,7 @@ function gerarHTMLCertificado(dados: {
   <div class="corpo">
     ${medalhaEmoji ? `<div class="medalha">${medalhaEmoji}</div>` : ""}
     <div class="tipo-label">${tipoLabel}</div>
-    <div class="nome-aluno">${dados.nome_aluno}</div>
+    <div class="nome-aluno">${nomeAluno}</div>
     <div class="texto-corpo">${textoCorpo}</div>
     ${(dados.nota || dados.percentual) ? `
     <div class="resultado">
@@ -197,18 +230,19 @@ function gerarHTMLCertificado(dados: {
       ${dados.percentual ? `<div class="resultado-item"><div class="val">${dados.percentual}%</div><div class="lbl">Aproveitamento</div></div>` : ""}
     </div>` : ""}
     <div class="assinaturas">
-      ${dados.assinatura1_nome ? `
+      ${assin1Nome ? `
       <div class="assinatura">
-        ${dados.assinatura1_cargo?.includes("url:") ? `<img src="${dados.assinatura1_cargo.replace("url:", "")}" style="height:32px;margin-bottom:4px;" />` : ""}
+        ${dados.assinatura1_url ? `<img src="${dados.assinatura1_url}" style="height:36px;margin-bottom:4px;display:block;margin-left:auto;margin-right:auto;" />` : ""}
         <div class="assinatura-linha"></div>
-        <div class="assinatura-nome">${dados.assinatura1_nome}</div>
-        <div class="assinatura-cargo">${dados.assinatura1_cargo ?? ""}</div>
+        <div class="assinatura-nome">${assin1Nome}</div>
+        <div class="assinatura-cargo">${assin1Cargo}</div>
       </div>` : ""}
-      ${dados.assinatura2_nome ? `
+      ${assin2Nome ? `
       <div class="assinatura">
+        ${dados.assinatura2_url ? `<img src="${dados.assinatura2_url}" style="height:36px;margin-bottom:4px;display:block;margin-left:auto;margin-right:auto;" />` : ""}
         <div class="assinatura-linha"></div>
-        <div class="assinatura-nome">${dados.assinatura2_nome}</div>
-        <div class="assinatura-cargo">${dados.assinatura2_cargo ?? ""}</div>
+        <div class="assinatura-nome">${assin2Nome}</div>
+        <div class="assinatura-cargo">${assin2Cargo}</div>
       </div>` : ""}
     </div>
   </div>
@@ -319,8 +353,10 @@ serve(async (req) => {
       cor_secundaria:  template?.cor_secundaria ?? "#fbbf24",
       assinatura1_nome: template?.assinatura1_nome,
       assinatura1_cargo: template?.assinatura1_cargo,
+      assinatura1_url: template?.assinatura1_url,
       assinatura2_nome: template?.assinatura2_nome,
       assinatura2_cargo: template?.assinatura2_cargo,
+      assinatura2_url: template?.assinatura2_url,
       logo_url:        template?.logo_url,
     });
 
@@ -344,10 +380,11 @@ serve(async (req) => {
 
     // Se não tem API key, salva HTML no Storage como fallback
     if (!pdfUrl) {
-      const htmlBytes = new TextEncoder().encode(html);
+      const encoder = new TextEncoder();
+      const htmlBytes = encoder.encode(html);
       const fileName = `certificados/${user_id}/${codigoFinal}.html`;
       await supabase.storage.from("certificados").upload(fileName, htmlBytes, {
-        contentType: "text/html", upsert: true,
+        contentType: "text/html; charset=utf-8", upsert: true,
       });
       const { data: urlData } = supabase.storage.from("certificados").getPublicUrl(fileName);
       pdfUrl = urlData.publicUrl;
