@@ -9,38 +9,30 @@ import { CORES } from "@/styles/theme";
 const VESTIBULARES = [
   { id: "ENEM",    nome: "ENEM",    emoji: "🎯", cor: "#0057FF", bg: "#E6EEFF",
     desc: "Exame Nacional do Ensino Médio", foco: "Linguagens · Matemática · Humanas · Natureza",
-    dificuldade: "⭐⭐⭐", badge: null },
+    dificuldade: "⭐⭐⭐", badge: null, pro: false },
   { id: "ITA",     nome: "ITA",     emoji: "✈️", cor: "#003D80", bg: "#E6F0FF",
     desc: "Instituto Tecnológico de Aeronáutica", foco: "Matemática · Física · Química · Inglês",
-    dificuldade: "⭐⭐⭐⭐⭐", badge: "Top 1" },
+    dificuldade: "⭐⭐⭐⭐⭐", badge: "Top 1", pro: true },
   { id: "IME",     nome: "IME",     emoji: "⚙️", cor: "#1a3a6e", bg: "#E6EEFF",
     desc: "Instituto Militar de Engenharia", foco: "Matemática · Física · Química · Desenho",
-    dificuldade: "⭐⭐⭐⭐⭐", badge: "Top 2" },
+    dificuldade: "⭐⭐⭐⭐⭐", badge: "Top 2", pro: true },
   { id: "FUVEST",  nome: "FUVEST",  emoji: "🎓", cor: "#8B0000", bg: "#FFE6E6",
     desc: "Universidade de São Paulo — USP", foco: "Todas as áreas · Interpretação",
-    dificuldade: "⭐⭐⭐⭐", badge: "USP" },
+    dificuldade: "⭐⭐⭐⭐", badge: "USP", pro: true },
   { id: "UNICAMP", nome: "UNICAMP", emoji: "🔬", cor: "#005C97", bg: "#E6F4FF",
     desc: "Universidade Estadual de Campinas", foco: "Interdisciplinar · Contextualizado",
-    dificuldade: "⭐⭐⭐⭐", badge: null },
+    dificuldade: "⭐⭐⭐⭐", badge: null, pro: true },
   { id: "UNB",     nome: "UnB",     emoji: "🏛️", cor: "#006400", bg: "#E6FFE6",
     desc: "Universidade de Brasília + PAS", foco: "Atualidades · PAS · Humanas",
-    dificuldade: "⭐⭐⭐", badge: "PAS" },
+    dificuldade: "⭐⭐⭐", badge: "PAS", pro: true },
 ];
 
 export default function Home() {
-  const { profile, podeIA, podeRedacao, podePainelProfessor } = useAuth();
+  const { profile, podeRedacao, podePainelProfessor } = useAuth();
   const navigate = useNavigate();
 
   const plano = String(profile?.plano ?? "free");
-
-  // Vestibulares liberados por plano
-  // free/basico/estudante → só ENEM (ITA, IME etc bloqueados)
-  // pro/premium/ouro/completo → todos liberados
-  const planosCompletos = ["pro", "premium", "ouro", "completo", "professor"];
-  const acessoCompleto = planosCompletos.includes(plano) || podePainelProfessor;
-  const vestibularesLiberados = acessoCompleto
-    ? VESTIBULARES.map(v => v.id)
-    : ["ENEM"];
+  const isPro = podePainelProfessor || ["pro", "premium", "concurseiro", "ouro"].includes(plano);
 
   const nome = ((profile as any)?.nome ?? (profile as any)?.username) ?? "Estudante";
   const xp = profile?.xp_total ?? 0;
@@ -144,18 +136,18 @@ export default function Home() {
             <p style={{ fontSize: 11, color: "rgba(255,255,255,0.7)", margin: 0 }}>45 questões</p>
           </button>
 
-          <button onClick={() => podeIA ? navigate("/agentes") : navigate("/assinatura")} style={{
+          <button onClick={() => podePainelProfessor ? navigate("/agentes") : undefined} style={{
             flex: 1, padding: "14px 12px", borderRadius: 14,
-            background: podeIA ? "linear-gradient(135deg, #6D28D9, #4C1D95)" : "linear-gradient(135deg, #1e293b, #0f172a)",
-            border: podeIA ? "none" : "1.5px solid rgba(255,255,255,0.08)",
-            cursor: "pointer", textAlign: "left",
-            boxShadow: podeIA ? "0 8px 24px rgba(109,40,217,0.4)" : "none",
-            position: "relative",
+            background: podePainelProfessor ? "linear-gradient(135deg, #6D28D9, #4C1D95)" : "linear-gradient(135deg, #1e293b, #0f172a)",
+            border: podePainelProfessor ? "none" : "1.5px solid rgba(255,255,255,0.08)",
+            cursor: podePainelProfessor ? "pointer" : "default", textAlign: "left",
+            position: "relative", opacity: podePainelProfessor ? 1 : 0.7,
+            boxShadow: podePainelProfessor ? "0 8px 24px rgba(109,40,217,0.4)" : "none",
           }}>
-            {!podeIA && <span style={{ position: "absolute", top: 6, right: 6, fontSize: 10 }}>🔒</span>}
+            {!podePainelProfessor && <span style={{ position: "absolute", top: 6, right: 6, fontSize: 9, background: "#f59e0b", color: "#fff", borderRadius: 4, padding: "1px 5px", fontWeight: 700 }}>EM BREVE</span>}
             <div style={{ fontSize: 24, marginBottom: 6 }}>🤖</div>
-            <p style={{ fontSize: 13, fontWeight: 700, color: podeIA ? "#fff" : "rgba(255,255,255,0.4)", margin: "0 0 2px" }}>Agente IA</p>
-            <p style={{ fontSize: 11, color: podeIA ? "rgba(255,255,255,0.7)" : "rgba(255,255,255,0.2)", margin: 0 }}>{podeIA ? "Tire dúvidas" : "Premium"}</p>
+            <p style={{ fontSize: 13, fontWeight: 700, color: podePainelProfessor ? "#fff" : "rgba(255,255,255,0.4)", margin: "0 0 2px" }}>Agente IA</p>
+            <p style={{ fontSize: 11, color: podePainelProfessor ? "rgba(255,255,255,0.7)" : "rgba(255,255,255,0.2)", margin: 0 }}>{podePainelProfessor ? "Tire dúvidas" : "Em breve"}</p>
           </button>
 
           <button onClick={() => podeRedacao ? navigate("/redacao") : navigate("/assinatura")} style={{
@@ -253,61 +245,64 @@ export default function Home() {
         )}
 
 {/* Olimpíadas */}
-<button onClick={() => navigate("/olimpiadas/quimica")} style={{
+<div style={{
   width: "100%", display: "flex", alignItems: "center", gap: 14,
   padding: "14px 16px", borderRadius: 16, marginBottom: 10,
-  background: "linear-gradient(135deg, #3b0764, #6d28d9)",
-  border: "none", cursor: "pointer", textAlign: "left",
-  boxShadow: "0 8px 24px rgba(109,40,217,0.35)",
+  background: "linear-gradient(135deg, #1e293b, #0f172a)",
+  border: "1.5px solid rgba(255,255,255,0.06)",
+  opacity: 0.6, position: "relative",
 }}>
-  <div style={{ width: 50, height: 50, borderRadius: 14, background: "rgba(255,255,255,0.15)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 26, flexShrink: 0 }}>
+  <span style={{ position: "absolute", top: 10, right: 12, fontSize: 9, background: "#f59e0b", color: "#fff", borderRadius: 4, padding: "2px 6px", fontWeight: 700 }}>EM BREVE</span>
+  <div style={{ width: 50, height: 50, borderRadius: 14, background: "rgba(255,255,255,0.08)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 26, flexShrink: 0 }}>
     🏆
   </div>
   <div style={{ flex: 1 }}>
-    <p style={{ fontSize: 15, fontWeight: 700, color: "#fff", margin: "0 0 2px" }}>Olimpíadas de Química</p>
-    <p style={{ fontSize: 11, color: "rgba(255,255,255,0.7)", margin: 0 }}>OBQ Nacional · OTQ Tocantins</p>
+    <p style={{ fontSize: 15, fontWeight: 700, color: "rgba(255,255,255,0.4)", margin: "0 0 2px" }}>Olimpíadas de Química</p>
+    <p style={{ fontSize: 11, color: "rgba(255,255,255,0.2)", margin: 0 }}>Em construção</p>
   </div>
-  <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="rgba(255,255,255,0.6)" strokeWidth="2"><path d="M6 4l4 4-4 4"/></svg>
-</button>
+</div>
 
         {/* Vestibulares */}
         <p style={{ fontSize: 13, fontWeight: 700, color: CORES.text, textTransform: "uppercase", letterSpacing: "0.08em", margin: "0 0 12px" }}>Vestibulares</p>
         <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 24 }}>
           {VESTIBULARES.map(v => {
-            const liberado = vestibularesLiberados.includes(v.id);
+            const bloqueado = v.pro && !isPro;
             return (
               <button
                 key={v.id}
-                onClick={() => liberado ? navigate(`/vestibular/${v.id}`) : navigate("/assinatura")}
+                onClick={() => bloqueado ? navigate("/assinatura") : navigate(`/vestibular/${v.id}`)}
                 style={{
                   display: "flex", alignItems: "center", gap: 14,
                   padding: "14px 16px", borderRadius: 16,
-                  background: liberado ? CORES.bgCard : "#f9fafb",
-                  border: liberado ? `1.5px solid ${v.cor}22` : "1.5px solid #e5e7eb",
+                  background: CORES.bgCard,
+                  border: `1.5px solid ${bloqueado ? "rgba(255,255,255,0.06)" : v.cor + "22"}`,
                   cursor: "pointer", textAlign: "left",
-                  boxShadow: liberado ? "0 2px 8px rgba(0,0,0,0.06)" : "none",
-                  opacity: liberado ? 1 : 0.7,
+                  boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
+                  opacity: bloqueado ? 0.55 : 1,
                   position: "relative",
                 }}
               >
-                <div style={{ width: 50, height: 50, borderRadius: 14, background: liberado ? v.bg : "#f3f4f6", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 26, flexShrink: 0, border: `1.5px solid ${liberado ? v.cor + "22" : "#e5e7eb"}` }}>
-                  {liberado ? v.emoji : "🔒"}
+                {bloqueado && (
+                  <span style={{
+                    position: "absolute", top: 10, right: 12,
+                    fontSize: 9, background: "#f59e0b", color: "#fff",
+                    borderRadius: 4, padding: "2px 6px", fontWeight: 700,
+                  }}>🔒 PRO</span>
+                )}
+                <div style={{ width: 50, height: 50, borderRadius: 14, background: v.bg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 26, flexShrink: 0, border: `1.5px solid ${v.cor}22` }}>
+                  {v.emoji}
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}>
-                    <p style={{ fontSize: 15, fontWeight: 700, color: liberado ? v.cor : "#9ca3af", margin: 0 }}>{v.nome}</p>
-                    {v.badge && liberado && <span style={{ fontSize: 9, fontWeight: 700, background: v.cor, color: "#fff", borderRadius: 4, padding: "1px 6px" }}>{v.badge}</span>}
-                    {!liberado && <span style={{ fontSize: 9, fontWeight: 700, background: "#f59e0b", color: "#fff", borderRadius: 4, padding: "1px 6px" }}>PRO</span>}
+                    <p style={{ fontSize: 15, fontWeight: 700, color: bloqueado ? "rgba(255,255,255,0.3)" : v.cor, margin: 0 }}>{v.nome}</p>
+                    {v.badge && !bloqueado && <span style={{ fontSize: 9, fontWeight: 700, background: v.cor, color: "#fff", borderRadius: 4, padding: "1px 6px" }}>{v.badge}</span>}
                   </div>
                   <p style={{ fontSize: 11, color: CORES.textSub, margin: "0 0 3px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{v.desc}</p>
-                  <p style={{ fontSize: 10, color: liberado ? v.cor : "#9ca3af", margin: 0, fontWeight: 500 }}>{v.foco}</p>
+                  <p style={{ fontSize: 10, color: bloqueado ? "rgba(255,255,255,0.2)" : v.cor, margin: 0, fontWeight: 500 }}>{v.foco}</p>
                 </div>
                 <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4, flexShrink: 0 }}>
                   <span style={{ fontSize: 10 }}>{v.dificuldade}</span>
-                  {liberado
-                    ? <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke={v.cor} strokeWidth="2"><path d="M6 4l4 4-4 4"/></svg>
-                    : <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="#9ca3af" strokeWidth="2"><path d="M6 4l4 4-4 4"/></svg>
-                  }
+                  <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke={bloqueado ? "rgba(255,255,255,0.2)" : v.cor} strokeWidth="2"><path d="M6 4l4 4-4 4"/></svg>
                 </div>
               </button>
             );

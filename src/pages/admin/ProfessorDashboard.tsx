@@ -407,9 +407,67 @@ export default function ProfessorDashboard() {
     finally { clearInterval(t); setGenLoading(false); }
   }
 
-  async function carregarTrilhas() {
-    const { data } = await supabase.from("trilhas").select("id,titulo,area_enem").eq("ativa", true).order("titulo");
-    if (data) setTrilhas(data);
+  function carregarTrilhas() {
+    setTrilhas([
+      { id: "fundamentos-mat",        titulo: "Fundamentos (Mat)",       area_enem: "matematica" },
+      { id: "algebra",                titulo: "Álgebra Linear",          area_enem: "matematica" },
+      { id: "geometria",              titulo: "Geometria",               area_enem: "matematica" },
+      { id: "probabilidade",          titulo: "Probabilidade",           area_enem: "matematica" },
+      { id: "calculo",                titulo: "Cálculo",                 area_enem: "matematica" },
+      { id: "numeros-complexos",      titulo: "Números Complexos",       area_enem: "matematica" },
+      { id: "introducao-cinematica",  titulo: "Intro Cinemática",        area_enem: "fisica" },
+      { id: "posicao-deslocamento",   titulo: "Posição/Deslocamento",    area_enem: "fisica" },
+      { id: "velocidade",             titulo: "Velocidade",              area_enem: "fisica" },
+      { id: "aceleracao",             titulo: "Aceleração e MUV",        area_enem: "fisica" },
+      { id: "queda-livre",            titulo: "Queda Livre",             area_enem: "fisica" },
+      { id: "movimento-circular",     titulo: "Mov. Circular",           area_enem: "fisica" },
+      { id: "lancamento-projeteis",   titulo: "Lançamento Projéteis",    area_enem: "fisica" },
+      { id: "analise-grafica",        titulo: "Análise Gráfica",         area_enem: "fisica" },
+      { id: "ondulatoria",            titulo: "Ondulatória & Óptica",    area_enem: "fisica" },
+      { id: "eletromagnetismo",       titulo: "Eletromagnetismo",        area_enem: "fisica" },
+      { id: "termodinamica",          titulo: "Termodinâmica",           area_enem: "fisica" },
+      { id: "fisica-moderna",         titulo: "Física Moderna",          area_enem: "fisica" },
+      { id: "introducao",             titulo: "Intro Química",           area_enem: "quimica" },
+      { id: "estrutura-atomica",      titulo: "Estrutura Atômica",       area_enem: "quimica" },
+      { id: "tabela-periodica",       titulo: "Tabela Periódica",        area_enem: "quimica" },
+      { id: "ligacoes-quimicas",      titulo: "Ligações Químicas",       area_enem: "quimica" },
+      { id: "funcoes-inorganicas",    titulo: "Funções Inorgânicas",     area_enem: "quimica" },
+      { id: "reacoes-quimicas",       titulo: "Reações Químicas",        area_enem: "quimica" },
+      { id: "estequiometria",         titulo: "Estequiometria",          area_enem: "quimica" },
+      { id: "gases",                  titulo: "Gases",                   area_enem: "quimica" },
+      { id: "solucoes",               titulo: "Soluções",                area_enem: "quimica" },
+      { id: "introducao-fisicoquimica", titulo: "Intro FQ",              area_enem: "fisicoquimica" },
+      { id: "termoquimica",           titulo: "Termoquímica",            area_enem: "fisicoquimica" },
+      { id: "cinetica-quimica",       titulo: "Cinética Química",        area_enem: "fisicoquimica" },
+      { id: "equilibrio-quimico",     titulo: "Equilíbrio Químico",      area_enem: "fisicoquimica" },
+      { id: "equilibrio-ionico",      titulo: "Equilíbrio Iônico",       area_enem: "fisicoquimica" },
+      { id: "eletroquimica",          titulo: "Eletroquímica",           area_enem: "fisicoquimica" },
+      { id: "propriedades-coligativas", titulo: "Prop. Coligativas",     area_enem: "fisicoquimica" },
+      { id: "gases-fisicoquimica",    titulo: "Gases (FQ)",              area_enem: "fisicoquimica" },
+      { id: "aplicacoes-cotidiano",   titulo: "Aplicações Cotidiano",    area_enem: "fisicoquimica" },
+      { id: "pre-historia",           titulo: "Pré-História",            area_enem: "humanas" },
+      { id: "idade-media",            titulo: "Idade Média",             area_enem: "humanas" },
+      { id: "idade-moderna",          titulo: "Idade Moderna",           area_enem: "humanas" },
+      { id: "revolucoes",             titulo: "Revoluções",              area_enem: "humanas" },
+      { id: "brasil-colonial",        titulo: "Brasil Colonial",         area_enem: "humanas" },
+      { id: "brasil-imperio",         titulo: "Brasil Império",          area_enem: "humanas" },
+      { id: "guerras-mundiais",       titulo: "Guerras Mundiais",        area_enem: "humanas" },
+      { id: "brasil-republica",       titulo: "Brasil República",        area_enem: "humanas" },
+      { id: "geografia-fisica",       titulo: "Geografia Física",        area_enem: "humanas" },
+      { id: "geografia-humana",       titulo: "Geografia Humana",        area_enem: "humanas" },
+      { id: "filosofia-sociologia",   titulo: "Filosofia/Sociologia",    area_enem: "humanas" },
+      { id: "interpretacao",          titulo: "Interpretação",           area_enem: "portugues" },
+      { id: "gramatica",              titulo: "Gramática",               area_enem: "portugues" },
+      { id: "literatura",             titulo: "Literatura Brasileira",   area_enem: "portugues" },
+      { id: "literatura-portuguesa",  titulo: "Lit. Portuguesa",         area_enem: "portugues" },
+      { id: "redacao",                titulo: "Redação",                 area_enem: "portugues" },
+      { id: "linguistica",            titulo: "Linguística",             area_enem: "portugues" },
+      { id: "reading-comprehension",  titulo: "Reading Comprehension",   area_enem: "ingles" },
+      { id: "grammar",                titulo: "Grammar & Structure",     area_enem: "ingles" },
+      { id: "vocabulary",             titulo: "Vocabulary & Idioms",     area_enem: "ingles" },
+      { id: "scientific-english",     titulo: "Scientific English",      area_enem: "ingles" },
+      { id: "writing",                titulo: "Writing & Essay",         area_enem: "ingles" },
+    ]);
   }
 
   async function carregarProvas() {
@@ -466,13 +524,21 @@ export default function ProfessorDashboard() {
         const { data: qd, error: qe } = await supabase.from("questoes_simulado").insert({
           simulado_id: simuladoSel, enunciado: q.enunciado,
           explicacao: `${q.explicacao}\n\nDistratores: ${q.analise_distratores ?? ""}`,
-          resposta_correta: corrIdx >= 0 ? corrIdx : 0,
           dificuldade: q.dificuldade === "olimpico" ? "dificil" : q.dificuldade,
-          assunto: q.assunto_tag,
+          assunto_tag: q.assunto_tag,
+          ordem: 1,
+          ativa: true,
         }).select("id").single();
         if (qe || !qd) continue;
+        const letras = ["A","B","C","D","E"];
         await supabase.from("alternativas_simulado").insert(
-          q.alternativas.map((a:any, i:number) => ({ questao_id: qd.id, indice: i, texto: a.texto }))
+          q.alternativas.map((a:any, i:number) => ({
+            questao_id: qd.id,
+            letra: letras[i] ?? String(i+1),
+            texto: a.texto,
+            correta: a.correta ?? false,
+            ordem: i + 1,
+          }))
         );
         ok++;
       } else {
@@ -492,6 +558,7 @@ export default function ProfessorDashboard() {
     const destLabel = genDestino === "olimpiada" ? `prova ${provas.find(p=>p.id===provaSel)?.evento}` : genDestino === "simulado" ? "mini simulado" : genVestibular;
     setGenSalvoMsg(`✅ ${ok} questões salvas em ${destLabel}!`);
     setGenSalvando(false);
+    setTimeout(() => setGenSalvoMsg(null), 3000);
     carregarQuestoes();
   }
 
@@ -633,6 +700,24 @@ export default function ProfessorDashboard() {
 
   return (
     <div style={{ minHeight:"100dvh",background:CORES.bg,fontFamily:"system-ui,sans-serif" }}>
+
+      {/* Toast de sucesso */}
+      {genSalvoMsg && (
+        <div style={{
+          position:"fixed",top:16,left:"50%",transform:"translateX(-50%)",
+          zIndex:9999,background:"#15803d",color:"#fff",
+          padding:"12px 20px",borderRadius:12,fontSize:14,fontWeight:600,
+          boxShadow:"0 4px 20px rgba(0,0,0,0.2)",display:"flex",alignItems:"center",gap:10,
+          maxWidth:"90vw",
+        }}>
+          <span>✅</span>
+          <span>{genSalvoMsg}</span>
+          <button onClick={()=>setGenSalvoMsg(null)}
+            style={{background:"rgba(255,255,255,0.2)",border:"none",color:"#fff",borderRadius:6,padding:"2px 8px",cursor:"pointer",fontSize:12,marginLeft:4}}>
+            ✕
+          </button>
+        </div>
+      )}
 
       {/* Header */}
       <div style={{ background:"linear-gradient(135deg,#065C37,#0A7C4B)",padding:"14px 20px",display:"flex",alignItems:"center",gap:12 }}>
@@ -894,8 +979,29 @@ export default function ProfessorDashboard() {
               </div>
               <div style={{ marginBottom:10 }}>
                 <p style={{ fontSize:11,fontWeight:600,color:CORES.sub,margin:"0 0 3px",textTransform:"uppercase" }}>Tópico / Assunto</p>
-                <input value={filtroImpressao.topico} onChange={e=>setFiltroImpressao(p=>({...p,topico:e.target.value}))} placeholder="Ex: termoquimica, funções..."
-                  style={{ width:"100%",padding:"8px 12px",borderRadius:8,border:`1px solid ${CORES.border}`,fontSize:13,boxSizing:"border-box" as const }} />
+                <select value={filtroImpressao.topico} onChange={e=>setFiltroImpressao(p=>({...p,topico:e.target.value}))}
+                  style={{ width:"100%",padding:"8px 12px",borderRadius:8,border:`1px solid ${CORES.border}`,fontSize:13 }}>
+                  <option value="">— Todos os tópicos —</option>
+                  {[
+                    { label:"Reações Químicas",     value:"reacoes-quimicas" },
+                    { label:"Estequiometria",        value:"estequiometria" },
+                    { label:"Gases",                 value:"gases" },
+                    { label:"Soluções",              value:"solucoes" },
+                    { label:"Termodinâmica",         value:"termodinamica" },
+                    { label:"Tabela Periódica",      value:"tabela-periodica" },
+                    { label:"Estrutura Atômica",     value:"estrutura-atomica" },
+                    { label:"Ligações Químicas",     value:"ligacoes-quimicas" },
+                    { label:"Mecânica",              value:"mecanica" },
+                    { label:"Eletromagnetismo",      value:"eletromagnetismo" },
+                    { label:"Ondulatória",           value:"ondulatoria" },
+                    { label:"Queda Livre",           value:"queda-livre" },
+                    { label:"Movimento Circular",    value:"movimento-circular" },
+                    { label:"Álgebra",               value:"algebra" },
+                    { label:"Geometria",             value:"geometria" },
+                    { label:"Cálculo",               value:"calculo" },
+                    { label:"Probabilidade",         value:"probabilidade" },
+                  ].map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+                </select>
               </div>
               <button onClick={buscarQuestoesParaImpressao} disabled={buscandoQ}
                 style={{ width:"100%",padding:"10px 0",background:buscandoQ?"#e2e8f0":CORES.primary,color:buscandoQ?CORES.sub:"#fff",border:"none",borderRadius:8,fontSize:13,fontWeight:600,cursor:buscandoQ?"not-allowed":"pointer" }}>

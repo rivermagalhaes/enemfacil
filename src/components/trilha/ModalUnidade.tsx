@@ -154,24 +154,11 @@ export default function ModalUnidade({
 
       if (error) throw error;
 
-      // Se não há questões suficientes → gera via IA
-      if (!data || (data.questoes ?? []).length < 5) {
-        await supabase.functions.invoke("gerar-questoes-enem", {
-          body: {
-            trilha_id:   unidade.id,
-            area_enem:   unidade.area_enem ?? "ciencias_natureza",
-            assunto:     unidade.titulo,
-            competencia: unidade.competencia,
-            habilidade:  unidade.habilidade,
-          },
-        });
-        const { data: data2 } = await supabase.rpc("get_simulado_completo", {
-          p_trilha_id: unidade.id,
-        });
-        setSimuladoData(data2);
-      } else {
-        setSimuladoData(data);
+      // Usa as questões do banco (populadas pelo professor)
+      if (!data || !(data.questoes ?? []).length) {
+        throw new Error("Sem questões cadastradas para esta unidade.");
       }
+      setSimuladoData(data);
 
       // Inicia tentativa
       if (data?.simulado?.id) {
@@ -182,10 +169,11 @@ export default function ModalUnidade({
       }
 
       setEtapa("simulado");
-    } catch (e) {
+    } catch (e: any) {
       console.error("Erro ao carregar simulado:", e);
-      // Falhou → vai direto fechar
-      onClose();
+      // Sem questões → fica na tela de resultado com botão desabilitado
+      setSimuladoLoading(false);
+      return;
     } finally {
       setSimuladoLoading(false);
     }
@@ -334,7 +322,7 @@ export default function ModalUnidade({
                   Estudar conteúdo →
                 </button>
               ) : (
-                <button onClick={() => unidade.topic ? setEtapa("questoes") : (onConcluir(), onClose())}
+                <button onClick={() => { if (unidade.topic) setEtapa("questoes"); else { onConcluir(); setEtapa("resultado"); } }}
                   style={{ width: "100%", padding: "13px 0", background: unidade.cor, color: "#fff", border: "none", borderRadius: 10, fontSize: 14, fontWeight: 600, cursor: "pointer" }}>
                   {unidade.topic ? "Ir para as questões →" : "Marcar como concluída ✓"}
                 </button>
@@ -362,7 +350,7 @@ export default function ModalUnidade({
                   <p style={{ fontSize: 13, color: "#166534", lineHeight: 1.8, margin: 0, whiteSpace: "pre-wrap" }}>{conteudo.exemplos}</p>
                 </div>
               )}
-              <button onClick={() => unidade.topic ? setEtapa("questoes") : (onConcluir(), onClose())}
+              <button onClick={() => { if (unidade.topic) setEtapa("questoes"); else { onConcluir(); setEtapa("resultado"); } }}
                 style={{ width: "100%", padding: "13px 0", background: unidade.cor, color: "#fff", border: "none", borderRadius: 10, fontSize: 14, fontWeight: 600, cursor: "pointer" }}>
                 {unidade.topic ? "Praticar com questões →" : "Marcar como concluída ✓"}
               </button>
@@ -378,7 +366,7 @@ export default function ModalUnidade({
                   <p style={{ fontSize: 36, margin: "0 0 12px" }}>📚</p>
                   <p style={{ fontSize: 14, fontWeight: 600, color: CORES.text, margin: "0 0 6px" }}>Questões em breve!</p>
                   <p style={{ fontSize: 13, color: CORES.textSub, marginBottom: 20 }}>Ainda não há questões para este tópico.</p>
-                  <button onClick={() => { onConcluir(); onClose(); }} style={{ padding: "12px 28px", background: unidade.cor, color: "#fff", border: "none", borderRadius: 10, fontSize: 14, fontWeight: 600, cursor: "pointer" }}>
+                  <button onClick={() => { onConcluir(); setEtapa("resultado"); }} style={{ padding: "12px 28px", background: unidade.cor, color: "#fff", border: "none", borderRadius: 10, fontSize: 14, fontWeight: 600, cursor: "pointer" }}>
                     Marcar como concluída ✓
                   </button>
                 </div>
