@@ -25,8 +25,12 @@ import SalaVirtual from "@/pages/sala/SalaVirtual";
 import SalaVirtualProfessor from "@/pages/sala/SalaVirtualProfessor";
 import SimuladoAluno from "@/pages/sala/SimuladoAluno";
 import TrilhaHumanas from "@/pages/trilha/TrilhaHumanas";
+import TrilhaHistoria from "@/pages/trilha/TrilhaHistoria";
+import TrilhaGeografia from "@/pages/trilha/TrilhaGeografia";
+import TrilhaFilosofia from "@/pages/trilha/TrilhaFilosofia";
 import TrilhaBiologia from "@/pages/trilha/TrilhaBiologia";
 import TrilhaRedacao from "@/pages/trilha/TrilhaRedacao";
+import TrilhaOrganica from "@/pages/trilha/TrilhaOrganica";
 import OlimpiadasQuimica from "@/pages/olimpiadas/OlimpiadasQuimica";
 import CorrecaoQR from "@/pages/admin/CorrecaoQR";
 import ModuloPage from "@/pages/trilha/ModuloPage";
@@ -35,6 +39,7 @@ import ValidarCertificado from "@/pages/certificados/ValidarCertificado";
 import OlimpiadaHub from "@/pages/olimpiadas/OlimpiadaHub";
 import ProvaOlimpiada from "@/pages/olimpiadas/ProvaOlimpiada";
 import AdminOlimpiada from "@/pages/olimpiadas/AdminOlimpiada";
+import CoordenadorDashboard from "@/pages/olimpiadas/CoordenadorDashboard";
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
@@ -71,8 +76,12 @@ export default function App() {
         <Route path="/trilha/:vestibular/ingles" element={<PrivateRoute><TrilhaIngles /></PrivateRoute>} />
         <Route path="/olimpiadas/quimica" element={<PrivateRoute><OlimpiadasQuimica /></PrivateRoute>} />
         <Route path="/trilha/:vestibular/humanas" element={<PrivateRoute><TrilhaHumanas /></PrivateRoute>} />
+        <Route path="/trilha/:vestibular/historia" element={<PrivateRoute><TrilhaHistoria /></PrivateRoute>} />
+        <Route path="/trilha/:vestibular/geografia" element={<PrivateRoute><TrilhaGeografia /></PrivateRoute>} />
+        <Route path="/trilha/:vestibular/filosofia" element={<PrivateRoute><TrilhaFilosofia /></PrivateRoute>} />
         <Route path="/trilha/:vestibular/biologia" element={<PrivateRoute><TrilhaBiologia /></PrivateRoute>} />
         <Route path="/trilha/:vestibular/redacao" element={<PrivateRoute><TrilhaRedacao /></PrivateRoute>} />
+        <Route path="/trilha/:vestibular/organica" element={<PrivateRoute><TrilhaOrganica /></PrivateRoute>} />
         <Route path="/trilha/:vestibular/fisicoquimica" element={<PrivateRoute><TrilhaFisicoQuimica /></PrivateRoute>} />
 
         {/* Rota do módulo com tópicos — ex: /trilha/ENEM/matematica/modulo/fundamentos */}
@@ -93,6 +102,7 @@ export default function App() {
        <Route path="/olimpiada/:id" element={<PrivateRoute><OlimpiadaHub /></PrivateRoute>} />
        <Route path="/olimpiada/:id/prova/:provaId" element={<PrivateRoute><ProvaOlimpiada /></PrivateRoute>} />
        <Route path="/olimpiada/:id/admin" element={<PrivateRoute><AdminOlimpiada /></PrivateRoute>} />
+       <Route path="/coordenador" element={<PrivateRoute><CoordenadorDashboard /></PrivateRoute>} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
