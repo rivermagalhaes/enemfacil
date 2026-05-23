@@ -25,6 +25,8 @@ import SalaVirtual from "@/pages/sala/SalaVirtual";
 import SalaVirtualProfessor from "@/pages/sala/SalaVirtualProfessor";
 import SimuladoAluno from "@/pages/sala/SimuladoAluno";
 import TrilhaHumanas from "@/pages/trilha/TrilhaHumanas";
+import TrilhaBiologia from "@/pages/trilha/TrilhaBiologia";
+import TrilhaRedacao from "@/pages/trilha/TrilhaRedacao";
 import OlimpiadasQuimica from "@/pages/olimpiadas/OlimpiadasQuimica";
 import CorrecaoQR from "@/pages/admin/CorrecaoQR";
 import ModuloPage from "@/pages/trilha/ModuloPage";
@@ -69,6 +71,8 @@ export default function App() {
         <Route path="/trilha/:vestibular/ingles" element={<PrivateRoute><TrilhaIngles /></PrivateRoute>} />
         <Route path="/olimpiadas/quimica" element={<PrivateRoute><OlimpiadasQuimica /></PrivateRoute>} />
         <Route path="/trilha/:vestibular/humanas" element={<PrivateRoute><TrilhaHumanas /></PrivateRoute>} />
+        <Route path="/trilha/:vestibular/biologia" element={<PrivateRoute><TrilhaBiologia /></PrivateRoute>} />
+        <Route path="/trilha/:vestibular/redacao" element={<PrivateRoute><TrilhaRedacao /></PrivateRoute>} />
         <Route path="/trilha/:vestibular/fisicoquimica" element={<PrivateRoute><TrilhaFisicoQuimica /></PrivateRoute>} />
 
         {/* Rota do módulo com tópicos — ex: /trilha/ENEM/matematica/modulo/fundamentos */}

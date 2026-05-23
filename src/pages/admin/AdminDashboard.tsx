@@ -4,6 +4,8 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/lib/supabaseClient";
 import { useAuth } from "@/hooks/useAuth";
 import CertificadosAdmin from "@/components/admin/CertificadosAdmin";
+import ExtratorPDF from "@/components/admin/ExtratorPDF";
+import GestaoConteudoTrilhas from "@/components/admin/GestaoConteudoTrilhas";
 
 const CORES = {
   bg: "#F4F6FB", card: "#FFFFFF", primary: "#0057FF",
@@ -21,6 +23,8 @@ const ABAS = [
   { id: "usuarios",   label: "Usuários",    emoji: "👥" },
   { id: "ranking",       label: "Rankings",      emoji: "🏆" },
   { id: "certificados",  label: "Certificados",  emoji: "📜" },
+  { id: "extrator",      label: "Extrator PDF",    emoji: "📄" },
+  { id: "conteudo",      label: "Conteúdo Trilhas", emoji: "📖" },
 ];
 
 const ESTADOS_REGIOES: Record<string, string> = {
@@ -1028,6 +1032,12 @@ export default function AdminDashboard() {
         {aba === "certificados" && (
           <CertificadosAdmin />
         )}
+
+        {aba === "extrator" && (
+          <div style={{ padding: "4px 0" }}><ExtratorPDF /></div>
+        )}
+
+        {aba === "conteudo" && <GestaoConteudoTrilhas />}
 
       </div>
     </div>

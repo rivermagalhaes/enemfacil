@@ -3,6 +3,8 @@ import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/lib/supabaseClient";
 import { useAuth } from "@/hooks/useAuth";
+import ExtratorPDF from "@/components/admin/ExtratorPDF";
+import GestaoConteudoTrilhas from "@/components/admin/GestaoConteudoTrilhas";
 
 const CORES = {
   bg: "#F4F6FB", card: "#FFFFFF", primary: "#0057FF",
@@ -16,6 +18,8 @@ const ABAS = [
   { id: "analytics", label: "Analytics",   emoji: "📈" },
   { id: "materiais", label: "Materiais",   emoji: "📁" },
   { id: "questoes",  label: "Questões",    emoji: "📝" },
+  { id: "extrator",  label: "Extrator PDF",     emoji: "📄" },
+  { id: "conteudo",  label: "Conteúdo Trilhas", emoji: "📖" },
   { id: "usuarios",  label: "Usuários",    emoji: "👥" },
   { id: "ranking",   label: "Rankings",    emoji: "🏆" },
 ];
@@ -532,6 +536,12 @@ export default function AdminDashboard() {
             </div>
           </div>
         )}
+
+        {/* ── EXTRATOR PDF ── */}
+        {aba === "extrator" && <ExtratorPDF />}
+
+        {/* ── CONTEÚDO TRILHAS ── */}
+        {aba === "conteudo" && <GestaoConteudoTrilhas />}
 
         {/* ── USUÁRIOS ── */}
         {aba === "usuarios" && (

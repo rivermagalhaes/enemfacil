@@ -2,6 +2,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/lib/supabaseClient";
+import GestaoConteudoTrilhas from "@/components/admin/GestaoConteudoTrilhas";
 import { useAuth } from "@/hooks/useAuth";
 import { QRCodeSVG } from "qrcode.react";
 
@@ -15,6 +16,7 @@ const ABAS = [
   { id:"impressao",  label:"Imprimir Prova", emoji:"🖨️" },
   { id:"qrcode",     label:"QR Correção",    emoji:"📷" },
   { id:"salas",      label:"Salas Virtuais", emoji:"🏫" },
+  { id:"conteudo",   label:"Conteúdo Trilhas", emoji:"📖" },
 ];
 
 interface Material { id:string; titulo:string; tipo:string; url:string; vestibular:string|null; materia:string|null; }
@@ -79,7 +81,7 @@ export default function ProfessorDashboard() {
   // Estado para cadastro manual de questão
   const [qForm, setQForm] = useState({
     question: "", explanation: "", answer_index: 0,
-    vestibular: "ENEM", topic: "", area: "ciencias_natureza", difficulty: "medio", ano: new Date().getFullYear(),
+    vestibular: "ENEM", topic: "", area: "natureza", difficulty: "medio", ano: new Date().getFullYear(),
     options: ["", "", "", "", ""],
   });
   const [salvandoQ, setSalvandoQ] = useState(false);
@@ -110,6 +112,9 @@ export default function ProfessorDashboard() {
   const [questoesExtraidas, setQuestoesExtraidas] = useState<any[]>([]);
   const [pdfMsg, setPdfMsg] = useState<{tipo:"ok"|"erro";texto:string}|null>(null);
   const [salvandoExtraidas, setSalvandoExtraidas] = useState(false);
+  const [pdfVestibular, setPdfVestibular] = useState("ENEM");
+  const [pdfAno, setPdfAno] = useState(new Date().getFullYear());
+  const [pdfModuleId, setPdfModuleId] = useState<string|null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const excelRef = useRef<HTMLInputElement>(null);
   const [form, setForm] = useState({ titulo:"", descricao:"", tipo:"pdf", vestibular:"ENEM", materia:"", topic:"" });
@@ -137,8 +142,12 @@ export default function ProfessorDashboard() {
 
   async function carregarQuestoes() {
     setLoadingQ(true);
-    const { data } = await supabase.from("questions").select("id, question, vestibular, area, difficulty, ano, topic, answer_index, explanation").order("created_at", { ascending: false }).limit(20);
+    const [{ data }, { data: mods }] = await Promise.all([
+      supabase.from("questions").select("id, question, vestibular, area, difficulty, ano, topic, answer_index, explanation").order("created_at", { ascending: false }).limit(20),
+      supabase.from("modules").select("id").limit(1).single(),
+    ]);
     if (data) setQuestoesCadastradas(data);
+    if (mods && !pdfModuleId) setPdfModuleId((mods as any).id);
     setLoadingQ(false);
   }
 
@@ -169,6 +178,47 @@ export default function ProfessorDashboard() {
     setTimeout(() => setMsg(null), 4000);
   }
 
+  // Converte lote de questões discursivas em objetivas via Edge Function
+  async function converterDiscursivasParaObjetivas(questoesSemOpts: any[]): Promise<Map<number, {options: string[], answer_index: number, explanation: string}>> {
+    const resultMap = new Map<number, {options: string[], answer_index: number, explanation: string}>();
+    if (questoesSemOpts.length === 0) return resultMap;
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const response = await fetch(
+        "https://iuziweujszfiaulltzqv.supabase.co/functions/v1/converter-questoes-objetivas",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${session?.access_token}`,
+          },
+          body: JSON.stringify({
+            questoes: questoesSemOpts.map(q => ({
+              question: q.question,
+              area: q.area || "ciencias_natureza",
+              difficulty: q.difficulty || "medio",
+              topic: q.topic || null,
+            })),
+          }),
+        }
+      );
+
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Erro na conversão");
+
+      (data.resultados || []).forEach((resultado: any, i: number) => {
+        if (resultado && resultado.options?.length >= 2) {
+          resultMap.set(questoesSemOpts[i]._tmpIdx, resultado);
+        }
+      });
+    } catch (err: any) {
+      console.error("Erro ao converter discursivas:", err.message);
+    }
+
+    return resultMap;
+  }
+
   async function processarPdfComIA(e: React.ChangeEvent<HTMLInputElement>) {
     if (!e.target.files?.[0]) return;
     const file = e.target.files[0];
@@ -196,9 +246,45 @@ export default function ProfessorDashboard() {
       );
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "Erro ao processar PDF");
-      const questoes = data.questoes;
-      setQuestoesExtraidas(questoes.map((q: any, i: number) => ({ ...q, selecionada: true, _id: i })));
-      setPdfMsg({ tipo:"ok", texto:`✅ ${questoes.length} questões extraídas! Revise e salve.` });
+      let questoes: any[] = data.questoes;
+
+      // Identifica questões sem alternativas
+      // Marca índice temporário para mapeamento após conversão
+      questoes = questoes.map((q: any, i: number) => ({ ...q, _tmpIdx: i }));
+      const semOpts = questoes.filter((q: any) => !q.options || q.options.filter((o: string) => o?.trim()).length < 2);
+
+      if (semOpts.length > 0) {
+        setPdfMsg({ tipo:"ok", texto:`⏳ ${questoes.length} questões extraídas. Gerando alternativas para ${semOpts.length} questão(ões) discursiva(s)...` });
+
+        // Converte em lotes de 4 para não estourar contexto do modelo
+        const LOTE = 4;
+        for (let i = 0; i < semOpts.length; i += LOTE) {
+          const lote = semOpts.slice(i, i + LOTE);
+          setPdfMsg({ tipo:"ok", texto:`⏳ Gerando alternativas... (${Math.min(i + LOTE, semOpts.length)}/${semOpts.length})` });
+          const conversoes = await converterDiscursivasParaObjetivas(lote);
+          conversoes.forEach((resultado, tmpIdx) => {
+            questoes = questoes.map((q: any) =>
+              q._tmpIdx === tmpIdx
+                ? { ...q, options: resultado.options, answer_index: resultado.answer_index, explanation: resultado.explanation, tipo_original: "discursiva" }
+                : q
+            );
+          });
+        }
+      }
+
+      const convertidas = questoes.filter(q => q.tipo_original === "discursiva").length;
+      const aindaSemOpts = questoes.filter(q => !q.options || q.options.filter((o: string) => o?.trim()).length < 2).length;
+
+      setQuestoesExtraidas(questoes.map((q: any, i: number) => ({
+        ...q,
+        selecionada: q.options && q.options.filter((o: string) => o?.trim()).length >= 2,
+        _id: i,
+      })));
+
+      const aviso = convertidas > 0 ? ` · 🔄 ${convertidas} discursiva(s) convertida(s)` : "";
+      const avisoFalha = aindaSemOpts > 0 ? ` · ⚠️ ${aindaSemOpts} sem alternativas` : "";
+      setPdfMsg({ tipo: aindaSemOpts === questoes.length ? "erro" : "ok", texto:`✅ ${questoes.length} questões extraídas!${aviso}${avisoFalha} Revise e salve.` });
+
     } catch (err: any) {
       setPdfMsg({ tipo:"erro", texto:"Erro ao processar PDF: " + err.message });
     }
@@ -211,20 +297,57 @@ export default function ProfessorDashboard() {
     if (selecionadas.length === 0) { setPdfMsg({ tipo:"erro", texto:"Selecione ao menos uma questão" }); return; }
     setSalvandoExtraidas(true);
     let ok = 0, err = 0;
+    const errosMsgs: string[] = [];
+
     for (const q of selecionadas) {
+      if (!q.question?.trim()) { err++; continue; }
+      const opts = (q.options || []).filter((o: string) => o?.trim());
+      if (opts.length < 2) { err++; errosMsgs.push(`Questão sem alternativas suficientes: "${q.question?.substring(0,40)}..."`); continue; }
+
+      // Garante answer_index válido mesmo quando IA retornou null
+      const answerIdx = (typeof q.answer_index === "number" && q.answer_index >= 0 && q.answer_index < opts.length)
+        ? q.answer_index : 0;
+
+      const areaMap: Record<string, string> = {
+        ciencias_natureza: "natureza",
+        ciencias_humanas:  "humanas",
+        linguagens:        "linguagens",
+        matematica:        "matematica",
+        redacao:           "redacao",
+      };
       const { data: qSalva, error } = await supabase.from("questions").insert({
-        question: q.question, explanation: q.explanation || "",
-        answer_index: q.answer_index ?? 0, vestibular: q.vestibular || "PROPRIO",
-        topic: q.topic || null, area: q.area || "ciencias_natureza",
-        difficulty: q.difficulty || "medio", ano: q.ano || new Date().getFullYear(),
+        question:     q.question.trim(),
+        explanation:  q.explanation || "",
+        answer_index: answerIdx,
+        vestibular:   pdfVestibular,
+        topic:        q.topic      || null,
+        area:         areaMap[q.area] || "natureza",
+        difficulty:   q.difficulty || "medio",
+        ano:          pdfAno || q.ano || new Date().getFullYear(),
+        module_id:    pdfModuleId || null,
       }).select("id").single();
-      if (error || !qSalva) { err++; continue; }
-      const opts = (q.options || []).filter(Boolean).map((label: string, i: number) => ({ question_id: qSalva.id, option_index: i, label }));
-      if (opts.length >= 2) await supabase.from("question_options").insert(opts);
+
+      if (error || !qSalva) {
+        err++;
+        errosMsgs.push(`Erro BD: ${error?.message ?? "desconhecido"}`);
+        continue;
+      }
+
+      const optsFormatadas = opts.map((label: string, i: number) => ({
+        question_id: qSalva.id, option_index: i, label: label.trim(),
+      }));
+      await supabase.from("question_options").insert(optsFormatadas);
       ok++;
     }
-    setPdfMsg({ tipo:"ok", texto:`✅ ${ok} questões salvas${err > 0 ? `. ⚠️ ${err} com erro` : ""}` });
-    setQuestoesExtraidas([]);
+
+    if (errosMsgs.length > 0) console.warn("Erros ao salvar:", errosMsgs);
+    setPdfMsg({
+      tipo: ok > 0 ? "ok" : "erro",
+      texto: ok > 0
+        ? `✅ ${ok} questão(ões) salva(s)${err > 0 ? ` · ⚠️ ${err} com erro` : ""}`
+        : `⚠️ Nenhuma questão salva. Verifique se as questões possuem alternativas válidas.`,
+    });
+    if (ok > 0) setQuestoesExtraidas([]);
     carregarQuestoes();
     setSalvandoExtraidas(false);
   }
@@ -264,11 +387,19 @@ export default function ProfessorDashboard() {
     if (filledOptions.length < 2) { setQMsg({ tipo:"erro", texto:"Adicione pelo menos 2 opções" }); return; }
     if (qForm.answer_index >= filledOptions.length) { setQMsg({ tipo:"erro", texto:"Índice da resposta inválido" }); return; }
     setSalvandoQ(true);
+    const areaMapQ: Record<string, string> = {
+      ciencias_natureza: "natureza",
+      ciencias_humanas:  "humanas",
+      linguagens:        "linguagens",
+      matematica:        "matematica",
+      redacao:           "redacao",
+    };
     const { data: q, error } = await supabase.from("questions").insert({
       question: qForm.question, explanation: qForm.explanation,
       answer_index: qForm.answer_index, vestibular: qForm.vestibular,
-      topic: qForm.topic || null, area: qForm.area,
+      topic: qForm.topic || null, area: areaMapQ[qForm.area] || "natureza",
       difficulty: qForm.difficulty, ano: qForm.ano,
+      ...(pdfModuleId ? { module_id: pdfModuleId } : {}),
     }).select("id").single();
     if (error || !q) { setQMsg({ tipo:"erro", texto:"Erro ao salvar: " + error?.message }); setSalvandoQ(false); return; }
     const opts = filledOptions.map((label, i) => ({ question_id: q.id, option_index: i, label }));
@@ -546,7 +677,7 @@ export default function ProfessorDashboard() {
           question: q.enunciado, explanation: `${q.explicacao}\n\nDistratores: ${q.analise_distratores ?? ""}`,
           answer_index: corrIdx >= 0 ? corrIdx : 0,
           difficulty: q.dificuldade === "olimpico" ? "dificil" : q.dificuldade,
-          vestibular: genVestibular, ano: genAno, topic: q.assunto_tag, area: "ciencias_natureza",
+          vestibular: genVestibular, ano: genAno, topic: q.assunto_tag,
         }).select("id").single();
         if (qe || !qd) continue;
         await supabase.from("question_options").insert(
@@ -853,10 +984,11 @@ export default function ProfessorDashboard() {
                   <p style={{ fontSize:11,fontWeight:600,color:CORES.sub,margin:"0 0 4px",textTransform:"uppercase" }}>Área</p>
                   <select value={qForm.area} onChange={e=>setQForm(p=>({...p,area:e.target.value}))}
                     style={{ width:"100%",padding:"8px 10px",borderRadius:8,border:`1px solid ${CORES.border}`,fontSize:13 }}>
-                    <option value="ciencias_natureza">🔬 Ciências da Natureza</option>
-                    <option value="ciencias_humanas">🌍 Ciências Humanas</option>
+                    <option value="natureza">🔬 Ciências da Natureza</option>
+                    <option value="humanas">🌍 Ciências Humanas</option>
                     <option value="linguagens">📚 Linguagens</option>
                     <option value="matematica">📐 Matemática</option>
+                    <option value="redacao">✍️ Redação</option>
                   </select>
                 </div>
                 <div>
@@ -1554,6 +1686,8 @@ export default function ProfessorDashboard() {
           </div>
         )}
 
+        {aba === "conteudo" && <GestaoConteudoTrilhas />}
+
         {aba === "salas" && (
           <div style={{ display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:"40px 20px",gap:16 }}>
             <div style={{ fontSize:52 }}>🏫</div>
@@ -1582,10 +1716,27 @@ export default function ProfessorDashboard() {
                   {pdfMsg.texto}
                 </div>
               )}
+              {/* Configurações antes de extrair */}
+              <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:10 }}>
+                <div>
+                  <p style={{ fontSize:11,fontWeight:600,color:CORES.sub,margin:"0 0 4px",textTransform:"uppercase" }}>Vestibular</p>
+                  <select value={pdfVestibular} onChange={e=>setPdfVestibular(e.target.value)}
+                    style={{ width:"100%",padding:"8px 10px",borderRadius:8,border:`1px solid ${CORES.border}`,fontSize:13 }}>
+                    {["ENEM","ITA","IME","FUVEST","UNICAMP","UNB","CEFET","PROPRIO"].map(v=>(
+                      <option key={v} value={v}>{v==="PROPRIO"?"Própria":v}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <p style={{ fontSize:11,fontWeight:600,color:CORES.sub,margin:"0 0 4px",textTransform:"uppercase" }}>Ano</p>
+                  <input type="number" value={pdfAno} onChange={e=>setPdfAno(Number(e.target.value))} min={2000} max={2030}
+                    style={{ width:"100%",padding:"8px 10px",borderRadius:8,border:`1px solid ${CORES.border}`,fontSize:13,boxSizing:"border-box" as const }} />
+                </div>
+              </div>
               <input ref={pdfRef} type="file" accept=".pdf" onChange={processarPdfComIA} style={{ display:"none" }} />
               <button onClick={()=>pdfRef.current?.click()} disabled={processandoPdf}
                 style={{ width:"100%",padding:"12px 0",background:processandoPdf?"#e2e8f0":"linear-gradient(135deg,#6D28D9,#4C1D95)",color:processandoPdf?CORES.sub:"#fff",border:"none",borderRadius:10,fontSize:13,fontWeight:600,cursor:processandoPdf?"not-allowed":"pointer",marginBottom:8 }}>
-                {processandoPdf ? "⏳ Processando com IA..." : "📄 Selecionar PDF e extrair questões"}
+                {processandoPdf ? (pdfMsg?.tipo === "ok" && pdfMsg.texto.startsWith("⏳") ? pdfMsg.texto : "⏳ Extraindo questões do PDF...") : "📄 Selecionar PDF e extrair questões"}
               </button>
 
               {/* Questões extraídas */}
@@ -1600,31 +1751,45 @@ export default function ProfessorDashboard() {
                       Todas
                     </label>
                   </div>
+                  {/* Aviso se alguma sem gabarito */}
+                  {questoesExtraidas.some(q => q.answer_index === null || q.answer_index === undefined) && (
+                    <div style={{ marginBottom:8,padding:"8px 12px",borderRadius:8,background:"#FFF8E6",border:"1px solid #fcd34d",fontSize:12,color:"#92400e" }}>
+                      ⚠️ Questões marcadas em <strong>laranja</strong> não tiveram gabarito identificado no PDF. O sistema salvará com gabarito A — corrija manualmente após salvar.
+                    </div>
+                  )}
                   <div style={{ maxHeight:320,overflowY:"auto",display:"flex",flexDirection:"column",gap:8,marginBottom:12 }}>
-                    {questoesExtraidas.map((q,i) => (
-                      <div key={i} style={{ background:q.selecionada?"#EDFAF3":"#f8fafc",borderRadius:10,padding:"10px 12px",border:`1px solid ${q.selecionada?"#22c55e":CORES.border}` }}>
+                    {questoesExtraidas.map((q,i) => {
+                      const semGabarito = q.answer_index === null || q.answer_index === undefined;
+                      const semOpts = (q.options||[]).filter((o:string) => o?.trim()).length < 2;
+                      const invalida = semOpts;
+                      return (
+                      <div key={i} style={{ background:invalida?"#fff1f1":q.selecionada?"#EDFAF3":"#f8fafc",borderRadius:10,padding:"10px 12px",border:`1px solid ${invalida?"#ef4444":semGabarito?"#fcd34d":q.selecionada?"#22c55e":CORES.border}` }}>
                         <div style={{ display:"flex",alignItems:"flex-start",gap:8 }}>
-                          <input type="checkbox" checked={q.selecionada}
+                          <input type="checkbox" checked={q.selecionada} disabled={invalida}
                             onChange={e=>setQuestoesExtraidas(prev=>prev.map((x,j)=>j===i?{...x,selecionada:e.target.checked}:x))}
                             style={{ marginTop:2,flexShrink:0 }} />
                           <div style={{ flex:1,minWidth:0 }}>
                             <p style={{ fontSize:12,fontWeight:600,margin:"0 0 4px",display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical",overflow:"hidden" }}>{q.question}</p>
+                            {invalida && <p style={{ fontSize:10,color:"#ef4444",margin:"0 0 4px",fontWeight:600 }}>⛔ Sem alternativas — não será salva</p>}
+                            {semGabarito && !invalida && <p style={{ fontSize:10,color:"#92400e",margin:"0 0 4px",fontWeight:600 }}>⚠️ Gabarito não identificado — será salvo como A</p>}
                             <div style={{ display:"flex",gap:4,flexWrap:"wrap" }}>
-                              {(q.options||[]).slice(0,5).map((opt:string,oi:number)=>(
+                              {(q.options||[]).filter((o:string)=>o?.trim()).slice(0,5).map((opt:string,oi:number)=>(
                                 <span key={oi} style={{ fontSize:10,padding:"1px 6px",borderRadius:4,background:oi===q.answer_index?"#DCFCE7":"#f1f5f9",color:oi===q.answer_index?"#15803d":CORES.sub,fontWeight:oi===q.answer_index?700:400 }}>
                                   {String.fromCharCode(65+oi)}: {opt?.substring(0,20)}{opt?.length>20?"...":""}
                                 </span>
                               ))}
                             </div>
-                            <div style={{ display:"flex",gap:4,marginTop:4 }}>
+                            <div style={{ display:"flex",gap:4,marginTop:4,flexWrap:"wrap" }}>
                               <span style={{ fontSize:10,background:"#E6EEFF",color:CORES.primary,borderRadius:4,padding:"1px 6px",fontWeight:600 }}>{q.vestibular||"PROPRIO"}</span>
                               <span style={{ fontSize:10,background:"#f1f5f9",color:CORES.sub,borderRadius:4,padding:"1px 6px" }}>{q.difficulty||"medio"}</span>
+                              {q.tipo_original==="discursiva"&&<span style={{ fontSize:10,background:"#fef3c7",color:"#92400e",borderRadius:4,padding:"1px 6px",fontWeight:600 }}>🔄 Convertida</span>}
                               {q.topic&&<span style={{ fontSize:10,background:"#f1f5f9",color:CORES.sub,borderRadius:4,padding:"1px 6px" }}>{q.topic}</span>}
                             </div>
                           </div>
                         </div>
                       </div>
-                    ))}
+                      );
+                    })}
                   </div>
                   <button onClick={salvarQuestoesExtraidas} disabled={salvandoExtraidas}
                     style={{ width:"100%",padding:"12px 0",background:salvandoExtraidas?"#e2e8f0":"#0A7C4B",color:salvandoExtraidas?CORES.sub:"#fff",border:"none",borderRadius:10,fontSize:14,fontWeight:700,cursor:salvandoExtraidas?"not-allowed":"pointer" }}>

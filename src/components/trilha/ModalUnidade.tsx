@@ -104,7 +104,7 @@ export default function ModalUnidade({
       .select("titulo, conteudo, exemplos, formulas")
       .eq("materia", materia)
       .eq("unidade_id", unidade.id)
-      .single();
+      .maybeSingle();
     if (data) setConteudo(data);
   }
 
@@ -190,7 +190,7 @@ export default function ModalUnidade({
       .from("alternativas_simulado")
       .select("correta")
       .eq("id", alternativaId)
-      .single();
+      .maybeSingle();
 
     const correta = alt?.correta ?? false;
 

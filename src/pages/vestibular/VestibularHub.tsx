@@ -1,5 +1,6 @@
 // src/pages/vestibular/VestibularHub.tsx
 import { useParams, useNavigate } from "react-router-dom";
+import { useState } from "react";
 import BottomNav from "@/components/layout/BottomNav";
 import { CORES } from "@/styles/theme";
 
@@ -57,61 +58,95 @@ OTQ: {
   },
 };
 
-const MATERIAS: Record<string, { id: string; label: string; emoji: string; trilha: string; desc: string }[]> = {
+// Grupos de sub-trilhas — quando uma matéria agrupa múltiplas trilhas
+const SUB_TRILHAS: Record<string, { label: string; emoji: string; trilha: string; desc: string }[]> = {
+  "quimica-grupo": [
+    { label: "Química Geral",   emoji: "🔬", trilha: "quimica",       desc: "Funções · Reações · Nomenclatura · Estequiometria" },
+    { label: "Físico-Química",  emoji: "🔥", trilha: "fisicoquimica", desc: "Termoquímica · Cinética · Equilíbrio · Eletroquímica" },
+    { label: "Orgânica",        emoji: "🧬", trilha: "organica",      desc: "Hidrocarbonetos · Funções orgânicas · Isomeria" },
+  ],
+  "natureza-grupo": [
+    { label: "Física",          emoji: "⚡", trilha: "fisica",        desc: "Mecânica · Eletromagnetismo · Termodinâmica · Óptica" },
+    { label: "Química Geral",   emoji: "🔬", trilha: "quimica",       desc: "Funções · Reações · Nomenclatura · Estequiometria" },
+    { label: "Físico-Química",  emoji: "🔥", trilha: "fisicoquimica", desc: "Termoquímica · Cinética · Equilíbrio · Eletroquímica" },
+    { label: "Química Orgânica",emoji: "🧪", trilha: "organica",      desc: "Hidrocarbonetos · Funções orgânicas · Isomeria" },
+    { label: "Biologia",        emoji: "🧬", trilha: "biologia",      desc: "Genética · Ecologia · Fisiologia · Evolução" },
+  ],
+};
+
+const MATERIAS: Record<string, { id: string; label: string; emoji: string; trilha: string; desc: string; grupo?: string }[]> = {
   OBQ: [
-  { id: "natureza", label: "Química Geral",  emoji: "⚗️", trilha: "fisicoquimica", desc: "Estequiometria · Gases · Soluções" },
-  { id: "natureza", label: "Inorgânica",     emoji: "🔬", trilha: "quimica",       desc: "Funções · Reações · Nomenclatura" },
-  { id: "natureza", label: "Orgânica",       emoji: "🧬", trilha: "quimica",       desc: "Hidrocarbonetos · Funções orgânicas" },
-  { id: "natureza", label: "Físico-Química", emoji: "⚡", trilha: "fisicoquimica", desc: "Termoquímica · Cinética · Equilíbrio" },
-],
-OTQ: [
-  { id: "natureza", label: "Química Geral",  emoji: "⚗️", trilha: "fisicoquimica", desc: "Estequiometria · Gases · Soluções" },
-  { id: "natureza", label: "Inorgânica",     emoji: "🔬", trilha: "quimica",       desc: "Funções · Reações · Nomenclatura" },
-  { id: "natureza", label: "Orgânica",       emoji: "🧬", trilha: "quimica",       desc: "Hidrocarbonetos · Funções orgânicas" },
-],
+    { id: "natureza", label: "Química Geral",  emoji: "⚗️", trilha: "fisicoquimica", desc: "Estequiometria · Gases · Soluções" },
+    { id: "natureza", label: "Inorgânica",     emoji: "🔬", trilha: "quimica",       desc: "Funções · Reações · Nomenclatura" },
+    { id: "natureza", label: "Orgânica",       emoji: "🧬", trilha: "quimica",       desc: "Hidrocarbonetos · Funções orgânicas" },
+    { id: "natureza", label: "Físico-Química", emoji: "⚡", trilha: "fisicoquimica", desc: "Termoquímica · Cinética · Equilíbrio" },
+  ],
+  OTQ: [
+    { id: "natureza", label: "Química Geral",  emoji: "⚗️", trilha: "fisicoquimica", desc: "Estequiometria · Gases · Soluções" },
+    { id: "natureza", label: "Inorgânica",     emoji: "🔬", trilha: "quimica",       desc: "Funções · Reações · Nomenclatura" },
+    { id: "natureza", label: "Orgânica",       emoji: "🧬", trilha: "quimica",       desc: "Hidrocarbonetos · Funções orgânicas" },
+    { id: "natureza", label: "Físico-Química", emoji: "⚡", trilha: "fisicoquimica", desc: "Termoquímica · Cinética · Equilíbrio" },
+  ],
   ENEM: [
-    { id: "linguagens", label: "Linguagens",  emoji: "📚", trilha: "portugues",  desc: "Português · Literatura · Artes" },
-    { id: "matematica", label: "Matemática",  emoji: "📐", trilha: "matematica", desc: "Álgebra · Geometria · Estatística" },
-    { id: "humanas",    label: "Humanas",     emoji: "🌍", trilha: "humanas",    desc: "História · Geografia · Filosofia" },
-    { id: "natureza",   label: "Natureza",    emoji: "🔬", trilha: "fisicoquimica", desc: "Física · Química · Biologia" },
-    { id: "redacao",    label: "Redação",     emoji: "✏️",  trilha: "portugues",  desc: "Dissertação · Argumentação" },
+    { id: "linguagens", label: "Português",    emoji: "📚", trilha: "portugues",     desc: "Interpretação · Literatura · Gramática" },
+    { id: "linguagens", label: "Inglês",       emoji: "🇺🇸", trilha: "ingles",       desc: "Reading · Vocabulary · Grammar" },
+    { id: "matematica", label: "Matemática",   emoji: "📐", trilha: "matematica",    desc: "Álgebra · Geometria · Estatística" },
+    { id: "humanas",    label: "Humanas",      emoji: "🌍", trilha: "humanas",       desc: "História · Geografia · Filosofia" },
+    { id: "natureza",   label: "Ciências da Natureza", emoji: "🔬", trilha: "", desc: "Física · Química · Biologia", grupo: "natureza-grupo" },
+    { id: "redacao",    label: "Redação",      emoji: "✏️",  trilha: "redacao",       desc: "Dissertação · Argumentação · ENEM" },
   ],
   ITA: [
-    { id: "matematica", label: "Matemática",  emoji: "📐", trilha: "matematica", desc: "Alta complexidade" },
-    { id: "natureza",   label: "Física",      emoji: "⚡", trilha: "fisicoquimica", desc: "Mecânica · Eletromagnetismo" },
-    { id: "natureza",   label: "Química",     emoji: "🧪", trilha: "fisicoquimica", desc: "Inorgânica · Orgânica" },
-    { id: "linguagens", label: "Português",   emoji: "📖", trilha: "portugues",  desc: "Interpretação · Gramática" },
-    { id: "linguagens", label: "Inglês",      emoji: "🇺🇸", trilha: "portugues", desc: "Reading · Comprehension" },
+    { id: "matematica", label: "Matemática",   emoji: "📐", trilha: "matematica",    desc: "Alta complexidade · ITA" },
+    { id: "natureza",   label: "Física",       emoji: "⚡", trilha: "fisica",        desc: "Mecânica · Eletromagnetismo · Óptica" },
+    { id: "natureza",   label: "Química",      emoji: "⚗️", trilha: "",               desc: "Geral · Inorgânica · Orgânica · FQ", grupo: "quimica-grupo" },
+    { id: "natureza",   label: "Físico-Quím",  emoji: "🔥", trilha: "fisicoquimica", desc: "Termoquímica · Cinética · Equilíbrio" },
+    { id: "linguagens", label: "Português",    emoji: "📖", trilha: "portugues",     desc: "Interpretação · Gramática" },
+    { id: "linguagens", label: "Inglês",       emoji: "🇺🇸", trilha: "ingles",       desc: "Scientific English · Reading" },
   ],
   IME: [
-    { id: "matematica", label: "Matemática",  emoji: "📐", trilha: "matematica", desc: "Alta complexidade" },
-    { id: "natureza",   label: "Física",      emoji: "⚡", trilha: "fisicoquimica", desc: "Mecânica · Eletromagnetismo" },
-    { id: "natureza",   label: "Química",     emoji: "🧪", trilha: "fisicoquimica", desc: "Inorgânica · Orgânica" },
-    { id: "linguagens", label: "Português",   emoji: "📖", trilha: "portugues",  desc: "Interpretação · Gramática" },
+    { id: "matematica", label: "Matemática",   emoji: "📐", trilha: "matematica",    desc: "Alta complexidade · IME" },
+    { id: "natureza",   label: "Física",       emoji: "⚡", trilha: "fisica",        desc: "Mecânica · Eletromagnetismo · Óptica" },
+    { id: "natureza",   label: "Química",      emoji: "⚗️", trilha: "",               desc: "Geral · Inorgânica · Orgânica · FQ", grupo: "quimica-grupo" },
+    { id: "natureza",   label: "Físico-Quím",  emoji: "🔥", trilha: "fisicoquimica", desc: "Termoquímica · Cinética · Equilíbrio" },
+    { id: "linguagens", label: "Português",    emoji: "📖", trilha: "portugues",     desc: "Interpretação · Gramática" },
   ],
   FUVEST: [
-    { id: "linguagens", label: "Linguagens",  emoji: "📖", trilha: "portugues",  desc: "Português · Literatura" },
-    { id: "humanas",    label: "Humanas",     emoji: "🌍", trilha: "humanas",    desc: "História · Geografia" },
-    { id: "matematica", label: "Matemática",  emoji: "📐", trilha: "matematica", desc: "Álgebra · Geometria" },
-    { id: "natureza",   label: "Ciências",    emoji: "🔬", trilha: "fisicoquimica", desc: "Física · Química · Bio" },
+    { id: "linguagens", label: "Português",    emoji: "📚", trilha: "portugues",     desc: "Literatura · Interpretação · Gramática" },
+    { id: "humanas",    label: "Humanas",      emoji: "🌍", trilha: "humanas",       desc: "História · Geografia · Filosofia" },
+    { id: "matematica", label: "Matemática",   emoji: "📐", trilha: "matematica",    desc: "Álgebra · Geometria · Análise" },
+    { id: "natureza",   label: "Física",       emoji: "⚡", trilha: "fisica",        desc: "Mecânica · Eletromagnetismo · Óptica" },
+    { id: "natureza",   label: "Química",      emoji: "⚗️", trilha: "",               desc: "Geral · Inorgânica · Orgânica · FQ", grupo: "quimica-grupo" },
+    { id: "natureza",   label: "Físico-Quím",  emoji: "🔥", trilha: "fisicoquimica", desc: "Termoquímica · Cinética · Equilíbrio" },
+    { id: "natureza",   label: "Biologia",     emoji: "🧬", trilha: "biologia",      desc: "Genética · Ecologia · Fisiologia" },
+    { id: "redacao",    label: "Redação",      emoji: "✏️",  trilha: "redacao",       desc: "Dissertação · Argumentação" },
   ],
   UNICAMP: [
-    { id: "linguagens", label: "Linguagens",  emoji: "📖", trilha: "portugues",  desc: "Português · Literatura" },
-    { id: "humanas",    label: "Humanas",     emoji: "🌍", trilha: "humanas",    desc: "História · Geografia" },
-    { id: "matematica", label: "Matemática",  emoji: "📐", trilha: "matematica", desc: "Álgebra · Geometria" },
-    { id: "natureza",   label: "Ciências",    emoji: "🔬", trilha: "fisicoquimica", desc: "Física · Química · Bio" },
+    { id: "linguagens", label: "Português",    emoji: "📚", trilha: "portugues",     desc: "Literatura · Interpretação · Gramática" },
+    { id: "linguagens", label: "Inglês",       emoji: "🇺🇸", trilha: "ingles",       desc: "Reading · Comprehension" },
+    { id: "humanas",    label: "Humanas",      emoji: "🌍", trilha: "humanas",       desc: "História · Geografia · Filosofia" },
+    { id: "matematica", label: "Matemática",   emoji: "📐", trilha: "matematica",    desc: "Álgebra · Geometria · Estatística" },
+    { id: "natureza",   label: "Física",       emoji: "⚡", trilha: "fisica",        desc: "Mecânica · Eletromagnetismo · Óptica" },
+    { id: "natureza",   label: "Química",      emoji: "⚗️", trilha: "",               desc: "Geral · Inorgânica · Orgânica · FQ", grupo: "quimica-grupo" },
+    { id: "natureza",   label: "Físico-Quím",  emoji: "🔥", trilha: "fisicoquimica", desc: "Termoquímica · Cinética · Equilíbrio" },
+    { id: "natureza",   label: "Biologia",     emoji: "🧬", trilha: "biologia",      desc: "Genética · Ecologia · Fisiologia" },
+    { id: "redacao",    label: "Redação",      emoji: "✏️",  trilha: "redacao",       desc: "Dissertação · Argumentação" },
   ],
   UNB: [
-    { id: "linguagens", label: "Linguagens",  emoji: "📖", trilha: "portugues",  desc: "Português · Literatura" },
-    { id: "humanas",    label: "Humanas",     emoji: "🌍", trilha: "humanas",    desc: "História · Geografia" },
-    { id: "matematica", label: "Matemática",  emoji: "📐", trilha: "matematica", desc: "Álgebra · Geometria" },
-    { id: "natureza",   label: "Ciências",    emoji: "🔬", trilha: "fisicoquimica", desc: "Física · Química · Bio" },
+    { id: "linguagens", label: "Português",    emoji: "📚", trilha: "portugues",     desc: "Literatura · Interpretação · Gramática" },
+    { id: "humanas",    label: "Humanas",      emoji: "🌍", trilha: "humanas",       desc: "História · Geografia · Atualidades" },
+    { id: "matematica", label: "Matemática",   emoji: "📐", trilha: "matematica",    desc: "Álgebra · Geometria · Estatística" },
+    { id: "natureza",   label: "Física",       emoji: "⚡", trilha: "fisica",        desc: "Mecânica · Eletromagnetismo · Óptica" },
+    { id: "natureza",   label: "Química",      emoji: "⚗️", trilha: "",               desc: "Geral · Inorgânica · Orgânica · FQ", grupo: "quimica-grupo" },
+    { id: "natureza",   label: "Físico-Quím",  emoji: "🔥", trilha: "fisicoquimica", desc: "Termoquímica · Cinética · Equilíbrio" },
+    { id: "natureza",   label: "Biologia",     emoji: "🧬", trilha: "biologia",      desc: "Genética · Ecologia · Fisiologia" },
+    { id: "redacao",    label: "Redação",      emoji: "✏️",  trilha: "redacao",       desc: "Dissertação · Argumentação" },
   ],
 };
 
 export default function VestibularHub() {
   const { vestibular = "ENEM" } = useParams<{ vestibular: string }>();
   const navigate = useNavigate();
+  const [submenuAberto, setSubmenuAberto] = useState<string | null>(null);
   const v = VESTIBULARES[vestibular.toUpperCase()] ?? VESTIBULARES.ENEM;
   const materias = MATERIAS[vestibular.toUpperCase()] ?? [];
 
@@ -184,41 +219,91 @@ export default function VestibularHub() {
           </p>
 
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-            {materias.map((m, i) => (
-              <button
-                key={i}
-                onClick={() => navigate(`/trilha/${vestibular.toUpperCase()}/${m.trilha}`)}
-                style={{
-                  display: "flex", alignItems: "center", gap: 14,
-                  padding: "14px 16px", borderRadius: 16,
-                  background: CORES.bgCard, border: `1.5px solid ${v.cor}22`,
-                  cursor: "pointer", textAlign: "left",
-                  boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
-                }}
-              >
-                {/* Ícone */}
-                <div style={{
-                  width: 52, height: 52, borderRadius: 14, flexShrink: 0,
-                  background: v.bg, border: `1.5px solid ${v.cor}33`,
-                  display: "flex", alignItems: "center", justifyContent: "center", fontSize: 26,
-                }}>
-                  {m.emoji}
-                </div>
+            {materias.map((m, i) => {
+              const temGrupo = !!m.grupo;
+              const grupoAberto = submenuAberto === `${i}-${m.grupo}`;
+              const subTrilhas = m.grupo ? SUB_TRILHAS[m.grupo] ?? [] : [];
 
-                {/* Info */}
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <p style={{ fontSize: 15, fontWeight: 700, color: v.cor, margin: "0 0 2px" }}>{m.label}</p>
-                  <p style={{ fontSize: 11, color: CORES.textSub, margin: 0 }}>{m.desc}</p>
-                </div>
+              return (
+                <div key={i}>
+                  <button
+                    onClick={() => {
+                      if (temGrupo) {
+                        setSubmenuAberto(grupoAberto ? null : `${i}-${m.grupo}`);
+                      } else {
+                        navigate(`/trilha/${vestibular.toUpperCase()}/${m.trilha}`);
+                      }
+                    }}
+                    style={{
+                      width: "100%", display: "flex", alignItems: "center", gap: 14,
+                      padding: "14px 16px", borderRadius: grupoAberto ? "16px 16px 0 0" : 16,
+                      background: grupoAberto ? v.bg : CORES.bgCard,
+                      border: `1.5px solid ${grupoAberto ? v.cor : v.cor + "22"}`,
+                      borderBottom: grupoAberto ? "none" : undefined,
+                      cursor: "pointer", textAlign: "left",
+                      boxShadow: grupoAberto ? "none" : "0 2px 8px rgba(0,0,0,0.06)",
+                    }}
+                  >
+                    <div style={{
+                      width: 52, height: 52, borderRadius: 14, flexShrink: 0,
+                      background: grupoAberto ? CORES.bgCard : v.bg,
+                      border: `1.5px solid ${v.cor}33`,
+                      display: "flex", alignItems: "center", justifyContent: "center", fontSize: 26,
+                    }}>
+                      {m.emoji}
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <p style={{ fontSize: 15, fontWeight: 700, color: v.cor, margin: "0 0 2px" }}>{m.label}</p>
+                      <p style={{ fontSize: 11, color: CORES.textSub, margin: 0 }}>{m.desc}</p>
+                    </div>
+                    <span style={{
+                      fontSize: 12, fontWeight: 700, background: grupoAberto ? CORES.bgCard : v.bg,
+                      color: v.cor, borderRadius: 6, padding: "2px 8px", flexShrink: 0,
+                      transition: "transform 0.2s",
+                      display: "inline-block", transform: grupoAberto ? "rotate(90deg)" : "none",
+                    }}>
+                      {temGrupo ? "▶" : "→"}
+                    </span>
+                  </button>
 
-                {/* Badge trilha */}
-                <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4, flexShrink: 0 }}>
-                  <span style={{ fontSize: 10, fontWeight: 700, background: v.bg, color: v.cor, borderRadius: 6, padding: "2px 8px" }}>
-                    Trilha →
-                  </span>
+                  {/* Sub-trilhas expandidas */}
+                  {grupoAberto && (
+                    <div style={{
+                      border: `1.5px solid ${v.cor}`, borderTop: "none",
+                      borderRadius: "0 0 16px 16px", overflow: "hidden",
+                      background: CORES.bgCard,
+                    }}>
+                      {subTrilhas.map((sub, si) => (
+                        <button
+                          key={si}
+                          onClick={() => { navigate(`/trilha/${vestibular.toUpperCase()}/${sub.trilha}`); setSubmenuAberto(null); }}
+                          style={{
+                            width: "100%", display: "flex", alignItems: "center", gap: 12,
+                            padding: "12px 16px 12px 24px",
+                            background: "transparent",
+                            borderTop: si > 0 ? `1px solid ${v.cor}15` : "none",
+                            border: "none", cursor: "pointer", textAlign: "left",
+                          }}
+                        >
+                          <div style={{
+                            width: 40, height: 40, borderRadius: 10, flexShrink: 0,
+                            background: v.bg, display: "flex", alignItems: "center",
+                            justifyContent: "center", fontSize: 20,
+                          }}>
+                            {sub.emoji}
+                          </div>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <p style={{ fontSize: 14, fontWeight: 600, color: v.cor, margin: "0 0 1px" }}>{sub.label}</p>
+                            <p style={{ fontSize: 11, color: CORES.textSub, margin: 0 }}>{sub.desc}</p>
+                          </div>
+                          <span style={{ fontSize: 11, color: v.cor, flexShrink: 0 }}>→</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
-              </button>
-            ))}
+              );
+            })}
           </div>
         </div>
 
