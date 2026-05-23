@@ -68,9 +68,9 @@ export default function BottomNav() {
           </button>
         );
       })}
-      {(role === "admin" || role === "professor") && (
+      {(role === "admin" || role === "professor" || role === "super_admin") && (
         <button
-          onClick={() => navigate(role === "admin" ? "/admin" : "/professor")}
+          onClick={() => navigate(role === "super_admin" ? "/coordenador" : role === "admin" ? "/admin" : "/professor")}
           style={{
             flex: 1, display: "flex", flexDirection: "column",
             alignItems: "center", gap: 2, border: "none",
@@ -83,13 +83,13 @@ export default function BottomNav() {
             display: "flex", alignItems: "center", justifyContent: "center",
             fontSize: 18, transition: "all 0.2s",
           }}>
-            {role === "admin" ? "🛡️" : "👨‍🏫"}
+            {role === "super_admin" ? "🏆" : role === "admin" ? "🛡️" : "👨‍🏫"}
           </div>
           <span style={{
             fontSize: 10, fontWeight: pathname.startsWith("/admin") || pathname.startsWith("/professor") ? 700 : 400,
             color: pathname.startsWith("/admin") || pathname.startsWith("/professor") ? "#ef4444" : CORES.textSub,
           }}>
-            {role === "admin" ? "Admin" : "Prof"}
+            {role === "super_admin" ? "Olimp" : role === "admin" ? "Admin" : "Prof"}
           </span>
         </button>
       )}

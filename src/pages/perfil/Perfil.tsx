@@ -96,13 +96,15 @@ export default function Perfil() {
   const role = (profile as any).role ?? "student";
 
   // ── Tela especial para admin e professor ──────────────────
-  if (role === "admin" || role === "professor") {
+  if (role === "admin" || role === "professor" || role === "super_admin" || role === "teacher") {
+    const isCoordenador = role === "super_admin";
     const isAdmin = role === "admin";
-    const corRole = isAdmin ? "#ef4444" : "#0A7C4B";
-    const bgRole  = isAdmin ? "#FFF1F1" : "#EDFAF3";
+
+    const corRole = isCoordenador ? "#7C3AED" : isAdmin ? "#ef4444" : "#0A7C4B";
+    const bgRole  = isCoordenador ? "#F3F0FF" : isAdmin ? "#FFF1F1" : "#EDFAF3";
     return (
       <div style={{ display:"flex",flexDirection:"column",minHeight:"100dvh",background:CORES.bg }}>
-        <div style={{ background:`linear-gradient(135deg,${isAdmin?"#1a0a0a, #3a0a0a":"#0a1a0f, #0a3a1f"})`,padding:"16px 16px 20px" }}>
+        <div style={{ background:`linear-gradient(135deg,${isCoordenador?"#1a0a2e, #3b0764":isAdmin?"#1a0a0a, #3a0a0a":"#0a1a0f, #0a3a1f"})`,padding:"16px 16px 20px" }}>
           <div style={{ display:"flex",alignItems:"center",gap:12 }}>
             <div style={{ width:52,height:52,borderRadius:"50%",background:corRole,display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,fontWeight:700,color:"#fff",border:"2px solid rgba(255,255,255,0.2)" }}>
               {nome[0].toUpperCase()}
@@ -110,11 +112,11 @@ export default function Perfil() {
             <div style={{ flex:1 }}>
               <p style={{ fontSize:16,fontWeight:700,color:"#fff",margin:"0 0 4px" }}>{nome}</p>
               <span style={{ fontSize:11,fontWeight:700,borderRadius:99,padding:"2px 12px",background:bgRole,color:corRole }}>
-                {isAdmin ? "🛡️ Administrador" : "👨‍🏫 Professor"}
+                {isCoordenador ? "🏆 Coordenador de Olimpíadas" : isAdmin ? "🛡️ Administrador" : "👨‍🏫 Professor"}
               </span>
             </div>
-            <button onClick={() => navigate(isAdmin ? "/admin" : "/professor")} style={{ padding:"8px 14px",background:corRole,color:"#fff",border:"none",borderRadius:10,fontSize:12,fontWeight:700,cursor:"pointer" }}>
-              {isAdmin ? "🛡️ Painel" : "📁 Painel"}
+            <button onClick={() => navigate(isCoordenador ? "/coordenador" : isAdmin ? "/admin" : "/professor")} style={{ padding:"8px 14px",background:corRole,color:"#fff",border:"none",borderRadius:10,fontSize:12,fontWeight:700,cursor:"pointer" }}>
+              {isCoordenador ? "🏆 Painel" : isAdmin ? "🛡️ Painel" : "📁 Painel"}
             </button>
           </div>
         </div>
@@ -124,7 +126,12 @@ export default function Perfil() {
           {/* Atalhos do painel */}
           <p style={{ fontSize:11,fontWeight:700,color:CORES.textSub,textTransform:"uppercase",letterSpacing:"0.06em",margin:"0 0 10px" }}>Atalhos</p>
           <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:20 }}>
-            {(isAdmin ? [
+            {(isCoordenador ? [
+              { emoji:"🏆", label:"Olimpíadas",  path:"/coordenador", cor:"#7C3AED" },
+              { emoji:"📖", label:"Conteúdo",   path:"/coordenador", cor:"#0057FF" },
+              { emoji:"📝", label:"Questões",   path:"/coordenador", cor:"#0A7C4B" },
+              { emoji:"🏅", label:"Resultados", path:"/coordenador", cor:"#f59e0b" },
+            ] : isAdmin ? [
               { emoji:"📁", label:"Materiais",  path:"/admin",     cor:"#0057FF" },
               { emoji:"📝", label:"Questões",   path:"/admin",     cor:"#7C3AED" },
               { emoji:"👥", label:"Usuários",   path:"/admin",     cor:"#22c55e" },
