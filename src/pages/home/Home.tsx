@@ -228,7 +228,7 @@ export default function Home() {
 
         {/* Botão painel professor */}
         {podePainelProfessor && (
-          <button onClick={() => navigate("/professor")} style={{
+          <button onClick={() => navigate((profile as any)?.role === "super_admin" ? "/coordenador" : "/professor")} style={{
             width: "100%", padding: "14px 16px", borderRadius: 14, marginBottom: 20,
             background: "linear-gradient(135deg, #065C37, #0A7C4B)",
             border: "none", cursor: "pointer", textAlign: "left",
@@ -246,24 +246,17 @@ export default function Home() {
 
 {/* Olimpíadas */}
 <div
-  onClick={() => podePainelProfessor ? navigate("/olimpiadas/quimica") : null}
+  onClick={() => podePainelProfessor ? navigate("/olimpiadas/quimica") : undefined}
   style={{
     width: "100%", display: "flex", alignItems: "center", gap: 14,
     padding: "14px 16px", borderRadius: 16, marginBottom: 10,
-    background: podePainelProfessor
-      ? "linear-gradient(135deg, #7C3AED, #4C1D95)"
-      : "linear-gradient(135deg, #1e293b, #0f172a)",
+    background: podePainelProfessor ? "linear-gradient(135deg, #7C3AED, #4C1D95)" : "linear-gradient(135deg, #1e293b, #0f172a)",
     border: podePainelProfessor ? "1.5px solid #7C3AED55" : "1.5px solid rgba(255,255,255,0.06)",
-    opacity: podePainelProfessor ? 1 : 0.6,
-    position: "relative",
+    opacity: podePainelProfessor ? 1 : 0.6, position: "relative",
     cursor: podePainelProfessor ? "pointer" : "default",
   }}>
-  {!podePainelProfessor && (
-    <span style={{ position: "absolute", top: 10, right: 12, fontSize: 9, background: "#f59e0b", color: "#fff", borderRadius: 4, padding: "2px 6px", fontWeight: 700 }}>EM BREVE</span>
-  )}
-  {podePainelProfessor && (
-    <span style={{ position: "absolute", top: 10, right: 12, fontSize: 9, background: "#22c55e", color: "#fff", borderRadius: 4, padding: "2px 6px", fontWeight: 700 }}>ACESSAR →</span>
-  )}
+  {!podePainelProfessor && <span style={{ position: "absolute", top: 10, right: 12, fontSize: 9, background: "#f59e0b", color: "#fff", borderRadius: 4, padding: "2px 6px", fontWeight: 700 }}>EM BREVE</span>}
+  {podePainelProfessor && <span style={{ position: "absolute", top: 10, right: 12, fontSize: 9, background: "#22c55e", color: "#fff", borderRadius: 4, padding: "2px 6px", fontWeight: 700 }}>ACESSAR →</span>}
   <div style={{ width: 50, height: 50, borderRadius: 14, background: "rgba(255,255,255,0.15)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 26, flexShrink: 0 }}>
     🏆
   </div>

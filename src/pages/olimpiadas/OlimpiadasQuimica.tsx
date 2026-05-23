@@ -1,5 +1,6 @@
 // src/pages/olimpiadas/OlimpiadasQuimica.tsx
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/hooks/useAuth";
 import BottomNav from "@/components/layout/BottomNav";
 import { CORES } from "@/styles/theme";
 
@@ -14,6 +15,7 @@ const OLIMPIADAS = {
 
 export default function OlimpiadasQuimica() {
   const navigate = useNavigate();
+  const { isProfessor, isAdmin } = useAuth();
 
   return (
     <div style={{ display:"flex", flexDirection:"column", minHeight:"100dvh", background:CORES.bg }}>
@@ -48,7 +50,8 @@ export default function OlimpiadasQuimica() {
             <p style={{ fontSize:13, fontWeight:700, color:CORES.text, textTransform:"uppercase", letterSpacing:"0.08em", margin:0 }}>🌎 Nacionais</p>
           </div>
           {OLIMPIADAS.nacionais.map(o => (
-            <button key={o.id} onClick={() => navigate(`/olimpiada/${o.id}`)}
+            <div key={o.id}>
+            <button onClick={() => navigate(`/olimpiada/${o.id}`)}
               style={{ width:"100%", display:"flex", alignItems:"flex-start", gap:14, padding:16, borderRadius:18, background:CORES.bgCard, border:`2px solid ${o.cor}33`, cursor:"pointer", textAlign:"left", boxShadow:`0 4px 20px ${o.cor}15`, marginBottom:10 }}>
               <div style={{ width:60, height:60, borderRadius:16, background:`linear-gradient(135deg, ${o.cor}, ${o.cor}cc)`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:28, flexShrink:0, boxShadow:`0 4px 16px ${o.cor}40` }}>{o.emoji}</div>
               <div style={{ flex:1, minWidth:0 }}>
@@ -67,6 +70,13 @@ export default function OlimpiadasQuimica() {
                 <svg width="18" height="18" viewBox="0 0 16 16" fill="none" stroke={o.cor} strokeWidth="2"><path d="M6 4l4 4-4 4"/></svg>
               </div>
             </button>
+            {(isProfessor || isAdmin) && (
+              <button onClick={() => navigate(`/olimpiada/${o.id}/admin`)}
+                style={{ width:"100%", marginTop:6, padding:"9px 0", borderRadius:10, border:`1.5px dashed ${o.cor}66`, background:"transparent", color:o.cor, fontSize:12, fontWeight:600, cursor:"pointer" }}>
+                ⚙️ Gerenciar olimpíada (admin)
+              </button>
+            )}
+            </div>
           ))}
         </div>
 
@@ -77,7 +87,8 @@ export default function OlimpiadasQuimica() {
             <p style={{ fontSize:13, fontWeight:700, color:CORES.text, textTransform:"uppercase", letterSpacing:"0.08em", margin:0 }}>🌿 Estaduais — Tocantins</p>
           </div>
           {OLIMPIADAS.estaduais.map(o => (
-            <button key={o.id} onClick={() => navigate(`/olimpiada/${o.id}`)}
+            <div key={o.id}>
+            <button onClick={() => navigate(`/olimpiada/${o.id}`)}
               style={{ width:"100%", display:"flex", alignItems:"flex-start", gap:14, padding:16, borderRadius:18, background:CORES.bgCard, border:`2px solid ${o.cor}33`, cursor:"pointer", textAlign:"left", boxShadow:`0 4px 20px ${o.cor}15`, marginBottom:10 }}>
               <div style={{ width:60, height:60, borderRadius:16, background:`linear-gradient(135deg, ${o.cor}, ${o.cor}cc)`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:28, flexShrink:0, boxShadow:`0 4px 16px ${o.cor}40` }}>{o.emoji}</div>
               <div style={{ flex:1, minWidth:0 }}>
@@ -96,6 +107,13 @@ export default function OlimpiadasQuimica() {
                 <svg width="18" height="18" viewBox="0 0 16 16" fill="none" stroke={o.cor} strokeWidth="2"><path d="M6 4l4 4-4 4"/></svg>
               </div>
             </button>
+            {(isProfessor || isAdmin) && (
+              <button onClick={() => navigate(`/olimpiada/${o.id}/admin`)}
+                style={{ width:"100%", marginTop:6, padding:"9px 0", borderRadius:10, border:`1.5px dashed ${o.cor}66`, background:"transparent", color:o.cor, fontSize:12, fontWeight:600, cursor:"pointer" }}>
+                ⚙️ Gerenciar olimpíada (admin)
+              </button>
+            )}
+            </div>
           ))}
         </div>
 

@@ -1,7 +1,7 @@
 // src/pages/olimpiadas/AdminOlimpiada.tsx
 // Painel admin da olimpíada — gerenciar provas e questões
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/lib/supabaseClient";
 import { useAuth } from "@/hooks/useAuth";
@@ -14,13 +14,23 @@ export default function AdminOlimpiada() {
   const { profile } = useAuth();
   const isAdmin = (profile as any)?.role === "admin" || (profile as any)?.role === "super_admin";
 
-  const [aba, setAba] = useState<"prova"|"questoes"|"resultados">("prova");
+  const [aba, setAba] = useState<"prova"|"questoes"|"resultados"|"conteudo">("prova");
   const [evento, setEvento] = useState<any>(null);
   const [prova, setProva] = useState<any>(null);
   const [questoes, setQuestoes] = useState<any[]>([]);
   const [tentativas, setTentativas] = useState<any[]>([]);
   const [msg, setMsg] = useState<{tipo:"ok"|"erro"; texto:string}|null>(null);
   const [salvando, setSalvando] = useState(false);
+
+  // Conteúdo por área
+  const pdfConteudoRef = useRef<HTMLInputElement>(null);
+  const [importandoConteudo, setImportandoConteudo] = useState(false);
+
+  const [areaSel, setAreaSel] = useState(0);
+  const [formConteudo, setFormConteudo] = useState({ titulo:"", conteudo:"", exemplos:"", formulas:"" });
+  const [existeConteudoId, setExisteConteudoId] = useState<string|null>(null);
+  const [salvandoConteudo, setSalvandoConteudo] = useState(false);
+  const [msgConteudo, setMsgConteudo] = useState<{tipo:"ok"|"erro";texto:string}|null>(null);
 
   // Form prova
   const [fProva, setFProva] = useState({ titulo:"", duracao_minutos:120, total_questoes:30, nota_aprovacao:60, data_inicio:"", data_fim:"" });
@@ -29,7 +39,124 @@ export default function AdminOlimpiada() {
   const [fQ, setFQ] = useState({ enunciado:"", alternativas:[{texto:""},{texto:""},{texto:""},{texto:""},{texto:""}], resposta_correta:0, explicacao:"", assunto:"", dificuldade:"medio" });
   const [adicionandoQ, setAdicionandoQ] = useState(false);
 
+
+  // Áreas de conteúdo por olimpíada
+  const AREAS_OLIMPIADA: Record<string, {id:string; titulo:string}[]> = {
+    OBQ: [
+      { id:"quimica-geral",    titulo:"Química Geral e Inorgânica" },
+      { id:"fisicoquimica",    titulo:"Físico-Química" },
+      { id:"quimica-organica", titulo:"Química Orgânica" },
+      { id:"bioquimica",       titulo:"Bioquímica" },
+      { id:"quimica-analitica",titulo:"Química Analítica" },
+    ],
+    OTQ: [
+      { id:"hidrocarbonetos",      titulo:"Hidrocarbonetos" },
+      { id:"funcoes-organicas",    titulo:"Funções Oxigenadas" },
+      { id:"funcoes-nitrogenadas", titulo:"Funções Nitrogenadas" },
+      { id:"isomeria",             titulo:"Isomeria" },
+      { id:"reacoes-organicas",    titulo:"Reações Orgânicas" },
+      { id:"polimeros",            titulo:"Polímeros" },
+    ],
+    ENEM: [
+      { id:"ciencias-natureza", titulo:"Ciências da Natureza" },
+      { id:"ciencias-humanas",  titulo:"Ciências Humanas" },
+      { id:"linguagens",        titulo:"Linguagens" },
+      { id:"matematica",        titulo:"Matemática" },
+      { id:"redacao",           titulo:"Redação" },
+    ],
+    ITA: [
+      { id:"matematica-ita",   titulo:"Matemática" },
+      { id:"fisica-ita",       titulo:"Física" },
+      { id:"quimica-ita",      titulo:"Química" },
+      { id:"portugues-ita",    titulo:"Português" },
+    ],
+    IME: [
+      { id:"matematica-ime",   titulo:"Matemática" },
+      { id:"fisica-ime",       titulo:"Física" },
+      { id:"quimica-ime",      titulo:"Química" },
+      { id:"portugues-ime",    titulo:"Português" },
+    ],
+  };
+  const areasOlimpiada = AREAS_OLIMPIADA[id.toUpperCase()] ?? AREAS_OLIMPIADA.OBQ;
+
+  async function carregarConteudoArea(idx: number) {
+    const area = areasOlimpiada[idx];
+    if (!area || !evento) return;
+    setFormConteudo({ titulo:"", conteudo:"", exemplos:"", formulas:"" });
+    setExisteConteudoId(null);
+    const { data } = await supabase.from("trilha_conteudos")
+      .select("id,titulo,conteudo,exemplos,formulas")
+      .eq("materia", `olimpiada_${id.toLowerCase()}`)
+      .eq("unidade_id", area.id)
+      .maybeSingle();
+    if (data) {
+      setExisteConteudoId((data as any).id);
+      setFormConteudo({ titulo:(data as any).titulo||"", conteudo:(data as any).conteudo||"", exemplos:(data as any).exemplos||"", formulas:(data as any).formulas||"" });
+    } else {
+      setFormConteudo({ titulo: area.titulo, conteudo:"", exemplos:"", formulas:"" });
+    }
+  }
+
+  async function salvarConteudoArea() {
+    const area = areasOlimpiada[areaSel];
+    if (!formConteudo.conteudo.trim()) { setMsgConteudo({ tipo:"erro", texto:"Conteúdo obrigatório" }); return; }
+    setSalvandoConteudo(true);
+    const payload = { materia:`olimpiada_${id.toLowerCase()}`, unidade_id:area.id, titulo:formConteudo.titulo||area.titulo, conteudo:formConteudo.conteudo, exemplos:formConteudo.exemplos||null, formulas:formConteudo.formulas||null };
+    const { error } = existeConteudoId
+      ? await supabase.from("trilha_conteudos").update(payload).eq("id", existeConteudoId)
+      : await supabase.from("trilha_conteudos").insert(payload);
+    if (error) { setMsgConteudo({ tipo:"erro", texto:"Erro: "+error.message }); }
+    else { setMsgConteudo({ tipo:"ok", texto:"✅ Conteúdo salvo!" }); setTimeout(() => setMsgConteudo(null), 3000); }
+    setSalvandoConteudo(false);
+  }
+
+  async function gerarConteudoIA() {
+    const area = areasOlimpiada[areaSel];
+    setImportandoConteudo(true);
+    setMsgConteudo({ tipo:"ok", texto:"⏳ Gerando com IA..." });
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const r = await fetch("https://iuziweujszfiaulltzqv.supabase.co/functions/v1/converter-questoes-objetivas", {
+        method:"POST",
+        headers:{ "Content-Type":"application/json", "Authorization":`Bearer ${session?.access_token}` },
+        body: JSON.stringify({ questoes:[{ question:`Gere conteúdo educacional COMPLETO para "${area.titulo}" no contexto da olimpíada ${id.toUpperCase()}. Retorne JSON: { "options": ["CONTEUDO_400_600_PALAVRAS", "EXEMPLOS_2_3", "FORMULAS_E_DICAS", "TITULO_CURTO"], "answer_index": 0, "explanation": "" }`, area:"natureza", difficulty:"dificil" }] }),
+      });
+      const data = await r.json();
+      const res = data.resultados?.[0];
+      if (res?.options?.length >= 3) {
+        setFormConteudo({ titulo:res.options[3]||area.titulo, conteudo:res.options[0]||"", exemplos:res.options[1]||"", formulas:res.options[2]||"" });
+        setMsgConteudo({ tipo:"ok", texto:"✅ Conteúdo gerado! Revise e salve." });
+      } else throw new Error("Resposta inválida");
+    } catch(e:any) { setMsgConteudo({ tipo:"erro", texto:"Erro: "+e.message }); }
+    setImportandoConteudo(false);
+  }
+
+  async function importarPdfConteudo(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const area = areasOlimpiada[areaSel];
+    setImportandoConteudo(true);
+    setMsgConteudo({ tipo:"ok", texto:"⏳ Extraindo conteúdo..." });
+    try {
+      const base64Data = await new Promise<string>((res,rej) => { const r=new FileReader(); r.onload=()=>res((r.result as string).split(",")[1]); r.onerror=rej; r.readAsDataURL(file); });
+      const { data: { session } } = await supabase.auth.getSession();
+      const response = await fetch("https://iuziweujszfiaulltzqv.supabase.co/functions/v1/extrair-conteudo-pdf", {
+        method:"POST",
+        headers:{ "Content-Type":"application/json", "Authorization":`Bearer ${session?.access_token}` },
+        body: JSON.stringify({ base64Data, mimeType:file.type||"application/pdf", unidadeTitulo:area.titulo, materia:`${id.toUpperCase()} — ${area.titulo}` }),
+      });
+      const data = await response.json();
+      if (!response.ok||data.error) throw new Error(data.error||"Erro");
+      const c = data.conteudo;
+      setFormConteudo({ titulo:c.titulo||area.titulo, conteudo:c.conteudo||"", exemplos:c.exemplos||"", formulas:c.formulas||"" });
+      setMsgConteudo({ tipo:"ok", texto:"✅ Conteúdo extraído! Revise e salve." });
+    } catch(e:any) { setMsgConteudo({ tipo:"erro", texto:"Erro: "+e.message }); }
+    setImportandoConteudo(false);
+    if (pdfConteudoRef.current) pdfConteudoRef.current.value="";
+  }
+
   useEffect(() => { if (isAdmin) carregarDados(); else navigate(-1); }, [id]);
+  useEffect(() => { if (aba === "conteudo" && evento) carregarConteudoArea(areaSel); }, [aba, areaSel, evento]);
 
   async function carregarDados() {
     const { data: ev } = await supabase.from("eventos_certificaveis").select("*").eq("sigla", id.toUpperCase()).single();
@@ -113,11 +240,11 @@ export default function AdminOlimpiada() {
           )}
         </div>
         <div style={{ display:"flex", gap:6 }}>
-          {(["prova","questoes","resultados"] as const).map(a => (
+          {(["prova","questoes","conteudo","resultados"] as const).map(a => (
             <button key={a} onClick={() => setAba(a)}
               style={{ flex:1, padding:"7px 0", borderRadius:8, border:"none", cursor:"pointer", fontSize:11, fontWeight:600,
                 background: aba===a ? "#fff" : "rgba(255,255,255,0.15)", color: aba===a ? "#1a3a6e" : "#fff" }}>
-              {a==="prova"?"📋 Prova":a==="questoes"?`📝 Questões (${questoes.length})`:`🏆 Resultados (${tentativas.length})`}
+              {a==="prova"?"📋 Prova":a==="questoes"?`📝 Questões (${questoes.length})`:a==="conteudo"?"📖 Conteúdo":`🏆 Resultados (${tentativas.length})`}
             </button>
           ))}
         </div>
@@ -260,6 +387,68 @@ export default function AdminOlimpiada() {
           </div>
         )}
 
+        {/* Aba Conteúdo */}
+        {aba === "conteudo" && (
+          <div>
+            {/* Seletor de área */}
+            <div style={{ display:"flex", gap:6, flexWrap:"wrap", marginBottom:12 }}>
+              {areasOlimpiada.map((a,i) => (
+                <button key={a.id} onClick={() => setAreaSel(i)}
+                  style={{ padding:"7px 12px", borderRadius:8, border:"none", cursor:"pointer", fontSize:12, fontWeight:600,
+                    background: areaSel===i ? "#1a3a6e" : "#F1F5F9", color: areaSel===i ? "#fff" : "#64748B" }}>
+                  {a.titulo}
+                </button>
+              ))}
+            </div>
+
+            <div style={{ background:"#fff", borderRadius:14, padding:16, border:"1px solid rgba(0,0,0,0.08)" }}>
+              <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:12 }}>
+                <div>
+                  <p style={{ fontSize:14, fontWeight:700, margin:"0 0 2px" }}>{areasOlimpiada[areaSel]?.titulo}</p>
+                  <p style={{ fontSize:11, color:"#64748B", margin:0 }}>{existeConteudoId ? "✅ Conteúdo cadastrado" : "⚠️ Sem conteúdo"}</p>
+                </div>
+                <button onClick={gerarConteudoIA} disabled={importandoConteudo}
+                  style={{ padding:"7px 14px", background:importandoConteudo?"#e2e8f0":"linear-gradient(135deg,#6D28D9,#4C1D95)", color:importandoConteudo?"#64748B":"#fff", border:"none", borderRadius:8, fontSize:12, fontWeight:600, cursor:importandoConteudo?"not-allowed":"pointer" }}>
+                  {importandoConteudo ? "⏳..." : "🤖 Gerar com IA"}
+                </button>
+              </div>
+
+              <input ref={pdfConteudoRef} type="file" accept=".pdf,.jpg,.jpeg,.png,.webp" onChange={importarPdfConteudo} style={{ display:"none" }} />
+              <button onClick={() => pdfConteudoRef.current?.click()} disabled={importandoConteudo}
+                style={{ width:"100%", padding:"9px 0", borderRadius:8, border:"1.5px dashed #E2E8F0", background:"#FAFBFF", color:"#0057FF", fontSize:12, fontWeight:600, cursor:"pointer", marginBottom:12 }}>
+                📄 Importar de PDF, apostila ou foto
+              </button>
+
+              {msgConteudo && (
+                <div style={{ marginBottom:10, padding:"7px 12px", borderRadius:7, background:msgConteudo.tipo==="ok"?"#EDFAF3":"#FFF1F1", color:msgConteudo.tipo==="ok"?"#15803d":"#b91c1c", fontSize:12, fontWeight:600 }}>
+                  {msgConteudo.texto}
+                </div>
+              )}
+
+              <div style={{ marginBottom:8 }}>
+                <p style={sL}>Título</p>
+                <input value={formConteudo.titulo} onChange={e=>setFormConteudo(p=>({...p,titulo:e.target.value}))} style={sI} />
+              </div>
+              <div style={{ marginBottom:8 }}>
+                <p style={sL}>Conteúdo principal *</p>
+                <textarea rows={7} value={formConteudo.conteudo} onChange={e=>setFormConteudo(p=>({...p,conteudo:e.target.value}))} placeholder="Texto didático completo..." style={{ ...sI, resize:"vertical" as const, lineHeight:1.6 }} />
+              </div>
+              <div style={{ marginBottom:8 }}>
+                <p style={sL}>Exemplos práticos</p>
+                <textarea rows={3} value={formConteudo.exemplos} onChange={e=>setFormConteudo(p=>({...p,exemplos:e.target.value}))} placeholder="Exemplos e exercícios resolvidos..." style={{ ...sI, resize:"vertical" as const }} />
+              </div>
+              <div style={{ marginBottom:14 }}>
+                <p style={sL}>Fórmulas / Dicas</p>
+                <textarea rows={2} value={formConteudo.formulas} onChange={e=>setFormConteudo(p=>({...p,formulas:e.target.value}))} placeholder="Fórmulas e macetes..." style={{ ...sI, resize:"vertical" as const }} />
+              </div>
+              <button onClick={salvarConteudoArea} disabled={salvandoConteudo}
+                style={{ width:"100%", padding:"11px 0", background:salvandoConteudo?"#e2e8f0":"#1a3a6e", color:salvandoConteudo?"#64748B":"#fff", border:"none", borderRadius:10, fontSize:14, fontWeight:700, cursor:"pointer" }}>
+                {salvandoConteudo ? "Salvando..." : existeConteudoId ? "💾 Atualizar" : "💾 Salvar conteúdo"}
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Aba Resultados */}
         {aba === "resultados" && (
           <div>
@@ -293,3 +482,6 @@ export default function AdminOlimpiada() {
     </div>
   );
 }
+
+const sL: React.CSSProperties = { fontSize:10, fontWeight:700, color:"#64748B", textTransform:"uppercase", letterSpacing:"0.05em", margin:"0 0 4px" };
+const sI: React.CSSProperties = { width:"100%", padding:"8px 10px", border:"1px solid #E2E8F0", borderRadius:7, fontSize:13, color:"#1a1a2e", fontFamily:"inherit", outline:"none", boxSizing:"border-box" as const };

@@ -99,7 +99,6 @@ export default function Perfil() {
   if (role === "admin" || role === "professor" || role === "super_admin" || role === "teacher") {
     const isCoordenador = role === "super_admin";
     const isAdmin = role === "admin";
-
     const corRole = isCoordenador ? "#7C3AED" : isAdmin ? "#ef4444" : "#0A7C4B";
     const bgRole  = isCoordenador ? "#F3F0FF" : isAdmin ? "#FFF1F1" : "#EDFAF3";
     return (

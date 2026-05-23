@@ -1,7 +1,7 @@
 // src/components/admin/GestaoConteudoTrilhas.tsx
 // Permite importar/editar conteúdo das unidades das trilhas via IA ou manual
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/lib/supabaseClient";
 
 const C = {
@@ -54,6 +54,41 @@ const TRILHAS: { id: string; label: string; emoji: string; materia: string; unid
     ],
   },
   {
+    id: "inorganica", label: "Inorgânica", emoji: "⚗️", materia: "inorganica",
+    unidades: [
+      { id: "oxidos",           titulo: "Óxidos" },
+      { id: "acidos",           titulo: "Ácidos" },
+      { id: "bases",            titulo: "Bases" },
+      { id: "sais",             titulo: "Sais" },
+      { id: "nomenclatura",     titulo: "Nomenclatura Inorgânica" },
+      { id: "reacoes-inorg",    titulo: "Reações Inorgânicas" },
+      { id: "oxidacao-reducao", titulo: "Oxidação e Redução" },
+      { id: "quimica-ambiental",titulo: "Química Ambiental" },
+    ],
+  },
+  {
+    id: "analitica", label: "Química Analítica", emoji: "🔬", materia: "analitica",
+    unidades: [
+      { id: "analise-qualitativa",  titulo: "Análise Qualitativa" },
+      { id: "analise-quantitativa", titulo: "Análise Quantitativa" },
+      { id: "titulacao",            titulo: "Titulação e Volumetria" },
+      { id: "espectroscopia",       titulo: "Espectroscopia" },
+      { id: "cromatografia",        titulo: "Cromatografia" },
+      { id: "eletroanalise",        titulo: "Eletroanalítica" },
+    ],
+  },
+  {
+    id: "bioquimica-q", label: "Bioquímica", emoji: "🧫", materia: "bioquimica_q",
+    unidades: [
+      { id: "carboidratos",     titulo: "Carboidratos" },
+      { id: "lipidios",         titulo: "Lipídios" },
+      { id: "proteinas",        titulo: "Proteínas e Enzimas" },
+      { id: "acidos-nucleicos", titulo: "Ácidos Nucleicos" },
+      { id: "metabolismo",      titulo: "Metabolismo Celular" },
+      { id: "vitaminas",        titulo: "Vitaminas e Cofatores" },
+    ],
+  },
+  {
     id: "fisica", label: "Física", emoji: "⚡", materia: "fisica",
     unidades: [
       { id: "introducao-cinematica", titulo: "Introdução à Cinemática" },
@@ -97,19 +132,51 @@ const TRILHAS: { id: string; label: string; emoji: string; materia: string; unid
     ],
   },
   {
-    id: "humanas", label: "Humanas", emoji: "🌍", materia: "humanas",
+    id: "historia", label: "História", emoji: "🏛️", materia: "historia",
     unidades: [
-      { id: "pre-historia", titulo: "Pré-História e Antiguidade" },
-      { id: "idade-media", titulo: "Idade Média" },
-      { id: "idade-moderna", titulo: "Idade Moderna" },
-      { id: "revolucoes", titulo: "Revoluções e Iluminismo" },
-      { id: "brasil-colonial", titulo: "Brasil Colonial" },
-      { id: "brasil-imperio", titulo: "Brasil Império" },
-      { id: "guerras-mundiais", titulo: "Guerras Mundiais" },
-      { id: "brasil-republica", titulo: "Brasil República" },
-      { id: "geografia-fisica", titulo: "Geografia Física" },
-      { id: "geografia-humana", titulo: "Geografia Humana" },
-      { id: "filosofia-sociologia", titulo: "Filosofia e Sociologia" },
+      { id: "pre-historia",         titulo: "Pré-História e Antiguidade" },
+      { id: "idade-media",          titulo: "Idade Média" },
+      { id: "idade-moderna",        titulo: "Idade Moderna" },
+      { id: "revolucoes",           titulo: "Revoluções e Iluminismo" },
+      { id: "brasil-colonial",      titulo: "Brasil Colonial" },
+      { id: "brasil-imperio",       titulo: "Brasil Império e República" },
+      { id: "guerras-mundiais",     titulo: "Guerras Mundiais" },
+      { id: "brasil-republica",     titulo: "Brasil República Moderna" },
+      { id: "historia-africa",      titulo: "África e Diáspora Africana" },
+      { id: "america-latina",       titulo: "América Latina" },
+      { id: "mundo-contemporaneo",  titulo: "Mundo Contemporâneo" },
+    ],
+  },
+  {
+    id: "geografia", label: "Geografia", emoji: "🗺️", materia: "geografia",
+    unidades: [
+      { id: "cartografia",            titulo: "Cartografia e Orientação" },
+      { id: "relevo-solo",            titulo: "Relevo e Solos" },
+      { id: "clima-meteorologia",     titulo: "Clima e Meteorologia" },
+      { id: "hidrografia",            titulo: "Hidrografia" },
+      { id: "biomas-vegetacao",       titulo: "Biomas e Vegetação" },
+      { id: "populacao",              titulo: "População Mundial e Brasileira" },
+      { id: "urbanizacao",            titulo: "Urbanização" },
+      { id: "economia-mundial",       titulo: "Economia Mundial" },
+      { id: "geopolitica",            titulo: "Geopolítica e Conflitos" },
+      { id: "brasil-regionalizacao",  titulo: "Regiões do Brasil" },
+      { id: "questoes-ambientais",    titulo: "Questões Ambientais Globais" },
+    ],
+  },
+  {
+    id: "filosofia", label: "Filosofia & Sociologia", emoji: "🧠", materia: "filosofia",
+    unidades: [
+      { id: "filosofia-antiga",        titulo: "Filosofia Antiga" },
+      { id: "filosofia-medieval",      titulo: "Filosofia Medieval e Moderna" },
+      { id: "contratualistas",         titulo: "Contratualistas e Política" },
+      { id: "filosofia-contemporanea", titulo: "Filosofia Contemporânea" },
+      { id: "etica-moral",             titulo: "Ética e Moral" },
+      { id: "sociologia-classica",     titulo: "Sociologia Clássica" },
+      { id: "cultura-identidade",      titulo: "Cultura, Identidade e Diversidade" },
+      { id: "desigualdade-social",     titulo: "Desigualdade e Estratificação" },
+      { id: "cidadania-direitos",      titulo: "Cidadania e Direitos Humanos" },
+      { id: "trabalho-economia",       titulo: "Trabalho e Economia" },
+      { id: "midia-comunicacao",       titulo: "Mídia, Comunicação e Tecnologia" },
     ],
   },
   {
@@ -156,16 +223,47 @@ interface ConteudoForm {
   formulas: string;
 }
 
-export default function GestaoConteudoTrilhas() {
-  const [trilhaSel, setTrilhaSel] = useState(TRILHAS[0]);
+interface Props {
+  areasProf?: string[] | null;
+  onSalvarAreas?: (areas: string[]) => void;
+  salvandoAreas?: boolean;
+}
+
+const AREAS_LISTA = [
+  { id: "quimica",       label: "⚗️ Química Geral" },
+  { id: "organica",      label: "🧬 Orgânica" },
+  { id: "fisicoquimica", label: "🔥 Físico-Química" },
+  { id: "fisica",        label: "⚡ Física" },
+  { id: "biologia",      label: "🧫 Biologia" },
+  { id: "matematica",    label: "📐 Matemática" },
+  { id: "historia",      label: "🏛️ História" },
+  { id: "geografia",     label: "🗺️ Geografia" },
+  { id: "filosofia",     label: "🧠 Filosofia & Sociol." },
+  { id: "portugues",     label: "📚 Português" },
+  { id: "redacao",       label: "✏️ Redação" },
+  { id: "ingles",        label: "🇺🇸 Inglês" },
+  { id: "inorganica",    label: "⚗️ Inorgânica" },
+  { id: "analitica",     label: "🔬 Analítica" },
+  { id: "bioquimica-q",  label: "🧫 Bioquímica" },
+];
+
+export default function GestaoConteudoTrilhas({ areasProf, onSalvarAreas, salvandoAreas }: Props = {}) {
+  const [seletorAberto, setSeletorAberto] = useState(false);
+  // Filtra trilhas pelas áreas de atuação do professor (admin vê todas)
+  const trilhasVisiveis = areasProf && areasProf.length > 0
+    ? TRILHAS.filter(t => areasProf.includes(t.id))
+    : TRILHAS;
+  const [trilhaSel, setTrilhaSel] = useState(trilhasVisiveis[0] ?? TRILHAS[0]);
   const [unidadeSel, setUnidadeSel] = useState(TRILHAS[0].unidades[0]);
   const [form, setForm] = useState<ConteudoForm>({ titulo: "", conteudo: "", exemplos: "", formulas: "" });
   const [existeId, setExisteId] = useState<string | null>(null);
   const [carregando, setCarregando] = useState(false);
   const [salvando, setSalvando] = useState(false);
   const [gerandoIA, setGerandoIA] = useState(false);
+  const [importandoPdf, setImportandoPdf] = useState(false);
   const [msg, setMsg] = useState<{ tipo: "ok" | "erro"; texto: string } | null>(null);
   const [statusUnidades, setStatusUnidades] = useState<Record<string, boolean>>({});
+  const pdfRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     carregarStatusTrilha(trilhaSel);
@@ -281,6 +379,68 @@ export default function GestaoConteudoTrilhas() {
     setGerandoIA(false);
   }
 
+  async function importarPdfConteudo(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const tiposAceitos = ["application/pdf", "image/jpeg", "image/png", "image/webp", "image/jpg"];
+    if (!tiposAceitos.includes(file.type)) {
+      setMsg({ tipo: "erro", texto: "Formatos aceitos: PDF, JPG, PNG, WEBP." });
+      return;
+    }
+    const maxSize = file.type === "application/pdf" ? 20 : 10;
+    if (file.size > maxSize * 1024 * 1024) {
+      setMsg({ tipo: "erro", texto: `Arquivo muito grande. Máximo ${maxSize} MB.` });
+      return;
+    }
+
+    setImportandoPdf(true);
+    setMsg({ tipo: "ok", texto: "⏳ Extraindo conteúdo do arquivo..." });
+
+    try {
+      const base64Data = await new Promise<string>((res, rej) => {
+        const r = new FileReader();
+        r.onload = () => res((r.result as string).split(",")[1]);
+        r.onerror = () => rej(new Error("Erro ao ler arquivo"));
+        r.readAsDataURL(file);
+      });
+
+      const { data: { session } } = await supabase.auth.getSession();
+      const response = await fetch(
+        "https://iuziweujszfiaulltzqv.supabase.co/functions/v1/extrair-conteudo-pdf",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "Authorization": `Bearer ${session?.access_token}` },
+          body: JSON.stringify({
+            base64Data,
+            mimeType: file.type || "application/pdf",
+            unidadeTitulo: unidadeSel.titulo,
+            materia: trilhaSel.label,
+          }),
+        }
+      );
+
+      const data = await response.json();
+      if (!response.ok || data.error) throw new Error(data.error || "Erro na extração");
+
+      const c = data.conteudo;
+      setForm({
+        titulo:   c.titulo   || unidadeSel.titulo,
+        conteudo: c.conteudo || "",
+        exemplos: c.exemplos || "",
+        formulas: c.formulas || "",
+      });
+
+      const cobertura = c.cobertura ? ` — ${c.cobertura}` : "";
+      setMsg({ tipo: "ok", texto: `✅ Conteúdo extraído do arquivo${cobertura}. Revise e salve.` });
+    } catch (err: any) {
+      setMsg({ tipo: "erro", texto: "Erro ao extrair: " + err.message });
+    }
+
+    setImportandoPdf(false);
+    if (pdfRef.current) pdfRef.current.value = "";
+  }
+
   async function gerarTodaATrilha() {
     const unidadesSemConteudo = trilhaSel.unidades.filter(u => !statusUnidades[u.id]);
     if (unidadesSemConteudo.length === 0) {
@@ -333,11 +493,59 @@ export default function GestaoConteudoTrilhas() {
 
   return (
     <div>
+      {/* Seletor de áreas de atuação */}
+      {onSalvarAreas && (
+        <div style={{ background: C.card, borderRadius: 14, border: `1px solid ${C.border}`, marginBottom: 12, overflow: "hidden" }}>
+          <button
+            onClick={() => setSeletorAberto(p => !p)}
+            style={{ width: "100%", padding: "14px 16px", display: "flex", alignItems: "center", justifyContent: "space-between", background: "none", border: "none", cursor: "pointer", textAlign: "left" as const }}>
+            <div>
+              <p style={{ fontSize: 13, fontWeight: 700, margin: "0 0 2px", color: C.text }}>🎯 Minhas áreas de atuação</p>
+              <p style={{ fontSize: 11, color: C.sub, margin: 0 }}>
+                {areasProf && areasProf.length > 0
+                  ? `${areasProf.length} área(s) selecionada(s) — clique para alterar`
+                  : "Nenhuma selecionada — mostrando todas as trilhas"}
+              </p>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              {salvandoAreas && <span style={{ fontSize: 11, color: C.sub }}>Salvando...</span>}
+              <span style={{ fontSize: 16, color: C.sub, transform: seletorAberto ? "rotate(180deg)" : "none", transition: "transform 0.2s" }}>▾</span>
+            </div>
+          </button>
+          {seletorAberto && (
+            <div style={{ padding: "0 16px 16px", borderTop: `1px solid ${C.border}` }}>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 12 }}>
+                {AREAS_LISTA.map(a => {
+                  const sel = (areasProf ?? []).includes(a.id);
+                  return (
+                    <button key={a.id}
+                      onClick={() => {
+                        const atual = areasProf ?? [];
+                        const novas = sel ? atual.filter(x => x !== a.id) : [...atual, a.id];
+                        onSalvarAreas(novas);
+                      }}
+                      style={{ padding: "7px 12px", borderRadius: 8, border: "none", cursor: "pointer", fontSize: 12, fontWeight: 600, transition: "all 0.15s",
+                        background: sel ? C.primary : "#F1F5F9", color: sel ? "#fff" : C.sub }}>
+                      {a.label}
+                    </button>
+                  );
+                })}
+              </div>
+              {(!areasProf || areasProf.length === 0) && (
+                <p style={{ fontSize: 11, color: "#92400e", margin: "10px 0 0", background: "#fffbeb", padding: "6px 10px", borderRadius: 6 }}>
+                  ⚠️ Selecione suas áreas para filtrar o painel
+                </p>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Seletor de trilha */}
       <div style={{ background: C.card, borderRadius: 14, padding: 16, border: `1px solid ${C.border}`, marginBottom: 12 }}>
         <p style={{ fontSize: 13, fontWeight: 700, margin: "0 0 10px" }}>📚 Selecionar Trilha</p>
         <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-          {TRILHAS.map(t => (
+          {trilhasVisiveis.map(t => (
             <button key={t.id} onClick={() => { setTrilhaSel(t); setUnidadeSel(t.unidades[0]); }}
               style={{
                 padding: "7px 12px", borderRadius: 8, border: "none", cursor: "pointer",
@@ -396,14 +604,32 @@ export default function GestaoConteudoTrilhas() {
             <p style={{ color: C.sub, fontSize: 13, textAlign: "center", padding: 32 }}>Carregando...</p>
           ) : (
             <>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
-                <div>
-                  <p style={{ fontSize: 14, fontWeight: 700, margin: "0 0 2px", color: C.text }}>{unidadeSel.titulo}</p>
-                  <p style={{ fontSize: 11, color: C.sub, margin: 0 }}>{existeId ? "✅ Conteúdo cadastrado" : "⚠️ Sem conteúdo ainda"}</p>
+              <div style={{ marginBottom: 14 }}>
+                <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 10 }}>
+                  <div>
+                    <p style={{ fontSize: 14, fontWeight: 700, margin: "0 0 2px", color: C.text }}>{unidadeSel.titulo}</p>
+                    <p style={{ fontSize: 11, color: C.sub, margin: 0 }}>{existeId ? "✅ Conteúdo cadastrado" : "⚠️ Sem conteúdo ainda"}</p>
+                  </div>
+                  <button onClick={gerarComIA} disabled={gerandoIA || importandoPdf}
+                    style={{ padding: "8px 14px", background: gerandoIA ? "#e2e8f0" : "linear-gradient(135deg,#6D28D9,#4C1D95)", color: gerandoIA ? C.sub : "#fff", border: "none", borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: gerandoIA ? "not-allowed" : "pointer", whiteSpace: "nowrap" as const }}>
+                    {gerandoIA ? "⏳ Gerando..." : "🤖 Gerar com IA"}
+                  </button>
                 </div>
-                <button onClick={gerarComIA} disabled={gerandoIA}
-                  style={{ padding: "8px 14px", background: gerandoIA ? "#e2e8f0" : "linear-gradient(135deg,#6D28D9,#4C1D95)", color: gerandoIA ? C.sub : "#fff", border: "none", borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: gerandoIA ? "not-allowed" : "pointer" }}>
-                  {gerandoIA ? "⏳ Gerando..." : "🤖 Gerar com IA"}
+                {/* Importar de PDF/imagem */}
+                <input ref={pdfRef} type="file" accept=".pdf,.jpg,.jpeg,.png,.webp" onChange={importarPdfConteudo} style={{ display: "none" }} />
+                <button
+                  onClick={() => pdfRef.current?.click()}
+                  disabled={importandoPdf || gerandoIA}
+                  style={{
+                    width: "100%", padding: "9px 0", borderRadius: 8, border: `1.5px dashed ${C.border}`,
+                    background: importandoPdf ? "#F8FAFC" : "#FAFBFF",
+                    color: importandoPdf ? C.sub : C.primary,
+                    fontSize: 12, fontWeight: 600, cursor: importandoPdf ? "not-allowed" : "pointer",
+                    display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+                  }}>
+                  {importandoPdf
+                    ? "⏳ Extraindo conteúdo..."
+                    : "📄 Importar PDF, imagem, PPT ou Word"}
                 </button>
               </div>
 

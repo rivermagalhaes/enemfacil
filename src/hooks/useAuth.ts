@@ -27,6 +27,7 @@ export interface Profile {
   logo_url: string | null;
   nome_escola: string | null;
   nome_professor: string | null;
+  areas_atuacao: string[] | null;
 }
 
 const HIERARQUIA: Plano[] = [
@@ -77,7 +78,7 @@ export function useAuth() {
   async function fetchProfile(userId: string) {
     const { data } = await supabase
       .from("profiles")
-      .select("id,email,nome,username,role,plano,plan,plan_expires_at,xp_total,sequencia,avatar_url,goal,institution,estado,regiao,logo_url,nome_escola,nome_professor")
+      .select("id,email,nome,username,role,plano,plan,plan_expires_at,xp_total,sequencia,avatar_url,goal,institution,estado,regiao,logo_url,nome_escola,nome_professor,areas_atuacao")
       .eq("id", userId)
       .single();
     setProfile(data as Profile ?? null);

@@ -105,12 +105,14 @@ export default function ExtratorPDF() {
   async function extrairPDF(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.type !== "application/pdf") {
-      setMsg({ tipo: "erro", texto: "Apenas arquivos PDF são aceitos." });
+    const tiposAceitos = ["application/pdf", "image/jpeg", "image/png", "image/webp", "image/jpg"];
+    if (!tiposAceitos.includes(file.type)) {
+      setMsg({ tipo: "erro", texto: "Formatos aceitos: PDF, JPG, PNG, WEBP." });
       return;
     }
-    if (file.size > 20 * 1024 * 1024) {
-      setMsg({ tipo: "erro", texto: "PDF muito grande. Máximo 20 MB." });
+    const maxSize = file.type === "application/pdf" ? 20 : 10;
+    if (file.size > maxSize * 1024 * 1024) {
+      setMsg({ tipo: "erro", texto: `Arquivo muito grande. Máximo ${maxSize} MB.` });
       return;
     }
 
@@ -128,7 +130,7 @@ export default function ExtratorPDF() {
     try {
       const base64Data = await fileToBase64(file);
       const { data, error } = await supabase.functions.invoke("extrair-questoes-pdf", {
-        body: { base64Data },
+        body: { base64Data, mimeType: file.type || 'application/pdf' },
       });
 
       if (error) throw new Error(error.message);
@@ -359,7 +361,7 @@ export default function ExtratorPDF() {
               </>
             )}
           </div>
-          <input ref={pdfRef} type="file" accept="application/pdf" onChange={extrairPDF} style={{ display: "none" }} />
+          <input ref={pdfRef} type="file" accept="application/pdf,image/jpeg,image/png,image/webp" onChange={extrairPDF} style={{ display: "none" }} />
         </div>
 
         {msg && (

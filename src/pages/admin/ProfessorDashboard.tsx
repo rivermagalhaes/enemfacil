@@ -112,6 +112,8 @@ export default function ProfessorDashboard() {
   const [questoesExtraidas, setQuestoesExtraidas] = useState<any[]>([]);
   const [pdfMsg, setPdfMsg] = useState<{tipo:"ok"|"erro";texto:string}|null>(null);
   const [salvandoExtraidas, setSalvandoExtraidas] = useState(false);
+  const [areasAtuacao, setAreasAtuacao] = useState<string[]>([]);
+  const [salvandoAreas, setSalvandoAreas] = useState(false);
   const [pdfVestibular, setPdfVestibular] = useState("ENEM");
   const [pdfAno, setPdfAno] = useState(new Date().getFullYear());
   const [pdfModuleId, setPdfModuleId] = useState<string|null>(null);
@@ -128,6 +130,7 @@ export default function ProfessorDashboard() {
     carregarTurmas();
     carregarTrilhas();
     carregarProvas();
+    if ((profile as any).areas_atuacao) setAreasAtuacao((profile as any).areas_atuacao);
   }, [profile]);
 
   useEffect(() => {
@@ -226,6 +229,7 @@ export default function ProfessorDashboard() {
     setPdfMsg(null);
     setQuestoesExtraidas([]);
     try {
+      const mimeType = file.type || "application/pdf";
       const base64Data = await new Promise<string>((res, rej) => {
         const r = new FileReader();
         r.onload = () => res((r.result as string).split(",")[1]);
@@ -241,7 +245,7 @@ export default function ProfessorDashboard() {
             "Content-Type": "application/json",
             "Authorization": `Bearer ${session?.access_token}`,
           },
-          body: JSON.stringify({ base64Data }),
+          body: JSON.stringify({ base64Data, mimeType }),
         }
       );
       const data = await response.json();
@@ -599,6 +603,14 @@ export default function ProfessorDashboard() {
       { id: "scientific-english",     titulo: "Scientific English",      area_enem: "ingles" },
       { id: "writing",                titulo: "Writing & Essay",         area_enem: "ingles" },
     ]);
+  }
+
+  async function salvarAreasAtuacao(areas: string[]) {
+    if (!user) return;
+    setSalvandoAreas(true);
+    await supabase.from("profiles").update({ areas_atuacao: areas }).eq("id", user.id);
+    setAreasAtuacao(areas);
+    setSalvandoAreas(false);
   }
 
   async function carregarProvas() {
@@ -1686,7 +1698,7 @@ export default function ProfessorDashboard() {
           </div>
         )}
 
-        {aba === "conteudo" && <GestaoConteudoTrilhas />}
+        {aba === "conteudo" && <GestaoConteudoTrilhas areasProf={areasAtuacao.length > 0 ? areasAtuacao : null} onSalvarAreas={salvarAreasAtuacao} salvandoAreas={salvandoAreas} />}
 
         {aba === "salas" && (
           <div style={{ display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:"40px 20px",gap:16 }}>
@@ -1733,10 +1745,10 @@ export default function ProfessorDashboard() {
                     style={{ width:"100%",padding:"8px 10px",borderRadius:8,border:`1px solid ${CORES.border}`,fontSize:13,boxSizing:"border-box" as const }} />
                 </div>
               </div>
-              <input ref={pdfRef} type="file" accept=".pdf" onChange={processarPdfComIA} style={{ display:"none" }} />
+              <input ref={pdfRef} type="file" accept=".pdf,.jpg,.jpeg,.png,.webp" onChange={processarPdfComIA} style={{ display:"none" }} />
               <button onClick={()=>pdfRef.current?.click()} disabled={processandoPdf}
                 style={{ width:"100%",padding:"12px 0",background:processandoPdf?"#e2e8f0":"linear-gradient(135deg,#6D28D9,#4C1D95)",color:processandoPdf?CORES.sub:"#fff",border:"none",borderRadius:10,fontSize:13,fontWeight:600,cursor:processandoPdf?"not-allowed":"pointer",marginBottom:8 }}>
-                {processandoPdf ? (pdfMsg?.tipo === "ok" && pdfMsg.texto.startsWith("⏳") ? pdfMsg.texto : "⏳ Extraindo questões do PDF...") : "📄 Selecionar PDF e extrair questões"}
+                {processandoPdf ? (pdfMsg?.tipo === "ok" && pdfMsg.texto.startsWith("⏳") ? pdfMsg.texto : "⏳ Extraindo questões do PDF...") : "📄 Selecionar PDF, imagem ou foto e extrair questões"}
               </button>
 
               {/* Questões extraídas */}
