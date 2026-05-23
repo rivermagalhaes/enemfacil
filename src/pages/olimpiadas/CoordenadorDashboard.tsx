@@ -4,6 +4,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/lib/supabaseClient";
+import GestaoConteudoTrilhas from "@/components/admin/GestaoConteudoTrilhas";
 import { useAuth } from "@/hooks/useAuth";
 import BottomNav from "@/components/layout/BottomNav";
 
@@ -47,52 +48,10 @@ const AREAS_OLIMPIADA: Record<string, { id: string; titulo: string }[]> = {
 };
 
 
-const TRILHAS_QUIMICA = [
-  {
-    id: "quimica", label: "Química Geral", emoji: "🔬", materia: "quimica",
-    unidades: [
-      { id: "introducao",         titulo: "Introdução à Química" },
-      { id: "estrutura-atomica",  titulo: "Estrutura Atômica" },
-      { id: "tabela-periodica",   titulo: "Tabela Periódica" },
-      { id: "ligacoes-quimicas",  titulo: "Ligações Químicas" },
-      { id: "funcoes-inorganicas",titulo: "Funções Inorgânicas" },
-      { id: "reacoes-quimicas",   titulo: "Reações Químicas" },
-      { id: "estequiometria",     titulo: "Estequiometria" },
-      { id: "gases",              titulo: "Gases" },
-      { id: "solucoes",           titulo: "Soluções" },
-    ],
-  },
-  {
-    id: "organica", label: "Química Orgânica", emoji: "🧬", materia: "organica",
-    unidades: [
-      { id: "introducao-organica",    titulo: "Introdução à Orgânica" },
-      { id: "hidrocarbonetos",         titulo: "Hidrocarbonetos" },
-      { id: "funcoes-organicas",       titulo: "Funções Oxigenadas" },
-      { id: "funcoes-nitrogenadas",    titulo: "Funções Nitrogenadas" },
-      { id: "isomeria",                titulo: "Isomeria" },
-      { id: "reacoes-organicas",       titulo: "Reações Orgânicas" },
-      { id: "polimeros",               titulo: "Polímeros" },
-      { id: "bioquimica-organica",     titulo: "Bioquímica" },
-      { id: "organica-cotidiano",      titulo: "Orgânica no Cotidiano" },
-    ],
-  },
-  {
-    id: "fisicoquimica", label: "Físico-Química", emoji: "🔥", materia: "fisicoquimica",
-    unidades: [
-      { id: "termoquimica",              titulo: "Termoquímica" },
-      { id: "cinetica-quimica",          titulo: "Cinética Química" },
-      { id: "equilibrio-quimico",        titulo: "Equilíbrio Químico" },
-      { id: "equilibrio-ionico",         titulo: "Equilíbrio Iônico" },
-      { id: "eletroquimica",             titulo: "Eletroquímica" },
-      { id: "propriedades-coligativas",  titulo: "Prop. Coligativas" },
-      { id: "gases-fisicoquimica",       titulo: "Gases" },
-    ],
-  },
-];
 
 export default function CoordenadorDashboard() {
   const navigate = useNavigate();
-  const { profile, isProfessor, isAdmin } = useAuth();
+  const { profile, isProfessor, isAdmin, loading } = useAuth();
   const [aba, setAba] = useState("visao");
   const [olimpiadaSel, setOlimpiadaSel] = useState("OBQ");
   const [areaSel, setAreaSel] = useState(0);
@@ -114,29 +73,19 @@ const [tentativas, setTentativas] = useState<any[]>([]);
   const [provaDestino, setProvaDestino] = useState("");
 
   // Trilhas de química
-  const [trilhaQuimSel, setTrilhaQuimSel] = useState(0);
-  const [unidadeQuimSel, setUnidadeQuimSel] = useState(0);
-  const [formTrilha, setFormTrilha] = useState({ titulo:"", conteudo:"", exemplos:"", formulas:"" });
-  const [existeTrilhaId, setExisteTrilhaId] = useState<string|null>(null);
-  const [statusUnidades, setStatusUnidades] = useState<Record<string,boolean>>({});
-  const [salvandoTrilha, setSalvandoTrilha] = useState(false);
-  const [gerandoTrilha, setGerandoTrilha] = useState(false);
-  const [importandoTrilha, setImportandoTrilha] = useState(false);
-  const [msgTrilha, setMsgTrilha] = useState<{tipo:"ok"|"erro";texto:string}|null>(null);
-  const pdfTrilhaRef = useRef<HTMLInputElement>(null);
   const [provas, setProvas] = useState<any[]>([]);
   const [msgQ, setMsgQ] = useState<{ tipo: "ok" | "erro"; texto: string } | null>(null);
 
   useEffect(() => {
+    if (loading) return;
     if (!isProfessor && !isAdmin) { navigate("/"); return; }
     carregarStats();
     carregarProvas();
-  }, [olimpiadaSel]);
+  }, [olimpiadaSel, loading, isProfessor, isAdmin]);
 
   useEffect(() => {
     if (aba === "conteudo") carregarConteudo(areaSel);
     if (aba === "resultados") carregarResultados();
-    if (aba === "trilhas") { carregarStatusTrilha(trilhaQuimSel); carregarConteudoTrilha(trilhaQuimSel, unidadeQuimSel); }
   }, [aba, areaSel, olimpiadaSel]);
 
   async function carregarStats() {
@@ -291,85 +240,10 @@ const [tentativas, setTentativas] = useState<any[]>([]);
     setSalvandoQ(false);
   }
 
-  async function carregarStatusTrilha(trilhaIdx: number) {
-    const trilha = TRILHAS_QUIMICA[trilhaIdx];
-    const ids = trilha.unidades.map(u => u.id);
-    const { data } = await supabase.from("trilha_conteudos").select("unidade_id").eq("materia", trilha.materia).in("unidade_id", ids);
-    const mapa: Record<string, boolean> = {};
-    (data || []).forEach((d: any) => { mapa[d.unidade_id] = true; });
-    setStatusUnidades(mapa);
-  }
 
-  async function carregarConteudoTrilha(trilhaIdx: number, unidadeIdx: number) {
-    const trilha = TRILHAS_QUIMICA[trilhaIdx];
-    const unidade = trilha.unidades[unidadeIdx];
-    setFormTrilha({ titulo:"", conteudo:"", exemplos:"", formulas:"" });
-    setExisteTrilhaId(null);
-    const { data } = await supabase.from("trilha_conteudos").select("id,titulo,conteudo,exemplos,formulas").eq("materia", trilha.materia).eq("unidade_id", unidade.id).maybeSingle();
-    if (data) {
-      setExisteTrilhaId((data as any).id);
-      setFormTrilha({ titulo:(data as any).titulo||"", conteudo:(data as any).conteudo||"", exemplos:(data as any).exemplos||"", formulas:(data as any).formulas||"" });
-    } else {
-      setFormTrilha({ titulo: unidade.titulo, conteudo:"", exemplos:"", formulas:"" });
-    }
-  }
 
-  async function salvarConteudoTrilha() {
-    const trilha = TRILHAS_QUIMICA[trilhaQuimSel];
-    const unidade = trilha.unidades[unidadeQuimSel];
-    if (!formTrilha.conteudo.trim()) { setMsgTrilha({ tipo:"erro", texto:"Conteúdo obrigatório" }); return; }
-    setSalvandoTrilha(true);
-    const payload = { materia: trilha.materia, unidade_id: unidade.id, titulo: formTrilha.titulo||unidade.titulo, conteudo: formTrilha.conteudo, exemplos: formTrilha.exemplos||null, formulas: formTrilha.formulas||null };
-    const { error } = existeTrilhaId
-      ? await supabase.from("trilha_conteudos").update(payload).eq("id", existeTrilhaId)
-      : await supabase.from("trilha_conteudos").insert(payload);
-    if (!error) { setStatusUnidades(p => ({ ...p, [unidade.id]: true })); setMsgTrilha({ tipo:"ok", texto:"✅ Salvo!" }); setTimeout(()=>setMsgTrilha(null),3000); }
-    else setMsgTrilha({ tipo:"erro", texto:"Erro: "+error.message });
-    setSalvandoTrilha(false);
-  }
 
-  async function gerarConteudoTrilhaIA() {
-    const trilha = TRILHAS_QUIMICA[trilhaQuimSel];
-    const unidade = trilha.unidades[unidadeQuimSel];
-    setGerandoTrilha(true); setMsgTrilha({ tipo:"ok", texto:"⏳ Gerando com IA..." });
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const r = await fetch("https://iuziweujszfiaulltzqv.supabase.co/functions/v1/converter-questoes-objetivas", {
-        method:"POST", headers:{ "Content-Type":"application/json", "Authorization":`Bearer ${session?.access_token}` },
-        body: JSON.stringify({ questoes:[{ question:`Gere conteúdo educacional COMPLETO para "${unidade.titulo}" da matéria "${trilha.label}". JSON: { "options": ["CONTEUDO_400_600_PALAVRAS", "EXEMPLOS_2_3", "FORMULAS_E_DICAS", "TITULO_CURTO"], "answer_index": 0, "explanation": "" }`, area:"natureza", difficulty:"medio" }] }),
-      });
-      const data = await r.json();
-      const res = data.resultados?.[0];
-      if (res?.options?.length >= 3) {
-        setFormTrilha({ titulo:res.options[3]||unidade.titulo, conteudo:res.options[0]||"", exemplos:res.options[1]||"", formulas:res.options[2]||"" });
-        setMsgTrilha({ tipo:"ok", texto:"✅ Gerado! Revise e salve." });
-      } else throw new Error("Resposta inválida");
-    } catch(e:any) { setMsgTrilha({ tipo:"erro", texto:"Erro: "+e.message }); }
-    setGerandoTrilha(false);
-  }
 
-  async function importarPdfTrilha(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const trilha = TRILHAS_QUIMICA[trilhaQuimSel];
-    const unidade = trilha.unidades[unidadeQuimSel];
-    setImportandoTrilha(true); setMsgTrilha({ tipo:"ok", texto:"⏳ Extraindo conteúdo..." });
-    try {
-      const base64Data = await new Promise<string>((res,rej) => { const r=new FileReader(); r.onload=()=>res((r.result as string).split(",")[1]); r.onerror=rej; r.readAsDataURL(file); });
-      const { data: { session } } = await supabase.auth.getSession();
-      const response = await fetch("https://iuziweujszfiaulltzqv.supabase.co/functions/v1/extrair-conteudo-pdf", {
-        method:"POST", headers:{ "Content-Type":"application/json", "Authorization":`Bearer ${session?.access_token}` },
-        body: JSON.stringify({ base64Data, mimeType:file.type||"application/pdf", unidadeTitulo:unidade.titulo, materia:trilha.label }),
-      });
-      const data = await response.json();
-      if (!response.ok||data.error) throw new Error(data.error||"Erro");
-      const c = data.conteudo;
-      setFormTrilha({ titulo:c.titulo||unidade.titulo, conteudo:c.conteudo||"", exemplos:c.exemplos||"", formulas:c.formulas||"" });
-      setMsgTrilha({ tipo:"ok", texto:"✅ Extraído! Revise e salve." });
-    } catch(e:any) { setMsgTrilha({ tipo:"erro", texto:"Erro: "+e.message }); }
-    setImportandoTrilha(false);
-    if (pdfTrilhaRef.current) pdfTrilhaRef.current.value="";
-  }
 
   const olimpiadaAtual = OLIMPIADAS.find(o => o.id === olimpiadaSel)!;
   const areasOlimpiada = AREAS_OLIMPIADA[olimpiadaSel] ?? [];
@@ -600,72 +474,11 @@ const [tentativas, setTentativas] = useState<any[]>([]);
           </div>
         )}
 
-        {/* ── TRILHAS DE QUÍMICA ── */}
+        {/* ── TRILHAS DE QUÍMICA ── reutiliza GestaoConteudoTrilhas com filtro só de química */}
         {aba === "trilhas" && (
-          <div>
-            {/* Seletor de área de química */}
-            <div style={{ background:"#fff", borderRadius:14, padding:14, border:`1px solid ${C.border}`, marginBottom:12 }}>
-              <p style={{ fontSize:13, fontWeight:700, margin:"0 0 10px" }}>🧪 Área de Química</p>
-              <div style={{ display:"flex", gap:6 }}>
-                {TRILHAS_QUIMICA.map((t,i) => (
-                  <button key={t.id} onClick={() => { setTrilhaQuimSel(i); setUnidadeQuimSel(0); carregarStatusTrilha(i); carregarConteudoTrilha(i,0); }}
-                    style={{ flex:1, padding:"9px 0", borderRadius:9, border:"none", cursor:"pointer", fontSize:12, fontWeight:700,
-                      background: trilhaQuimSel===i ? olimpiadaAtual.cor : "#F1F5F9",
-                      color: trilhaQuimSel===i ? "#fff" : C.sub }}>
-                    {t.emoji} {t.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div style={{ display:"grid", gridTemplateColumns:"160px 1fr", gap:12 }}>
-              {/* Lista unidades */}
-              <div style={{ background:"#fff", borderRadius:12, border:`1px solid ${C.border}`, overflow:"hidden" }}>
-                <p style={{ fontSize:10, fontWeight:700, color:C.sub, textTransform:"uppercase", margin:0, padding:"10px 12px", borderBottom:`1px solid ${C.border}` }}>Unidades</p>
-                {TRILHAS_QUIMICA[trilhaQuimSel].unidades.map((u,i) => (
-                  <button key={u.id} onClick={() => { setUnidadeQuimSel(i); carregarConteudoTrilha(trilhaQuimSel,i); }}
-                    style={{ width:"100%", padding:"9px 12px", textAlign:"left" as const, border:"none", borderBottom:`1px solid ${C.border}`, cursor:"pointer", display:"flex", alignItems:"center", gap:5,
-                      background: unidadeQuimSel===i ? "#E6EEFF" : "transparent",
-                      color: unidadeQuimSel===i ? olimpiadaAtual.cor : C.text }}>
-                    <span style={{ fontSize:8, color: statusUnidades[u.id] ? C.ok : "#d1d5db" }}>●</span>
-                    <span style={{ fontSize:12, fontWeight: unidadeQuimSel===i ? 600 : 400, lineHeight:1.3 }}>{u.titulo}</span>
-                  </button>
-                ))}
-              </div>
-
-              {/* Editor */}
-              <div style={{ background:"#fff", borderRadius:12, border:`1px solid ${C.border}`, padding:14 }}>
-                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:10 }}>
-                  <div>
-                    <p style={{ fontSize:13, fontWeight:700, margin:"0 0 2px" }}>{TRILHAS_QUIMICA[trilhaQuimSel].unidades[unidadeQuimSel]?.titulo}</p>
-                    <p style={{ fontSize:11, color:C.sub, margin:0 }}>{existeTrilhaId ? "✅ Com conteúdo" : "⚠️ Sem conteúdo"}</p>
-                  </div>
-                  <button onClick={gerarConteudoTrilhaIA} disabled={gerandoTrilha||importandoTrilha}
-                    style={{ padding:"7px 12px", background:gerandoTrilha?"#e2e8f0":"linear-gradient(135deg,#6D28D9,#4C1D95)", color:gerandoTrilha?C.sub:"#fff", border:"none", borderRadius:8, fontSize:11, fontWeight:600, cursor:"pointer", whiteSpace:"nowrap" as const }}>
-                    {gerandoTrilha?"⏳...":"🤖 Gerar IA"}
-                  </button>
-                </div>
-
-                <input ref={pdfTrilhaRef} type="file" accept=".pdf,.jpg,.jpeg,.png,.webp" onChange={importarPdfTrilha} style={{ display:"none" }} />
-                <button onClick={() => pdfTrilhaRef.current?.click()} disabled={importandoTrilha||gerandoTrilha}
-                  style={{ width:"100%", padding:"8px 0", borderRadius:8, border:`1.5px dashed ${C.border}`, background:"#FAFBFF", color:olimpiadaAtual.cor, fontSize:12, fontWeight:600, cursor:"pointer", marginBottom:10 }}>
-                  {importandoTrilha?"⏳ Extraindo...":"📄 Importar PDF / foto"}
-                </button>
-
-                {msgTrilha && <div style={{ marginBottom:8, padding:"6px 10px", borderRadius:7, background:msgTrilha.tipo==="ok"?"#EDFAF3":"#FFF1F1", color:msgTrilha.tipo==="ok"?"#15803d":"#b91c1c", fontSize:12, fontWeight:600 }}>{msgTrilha.texto}</div>}
-
-                <div style={{ marginBottom:6 }}><p style={sL}>Título</p><input value={formTrilha.titulo} onChange={e=>setFormTrilha(p=>({...p,titulo:e.target.value}))} style={sI} /></div>
-                <div style={{ marginBottom:6 }}><p style={sL}>Conteúdo principal *</p><textarea rows={6} value={formTrilha.conteudo} onChange={e=>setFormTrilha(p=>({...p,conteudo:e.target.value}))} placeholder="Texto didático completo..." style={{ ...sI, resize:"vertical" as const, lineHeight:1.6 }} /></div>
-                <div style={{ marginBottom:6 }}><p style={sL}>Exemplos práticos</p><textarea rows={3} value={formTrilha.exemplos} onChange={e=>setFormTrilha(p=>({...p,exemplos:e.target.value}))} style={{ ...sI, resize:"vertical" as const }} /></div>
-                <div style={{ marginBottom:12 }}><p style={sL}>Fórmulas / Dicas</p><textarea rows={2} value={formTrilha.formulas} onChange={e=>setFormTrilha(p=>({...p,formulas:e.target.value}))} style={{ ...sI, resize:"vertical" as const }} /></div>
-
-                <button onClick={salvarConteudoTrilha} disabled={salvandoTrilha}
-                  style={{ width:"100%", padding:"11px 0", background:salvandoTrilha?"#e2e8f0":olimpiadaAtual.cor, color:salvandoTrilha?C.sub:"#fff", border:"none", borderRadius:10, fontSize:14, fontWeight:700, cursor:"pointer" }}>
-                  {salvandoTrilha?"Salvando...":existeTrilhaId?"💾 Atualizar":"💾 Salvar conteúdo"}
-                </button>
-              </div>
-            </div>
-          </div>
+          <GestaoConteudoTrilhas
+            areasProf={["quimica","organica","fisicoquimica","inorganica","analitica","bioquimica-q"]}
+          />
         )}
 
         {/* ── CERTIFICADOS ── */}
