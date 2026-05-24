@@ -186,7 +186,7 @@ export default function ProvaOlimpiada() {
     <div style={{ display:"flex", flexDirection:"column", height:"100dvh", background:"#0f172a", userSelect:"none" }}>
 
       {/* Header fixo */}
-      <div style={{ background:"#1e293b", padding:"12px 16px", flexShrink:0, borderBottom:"1px solid rgba(255,255,255,0.08)" }}>
+      <div style={{ background:"#1e293b", padding:"8px 14px", flexShrink:0, borderBottom:"1px solid rgba(255,255,255,0.08)" }}>
         <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:8 }}>
           <p style={{ fontSize:13, fontWeight:700, color:"#fff", margin:0 }}>
             {id?.toUpperCase()} · Questão {atual + 1}/{questoes.length}
@@ -205,11 +205,11 @@ export default function ProvaOlimpiada() {
       </div>
 
       {/* Questão */}
-      <div style={{ flex:1, overflowY:"auto", padding:"20px 16px" }}>
+      <div style={{ flex:1, overflowY:"auto", padding:"12px 14px" }}>
         {questao && (
           <>
-            <div style={{ background:"#1e293b", borderRadius:14, padding:16, marginBottom:16 }}>
-              <p style={{ fontSize:14, color:"#e2e8f0", lineHeight:1.7, margin:0 }}>{questao.enunciado}</p>
+            <div style={{ background:"#1e293b", borderRadius:12, padding:"12px 14px", marginBottom:12 }}>
+              <p style={{ fontSize:13, color:"#e2e8f0", lineHeight:1.6, margin:0 }}>{questao.enunciado}</p>
               {questao.assunto && (
                 <span style={{ fontSize:10, color:"#64748b", background:"#0f172a", borderRadius:4, padding:"2px 8px", marginTop:8, display:"inline-block" }}>
                   {questao.assunto}
@@ -222,7 +222,7 @@ export default function ProvaOlimpiada() {
                 const selecionada = respostas[questao.id] === i;
                 return (
                   <button key={i} onClick={() => salvarResposta(questao.id, i)}
-                    style={{ display:"flex", alignItems:"flex-start", gap:12, padding:"14px 16px", borderRadius:12,
+                    style={{ display:"flex", alignItems:"flex-start", gap:10, padding:"10px 14px", borderRadius:10,
                       background: selecionada ? "#1a3a6e" : "#1e293b",
                       border:`2px solid ${selecionada ? "#3b82f6" : "rgba(255,255,255,0.08)"}`,
                       cursor:"pointer", textAlign:"left", transition:"all 0.15s" }}>

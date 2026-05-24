@@ -55,6 +55,17 @@ function PrivateRoute({ children }: { children: React.ReactNode }) {
   return <AppLayout>{children}</AppLayout>;
 }
 
+function PrivateRouteFull({ children }: { children: React.ReactNode }) {
+  const { user, loading } = useAuth();
+  if (loading) return (
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100dvh", background: "#0f172a" }}>
+      <p style={{ fontSize: 14, color: "rgba(255,255,255,0.6)" }}>Carregando...</p>
+    </div>
+  );
+  if (!user) return <Navigate to="/login" replace />;
+  return <>{children}</>;
+}
+
 export default function App() {
   return (
     <BrowserRouter>
@@ -74,7 +85,7 @@ export default function App() {
         <Route path="/trilha/:vestibular/matematica" element={<PrivateRoute><TrilhaMatematica /></PrivateRoute>} />
         <Route path="/trilha/:vestibular/portugues" element={<PrivateRoute><TrilhaPortugues /></PrivateRoute>} />
         <Route path="/trilha/:vestibular/ingles" element={<PrivateRoute><TrilhaIngles /></PrivateRoute>} />
-        <Route path="/olimpiadas/quimica" element={<PrivateRoute><OlimpiadasQuimica /></PrivateRoute>} />
+        <Route path="/olimpiadas/quimica" element={<PrivateRouteFull><OlimpiadasQuimica /></PrivateRouteFull>} />
         <Route path="/trilha/:vestibular/humanas" element={<PrivateRoute><TrilhaHumanas /></PrivateRoute>} />
         <Route path="/trilha/:vestibular/historia" element={<PrivateRoute><TrilhaHistoria /></PrivateRoute>} />
         <Route path="/trilha/:vestibular/geografia" element={<PrivateRoute><TrilhaGeografia /></PrivateRoute>} />
@@ -99,8 +110,8 @@ export default function App() {
         <Route path="/correcao/:assignmentId/:studentId" element={<PrivateRoute><CorrecaoQR /></PrivateRoute>} />
        <Route path="/certificado/:codigo" element={<ValidarCertificado />} />
        <Route path="/certificados" element={<PrivateRoute><MeusCertificados /></PrivateRoute>} />
-       <Route path="/olimpiada/:id" element={<PrivateRoute><OlimpiadaHub /></PrivateRoute>} />
-       <Route path="/olimpiada/:id/prova/:provaId" element={<PrivateRoute><ProvaOlimpiada /></PrivateRoute>} />
+       <Route path="/olimpiada/:id" element={<PrivateRouteFull><OlimpiadaHub /></PrivateRouteFull>} />
+       <Route path="/olimpiada/:id/prova/:provaId" element={<PrivateRouteFull><ProvaOlimpiada /></PrivateRouteFull>} />
        <Route path="/olimpiada/:id/admin" element={<PrivateRoute><AdminOlimpiada /></PrivateRoute>} />
        <Route path="/coordenador" element={<PrivateRoute><CoordenadorDashboard /></PrivateRoute>} />
         <Route path="*" element={<Navigate to="/" replace />} />
