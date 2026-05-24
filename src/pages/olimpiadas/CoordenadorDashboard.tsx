@@ -71,6 +71,11 @@ const [tentativas, setTentativas] = useState<any[]>([]);
   const [questoesExtraidas, setQuestoesExtraidas] = useState<any[]>([]);
   const [salvandoQ, setSalvandoQ] = useState(false);
   const [provaDestino, setProvaDestino] = useState("");
+  const [criandoProva, setCriandoProva] = useState(false);
+  const [salvandoProva, setSalvandoProva] = useState(false);
+  const [editandoProva, setEditandoProva] = useState<string|null>(null);
+  const [formProva, setFormProva] = useState({ titulo:"", descricao:"", tempo_limite:120, data_inicio:"", data_fim:"", ativa:false });
+  const [msgProva, setMsgProva] = useState<{tipo:"ok"|"erro";texto:string}|null>(null);
 
   // Trilhas de química
   const [provas, setProvas] = useState<any[]>([]);
@@ -87,6 +92,51 @@ const [tentativas, setTentativas] = useState<any[]>([]);
     if (aba === "conteudo") carregarConteudo(areaSel);
     if (aba === "resultados") carregarResultados();
   }, [aba, areaSel, olimpiadaSel]);
+
+  async function criarOuAtualizarProva() {
+    if (!formProva.titulo.trim()) { setMsgProva({ tipo:"erro", texto:"Título obrigatório" }); return; }
+    setSalvandoProva(true);
+    const { data: ev } = await supabase.from("eventos_certificaveis").select("id").eq("sigla", olimpiadaSel).maybeSingle();
+    if (!ev) { setMsgProva({ tipo:"erro", texto:"Evento não encontrado. Crie o evento OBQ/OTQ primeiro." }); setSalvandoProva(false); return; }
+
+    const payload = {
+      evento_id: (ev as any).id,
+      titulo: formProva.titulo.trim(),
+      descricao: formProva.descricao || null,
+      tempo_limite_min: formProva.tempo_limite,
+      data_inicio: formProva.data_inicio || null,
+      data_fim: formProva.data_fim || null,
+      ativa: formProva.ativa,
+    };
+
+    const { error } = editandoProva
+      ? await supabase.from("provas_olimpiada").update(payload).eq("id", editandoProva)
+      : await supabase.from("provas_olimpiada").insert(payload);
+
+    if (error) { setMsgProva({ tipo:"erro", texto:"Erro: "+error.message }); }
+    else {
+      setMsgProva({ tipo:"ok", texto: editandoProva ? "✅ Prova atualizada!" : "✅ Prova criada!" });
+      setCriandoProva(false); setEditandoProva(null);
+      setFormProva({ titulo:"", descricao:"", tempo_limite:120, data_inicio:"", data_fim:"", ativa:false });
+      carregarProvas();
+      setTimeout(()=>setMsgProva(null), 3000);
+    }
+    setSalvandoProva(false);
+  }
+
+  async function toggleAtivarProva(id: string, ativa: boolean) {
+    await supabase.from("provas_olimpiada").update({ ativa: !ativa }).eq("id", id);
+    carregarProvas();
+  }
+
+  async function deletarProva(id: string) {
+    if (!confirm("Tem certeza? Isso remove a prova e todas as questões vinculadas.")) return;
+    await supabase.from("questoes_prova").delete().eq("prova_id", id);
+    await supabase.from("provas_olimpiada").delete().eq("id", id);
+    carregarProvas();
+    setMsgProva({ tipo:"ok", texto:"🗑 Prova removida." });
+    setTimeout(()=>setMsgProva(null), 3000);
+  }
 
   async function carregarStats() {
     const { data: ev } = await supabase.from("eventos_certificaveis").select("id").eq("sigla", olimpiadaSel).maybeSingle();
@@ -428,22 +478,83 @@ const [tentativas, setTentativas] = useState<any[]>([]);
 
         {/* ── PROVAS ── */}
         {aba === "provas" && (
-          <div style={{ background: C.card, borderRadius: 14, padding: 16, border: `1px solid ${C.border}` }}>
-            <p style={{ fontSize: 14, fontWeight: 700, margin: "0 0 12px" }}>📋 Provas da {olimpiadaSel}</p>
-            {provas.length === 0 ? (
-              <p style={{ fontSize: 13, color: C.sub, textAlign: "center", padding: 24 }}>Nenhuma prova criada ainda.</p>
-            ) : provas.map(p => (
-              <button key={p.id} onClick={() => navigate(`/olimpiada/${olimpiadaSel}/admin`)}
-                style={{ width: "100%", display: "flex", alignItems: "center", gap: 12, padding: "12px 14px", borderRadius: 10, background: "#F8FAFC", border: `1px solid ${C.border}`, marginBottom: 8, cursor: "pointer", textAlign: "left" as const }}>
-                <span style={{ fontSize: 16 }}>{p.ativa ? "✅" : "⭕"}</span>
-                <span style={{ fontSize: 13, fontWeight: 600, flex: 1 }}>{p.titulo}</span>
-                <span style={{ fontSize: 11, color: C.sub }}>Editar →</span>
+          <div>
+            {msgProva && <div style={{ marginBottom:10, padding:"8px 12px", borderRadius:8, background:msgProva.tipo==="ok"?"#EDFAF3":"#FFF1F1", color:msgProva.tipo==="ok"?"#15803d":"#b91c1c", fontSize:12, fontWeight:600 }}>{msgProva.texto}</div>}
+
+            {/* Formulário criar/editar */}
+            {(criandoProva || editandoProva) ? (
+              <div style={{ background:C.card, borderRadius:14, padding:16, border:`1.5px solid ${olimpiadaAtual.cor}`, marginBottom:12 }}>
+                <p style={{ fontSize:14, fontWeight:700, margin:"0 0 14px" }}>{editandoProva ? "✏️ Editar Prova" : "➕ Nova Prova"}</p>
+
+                <div style={{ marginBottom:8 }}><p style={sL}>Título *</p><input value={formProva.titulo} onChange={e=>setFormProva(p=>({...p,titulo:e.target.value}))} placeholder="Ex: OBQ 2025 — Fase Nacional" style={sI} /></div>
+                <div style={{ marginBottom:8 }}><p style={sL}>Descrição</p><textarea rows={2} value={formProva.descricao} onChange={e=>setFormProva(p=>({...p,descricao:e.target.value}))} placeholder="Descrição opcional da prova..." style={{ ...sI, resize:"vertical" as const }} /></div>
+
+                <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8, marginBottom:8 }}>
+                  <div><p style={sL}>Tempo limite (min)</p><input type="number" value={formProva.tempo_limite} onChange={e=>setFormProva(p=>({...p,tempo_limite:Number(e.target.value)}))} style={sI} /></div>
+                  <div style={{ display:"flex", alignItems:"center", gap:8, paddingTop:18 }}>
+                    <input type="checkbox" checked={formProva.ativa} onChange={e=>setFormProva(p=>({...p,ativa:e.target.checked}))} />
+                    <span style={{ fontSize:13, fontWeight:600 }}>Prova ativa</span>
+                  </div>
+                </div>
+
+                <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8, marginBottom:14 }}>
+                  <div><p style={sL}>Data início</p><input type="datetime-local" value={formProva.data_inicio} onChange={e=>setFormProva(p=>({...p,data_inicio:e.target.value}))} style={sI} /></div>
+                  <div><p style={sL}>Data fim</p><input type="datetime-local" value={formProva.data_fim} onChange={e=>setFormProva(p=>({...p,data_fim:e.target.value}))} style={sI} /></div>
+                </div>
+
+                <div style={{ display:"flex", gap:8 }}>
+                  <button onClick={() => { setCriandoProva(false); setEditandoProva(null); setFormProva({ titulo:"", descricao:"", tempo_limite:120, data_inicio:"", data_fim:"", ativa:false }); }}
+                    style={{ flex:1, padding:"10px 0", background:"#F1F5F9", color:C.sub, border:"none", borderRadius:9, fontSize:13, fontWeight:600, cursor:"pointer" }}>
+                    Cancelar
+                  </button>
+                  <button onClick={criarOuAtualizarProva} disabled={salvandoProva}
+                    style={{ flex:2, padding:"10px 0", background:salvandoProva?"#e2e8f0":olimpiadaAtual.cor, color:salvandoProva?C.sub:"#fff", border:"none", borderRadius:9, fontSize:13, fontWeight:700, cursor:"pointer" }}>
+                    {salvandoProva ? "Salvando..." : editandoProva ? "💾 Atualizar prova" : "💾 Criar prova"}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button onClick={() => setCriandoProva(true)}
+                style={{ width:"100%", padding:"12px 0", background:olimpiadaAtual.cor, color:"#fff", border:"none", borderRadius:12, fontSize:13, fontWeight:700, cursor:"pointer", marginBottom:12 }}>
+                ➕ Nova Prova — {olimpiadaSel}
               </button>
+            )}
+
+            {/* Lista de provas */}
+            {provas.length === 0 && !criandoProva ? (
+              <div style={{ textAlign:"center", padding:"32px 20px", color:C.sub }}>
+                <p style={{ fontSize:32, margin:"0 0 8px" }}>📋</p>
+                <p style={{ fontSize:13 }}>Nenhuma prova criada ainda.</p>
+              </div>
+            ) : provas.map(p => (
+              <div key={p.id} style={{ background:C.card, borderRadius:12, border:`1px solid ${p.ativa ? olimpiadaAtual.cor+"44" : C.border}`, marginBottom:8, overflow:"hidden" }}>
+                <div style={{ display:"flex", alignItems:"center", gap:12, padding:"12px 14px" }}>
+                  <div style={{ flex:1, minWidth:0 }}>
+                    <p style={{ fontSize:13, fontWeight:700, margin:"0 0 2px", color:C.text }}>{p.titulo}</p>
+                    <div style={{ display:"flex", gap:6 }}>
+                      <span style={{ fontSize:10, background:p.ativa?"#EDFAF3":"#F1F5F9", color:p.ativa?C.ok:C.sub, borderRadius:4, padding:"1px 6px", fontWeight:600 }}>
+                        {p.ativa ? "✅ Ativa" : "⭕ Inativa"}
+                      </span>
+                      {p.tempo_limite_min && <span style={{ fontSize:10, background:"#F1F5F9", color:C.sub, borderRadius:4, padding:"1px 6px" }}>⏱ {p.tempo_limite_min}min</span>}
+                    </div>
+                  </div>
+                  <div style={{ display:"flex", gap:6 }}>
+                    <button onClick={() => toggleAtivarProva(p.id, p.ativa)}
+                      style={{ padding:"5px 10px", background:p.ativa?"#FFF8E6":"#EDFAF3", color:p.ativa?"#92400e":C.ok, border:"none", borderRadius:6, fontSize:11, fontWeight:600, cursor:"pointer" }}>
+                      {p.ativa ? "Desativar" : "Ativar"}
+                    </button>
+                    <button onClick={() => { setEditandoProva(p.id); setFormProva({ titulo:p.titulo, descricao:p.descricao||"", tempo_limite:p.tempo_limite_min||120, data_inicio:p.data_inicio||"", data_fim:p.data_fim||"", ativa:p.ativa }); }}
+                      style={{ padding:"5px 10px", background:"#E6EEFF", color:"#0057FF", border:"none", borderRadius:6, fontSize:11, fontWeight:600, cursor:"pointer" }}>
+                      ✏️ Editar
+                    </button>
+                    <button onClick={() => deletarProva(p.id)}
+                      style={{ padding:"5px 10px", background:"#FFF1F1", color:C.erro, border:"none", borderRadius:6, fontSize:11, fontWeight:600, cursor:"pointer" }}>
+                      🗑
+                    </button>
+                  </div>
+                </div>
+              </div>
             ))}
-            <button onClick={() => navigate(`/olimpiada/${olimpiadaSel}/admin`)}
-              style={{ width: "100%", padding: "11px 0", background: olimpiadaAtual.cor, color: "#fff", border: "none", borderRadius: 10, fontSize: 13, fontWeight: 700, cursor: "pointer", marginTop: 8 }}>
-              ⚙️ Gerenciar no painel completo
-            </button>
           </div>
         )}
 
