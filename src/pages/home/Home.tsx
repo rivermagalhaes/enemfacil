@@ -246,25 +246,22 @@ export default function Home() {
 
 {/* Olimpíadas */}
 <div
-  onClick={() => podePainelProfessor ? navigate("/olimpiadas/quimica") : undefined}
+  onClick={() => navigate("/olimpiadas/quimica")}
   style={{
     width: "100%", display: "flex", alignItems: "center", gap: 14,
     padding: "14px 16px", borderRadius: 16, marginBottom: 10,
-    background: podePainelProfessor ? "linear-gradient(135deg, #7C3AED, #4C1D95)" : "linear-gradient(135deg, #1e293b, #0f172a)",
-    border: podePainelProfessor ? "1.5px solid #7C3AED55" : "1.5px solid rgba(255,255,255,0.06)",
-    opacity: podePainelProfessor ? 1 : 0.6, position: "relative",
-    cursor: podePainelProfessor ? "pointer" : "default",
+    background: "linear-gradient(135deg, #7C3AED, #4C1D95)",
+    border: "1.5px solid #7C3AED55",
+    opacity: 1, position: "relative",
+    cursor: "pointer",
   }}>
-  {!podePainelProfessor && <span style={{ position: "absolute", top: 10, right: 12, fontSize: 9, background: "#f59e0b", color: "#fff", borderRadius: 4, padding: "2px 6px", fontWeight: 700 }}>EM BREVE</span>}
-  {podePainelProfessor && <span style={{ position: "absolute", top: 10, right: 12, fontSize: 9, background: "#22c55e", color: "#fff", borderRadius: 4, padding: "2px 6px", fontWeight: 700 }}>ACESSAR →</span>}
+  <span style={{ position: "absolute", top: 10, right: 12, fontSize: 9, background: "#22c55e", color: "#fff", borderRadius: 4, padding: "2px 6px", fontWeight: 700 }}>ACESSAR →</span>
   <div style={{ width: 50, height: 50, borderRadius: 14, background: "rgba(255,255,255,0.15)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 26, flexShrink: 0 }}>
     🏆
   </div>
   <div style={{ flex: 1 }}>
-    <p style={{ fontSize: 15, fontWeight: 700, color: podePainelProfessor ? "#fff" : "rgba(255,255,255,0.4)", margin: "0 0 2px" }}>Olimpíadas de Química</p>
-    <p style={{ fontSize: 11, color: podePainelProfessor ? "rgba(255,255,255,0.7)" : "rgba(255,255,255,0.2)", margin: 0 }}>
-      {podePainelProfessor ? "OBQ · OTQ · Olimpíadas regionais" : "Em construção"}
-    </p>
+    <p style={{ fontSize: 15, fontWeight: 700, color: "#fff", margin: "0 0 2px" }}>Olimpíadas de Química</p>
+    <p style={{ fontSize: 11, color: "rgba(255,255,255,0.7)", margin: 0 }}>OBQ · OTQ · Olimpíadas regionais</p>
   </div>
 </div>
 

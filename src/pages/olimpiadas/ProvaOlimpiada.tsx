@@ -24,12 +24,13 @@ export default function ProvaOlimpiada() {
   const intervalRef = useRef<any>(null);
 
   useEffect(() => {
+    if (!user) return; // Aguarda auth carregar
     iniciarProva();
     // Bloqueia navegação
     window.history.pushState(null, "", window.location.href);
     window.onpopstate = () => { window.history.pushState(null, "", window.location.href); };
     return () => { window.onpopstate = null; clearInterval(intervalRef.current); };
-  }, []);
+  }, [user]);
 
   useEffect(() => {
     if (tempoRestante <= 0 && prova && !finalizado) {
@@ -47,12 +48,16 @@ export default function ProvaOlimpiada() {
     setQuestoes(qs ?? []);
 
     // Busca ou cria tentativa
-    let { data: t } = await supabase.from("tentativas_prova").select("*").eq("prova_id", provaId).eq("user_id", user!.id).single();
+    let { data: t } = await supabase.from("tentativas_prova").select("*").eq("prova_id", provaId).eq("user_id", user!.id).maybeSingle();
 
     if (!t) {
-      const { data: nova } = await supabase.from("tentativas_prova").insert({
-        prova_id: provaId, user_id: user!.id, respostas: {}, status: "em_andamento"
-      }).select().single();
+      const { data: nova, error: errNova } = await supabase.from("tentativas_prova").insert({
+        prova_id: provaId, user_id: user!.id, respostas: {}, status: "em_andamento",
+        iniciada_em: new Date().toISOString(),
+      }).select().maybeSingle();
+      console.log("INSERT tentativa:", { nova, errNova });
+      if (errNova) { console.error("Erro ao criar tentativa:", errNova.message, errNova.details, errNova.hint); setLoading(false); return; }
+      if (!nova) { console.error("INSERT retornou null sem erro"); setLoading(false); return; }
       t = nova;
     }
 
@@ -62,6 +67,8 @@ export default function ProvaOlimpiada() {
       setLoading(false);
       return;
     }
+
+    if (!t) { console.error("Tentativa nula após insert"); setLoading(false); return; }
 
     setTentativa(t);
     setRespostas(t?.respostas ?? {});

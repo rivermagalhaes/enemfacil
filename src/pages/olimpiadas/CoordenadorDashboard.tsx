@@ -102,8 +102,7 @@ const [tentativas, setTentativas] = useState<any[]>([]);
     const payload = {
       evento_id: (ev as any).id,
       titulo: formProva.titulo.trim(),
-      descricao: formProva.descricao || null,
-      tempo_limite_min: formProva.tempo_limite,
+      duracao_minutos: formProva.tempo_limite,
       data_inicio: formProva.data_inicio || null,
       data_fim: formProva.data_fim || null,
       ativa: formProva.ativa,
@@ -153,7 +152,7 @@ const [tentativas, setTentativas] = useState<any[]>([]);
   async function carregarProvas() {
     const { data: ev } = await supabase.from("eventos_certificaveis").select("id").eq("sigla", olimpiadaSel).maybeSingle();
     if (!ev) return;
-    const { data } = await supabase.from("provas_olimpiada").select("id,titulo,ativa").eq("evento_id", (ev as any).id);
+    const { data } = await supabase.from("provas_olimpiada").select("id,titulo,ativa,duracao_minutos,data_inicio,data_fim").eq("evento_id", (ev as any).id);
     setProvas(data ?? []);
     if (data?.[0]) setProvaDestino(data[0].id);
   }
@@ -273,17 +272,16 @@ const [tentativas, setTentativas] = useState<any[]>([]);
     setSalvandoQ(true);
     let ok = 0, err = 0;
     for (const q of selecionadas) {
-      const { data: inserted, error } = await supabase.from("questoes_prova").insert({
+      const { error } = await supabase.from("questoes_prova").insert({
         prova_id: provaDestino,
         enunciado: q.question,
-        explicacao: q.explanation || "",
         assunto: q.topic || "",
         dificuldade: q.difficulty || "medio",
         alternativas: (q.options || []).map((texto: string, i: number) => ({ texto, correta: i === (q.answer_index ?? 0) })),
         resposta_correta: q.answer_index ?? 0,
         ordem: ok + 1,
       }).select("id").single();
-      if (error || !inserted) { err++; } else { ok++; }
+      if (error) { console.error("Erro INSERT questao:", error.message, error.details); err++; } else { ok++; }
     }
     setMsgQ({ tipo: ok > 0 ? "ok" : "erro", texto: `✅ ${ok} questão(ões) salva(s)${err > 0 ? ` · ⚠️ ${err} com erro` : ""}` });
     if (ok > 0) setQuestoesExtraidas([]);
@@ -535,7 +533,7 @@ const [tentativas, setTentativas] = useState<any[]>([]);
                       <span style={{ fontSize:10, background:p.ativa?"#EDFAF3":"#F1F5F9", color:p.ativa?C.ok:C.sub, borderRadius:4, padding:"1px 6px", fontWeight:600 }}>
                         {p.ativa ? "✅ Ativa" : "⭕ Inativa"}
                       </span>
-                      {p.tempo_limite_min && <span style={{ fontSize:10, background:"#F1F5F9", color:C.sub, borderRadius:4, padding:"1px 6px" }}>⏱ {p.tempo_limite_min}min</span>}
+                      {p.duracao_minutos && <span style={{ fontSize:10, background:"#F1F5F9", color:C.sub, borderRadius:4, padding:"1px 6px" }}>⏱ {p.duracao_minutos}min</span>}
                     </div>
                   </div>
                   <div style={{ display:"flex", gap:6 }}>
@@ -543,7 +541,7 @@ const [tentativas, setTentativas] = useState<any[]>([]);
                       style={{ padding:"5px 10px", background:p.ativa?"#FFF8E6":"#EDFAF3", color:p.ativa?"#92400e":C.ok, border:"none", borderRadius:6, fontSize:11, fontWeight:600, cursor:"pointer" }}>
                       {p.ativa ? "Desativar" : "Ativar"}
                     </button>
-                    <button onClick={() => { setEditandoProva(p.id); setFormProva({ titulo:p.titulo, descricao:p.descricao||"", tempo_limite:p.tempo_limite_min||120, data_inicio:p.data_inicio||"", data_fim:p.data_fim||"", ativa:p.ativa }); }}
+                    <button onClick={() => { setEditandoProva(p.id); setFormProva({ titulo:p.titulo, descricao:"", tempo_limite:p.duracao_minutos||120, data_inicio:p.data_inicio||"", data_fim:p.data_fim||"", ativa:p.ativa }); }}
                       style={{ padding:"5px 10px", background:"#E6EEFF", color:"#0057FF", border:"none", borderRadius:6, fontSize:11, fontWeight:600, cursor:"pointer" }}>
                       ✏️ Editar
                     </button>
