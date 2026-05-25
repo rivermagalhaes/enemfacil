@@ -1037,7 +1037,7 @@ export default function AdminDashboard() {
           <div style={{ padding: "4px 0" }}><ExtratorPDF /></div>
         )}
 
-        {aba === "conteudo" && <GestaoConteudoTrilhas />}
+        {aba === "conteudo" && <><div style={{display:"flex",justifyContent:"flex-end",marginBottom:12}}><a href="/admin/gerar-conteudo" style={{display:"inline-flex",alignItems:"center",gap:8,padding:"8px 16px",background:"#7c3aed",color:"#fff",borderRadius:8,fontSize:13,fontWeight:600,textDecoration:"none"}}>⚡ Gerar conteúdo em lote</a></div><GestaoConteudoTrilhas /></>}
 
       </div>
     </div>

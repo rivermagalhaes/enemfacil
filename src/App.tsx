@@ -40,6 +40,7 @@ import OlimpiadaHub from "@/pages/olimpiadas/OlimpiadaHub";
 import ProvaOlimpiada from "@/pages/olimpiadas/ProvaOlimpiada";
 import AdminOlimpiada from "@/pages/olimpiadas/AdminOlimpiada";
 import CoordenadorDashboard from "@/pages/olimpiadas/CoordenadorDashboard";
+import GerarConteudoLote from "@/pages/admin/GerarConteudoLote";
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
@@ -114,6 +115,7 @@ export default function App() {
        <Route path="/olimpiada/:id/prova/:provaId" element={<PrivateRouteFull><ProvaOlimpiada /></PrivateRouteFull>} />
        <Route path="/olimpiada/:id/admin" element={<PrivateRoute><AdminOlimpiada /></PrivateRoute>} />
        <Route path="/coordenador" element={<PrivateRoute><CoordenadorDashboard /></PrivateRoute>} />
+<Route path="/admin/gerar-conteudo" element={<PrivateRoute><GerarConteudoLote /></PrivateRoute>} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
