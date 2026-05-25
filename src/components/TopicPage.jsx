@@ -5,7 +5,11 @@ const accentColors = {
   sky: "#0284C7",
 };
 
+import { useState } from "react";
+import FlashcardModal from "@/components/FlashcardModal";
+
 export default function TopicPage({ topic, onBack }) {
+  const [showFlashcards, setShowFlashcards] = useState(false);
   const accent = accentColors[topic.color] || "#6C63FF";
 
   return (
@@ -77,29 +81,45 @@ export default function TopicPage({ topic, onBack }) {
       {/* Rodapé */}
       <div style={{
         padding: "16px 24px", borderTop: "1px solid #f3f4f6",
-        display: "flex", gap: 10,
+        display: "flex", gap: 8, flexWrap: "wrap",
       }}>
         <button
           onClick={onBack}
           style={{
-            flex: 1, padding: "11px 0", border: "1px solid #e5e7eb",
-            background: "#fff", borderRadius: 12, fontSize: 14,
+            flex: 1, minWidth: 80, padding: "11px 0", border: "1px solid #e5e7eb",
+            background: "#fff", borderRadius: 12, fontSize: 13,
             color: "#374151", cursor: "pointer", fontWeight: 500,
           }}
           onMouseEnter={e => e.currentTarget.style.background = "#f9fafb"}
           onMouseLeave={e => e.currentTarget.style.background = "#fff"}
         >← Voltar</button>
         <button
+          onClick={() => setShowFlashcards(true)}
+          style={{
+            flex: 1, minWidth: 80, padding: "11px 0", background: "#f5f3ff", color: "#6C63FF",
+            border: "1.5px solid #ddd6fe", borderRadius: 12, fontSize: 13,
+            fontWeight: 600, cursor: "pointer",
+          }}
+          onMouseEnter={e => e.currentTarget.style.background = "#ede9fe"}
+          onMouseLeave={e => e.currentTarget.style.background = "#f5f3ff"}
+        >🃏 Flashcards</button>
+        <button
           onClick={() => alert(`Abrir chat: ${topic.title}`)}
           style={{
-            flex: 1, padding: "11px 0", background: "#6C63FF", color: "#fff",
-            border: "none", borderRadius: 12, fontSize: 14,
+            flex: 1, minWidth: 80, padding: "11px 0", background: "#6C63FF", color: "#fff",
+            border: "none", borderRadius: 12, fontSize: 13,
             fontWeight: 600, cursor: "pointer",
           }}
           onMouseEnter={e => e.currentTarget.style.background = "#5a52e0"}
           onMouseLeave={e => e.currentTarget.style.background = "#6C63FF"}
-        >💬 Tirar dúvida</button>
+        >💬 Dúvida</button>
       </div>
+
+      <FlashcardModal
+        open={showFlashcards}
+        onClose={() => setShowFlashcards(false)}
+        topicoNome={topic.title}
+      />
     </div>
   );
 }

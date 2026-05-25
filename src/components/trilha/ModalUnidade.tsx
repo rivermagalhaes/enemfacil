@@ -1,5 +1,6 @@
 // src/components/trilha/ModalUnidade.tsx
 import { useState, useEffect, useRef } from "react";
+import FlashcardModal from "@/components/FlashcardModal";
 import { supabase } from "@/lib/supabaseClient";
 import { CORES } from "@/styles/theme";
 
@@ -70,6 +71,7 @@ export default function ModalUnidade({
 
   // ── Estado Mini Simulado ──────────────────────────────────────────────────
   const [simuladoData, setSimuladoData] = useState<SimuladoData | null>(null);
+  const [showFlashcards, setShowFlashcards] = useState(false);
   const [simuladoLoading, setSimuladoLoading] = useState(false);
   const [simIdx, setSimIdx] = useState(0);
   const [simResposta, setSimResposta] = useState<string | null>(null);
@@ -435,6 +437,11 @@ export default function ModalUnidade({
                 </button>
               )}
 
+              {/* Botão Flashcards */}
+              <button onClick={() => setShowFlashcards(true)}
+                style={{ width: "100%", padding: "12px 0", background: "#f5f3ff", color: "#6C63FF", border: "1.5px solid #ddd6fe", borderRadius: 10, fontSize: 13, fontWeight: 600, cursor: "pointer", marginBottom: 8 }}>
+                🃏 Revisar com Flashcards
+              </button>
               {/* Botão Mini Simulado */}
               <div style={{ background: `${unidade.cor}11`, border: `1px solid ${unidade.cor}33`, borderRadius: 12, padding: 14, marginBottom: 12 }}>
                 <p style={{ fontSize: 13, fontWeight: 700, color: unidade.cor, margin: "0 0 4px" }}>🎯 Mini Simulado Liberado!</p>
@@ -562,8 +569,13 @@ export default function ModalUnidade({
             </div>
           )}
 
-        </div>
+     </div>
       </div>
+      <FlashcardModal
+        open={showFlashcards}
+        onClose={() => setShowFlashcards(false)}
+        topicoNome={unidade.titulo}
+      />
     </div>
   );
 }
