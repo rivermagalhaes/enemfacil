@@ -80,7 +80,7 @@ export default function App() {
         <Route path="/agente" element={<PrivateRoute><AgenteEnem /></PrivateRoute>} />
         <Route path="/agentes" element={<PrivateRoute><AgentesHome /></PrivateRoute>} />
         <Route path="/agentes/:vestibular" element={<PrivateRoute><AgenteVestibular /></PrivateRoute>} />
-        <Route path="/vestibular/:vestibular" element={<PrivateRoute><VestibularHub /></PrivateRoute>} />
+        <Route path="/vestibular/:vestibular" element={<PrivateRouteFull><VestibularHub /></PrivateRouteFull>} />
         <Route path="/trilha/:vestibular/quimica" element={<PrivateRoute><TrilhaQuimica /></PrivateRoute>} />
         <Route path="/trilha/:vestibular/fisica" element={<PrivateRoute><TrilhaFisica /></PrivateRoute>} />
         <Route path="/trilha/:vestibular/matematica" element={<PrivateRoute><TrilhaMatematica /></PrivateRoute>} />
