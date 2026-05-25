@@ -2,7 +2,7 @@
 // EnemFácil — Content Engine Service
 // Uso: import { generateTopicContent, getTopicContent } from '@/services/contentEngine'
 
-import { supabase } from '@/lib/supabase' // seu cliente Supabase existente
+import { supabase } from '@/lib/supabaseClient' // seu cliente Supabase existente
 
 // ── Tipos ────────────────────────────────────────────────────
 
@@ -218,7 +218,7 @@ export async function hasGeneratedContent(topicoId: string): Promise<boolean> {
  * Exemplo de uso no componente:
  *   const { loading, content, generate } = useTopicContent(topicoId)
  */
-export function useTopicContent(topicoId: string, req?: ContentGenerationRequest) {
+export function useTopicContent(_topicoId: string, _req?: ContentGenerationRequest) {
   // Implementação com useState/useEffect omitida intencionalmente
   // para não criar dependência de framework.
   // Adapte conforme seu setup (React Query, SWR, Zustand, etc.)

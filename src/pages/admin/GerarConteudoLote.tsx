@@ -1,6 +1,8 @@
 // src/pages/admin/GerarConteudoLote.tsx
 import { useEffect, useState, useRef } from 'react'
 import { useBatchGeneration } from '@/hooks/useContentGeneration'
+import SeletorMaterialPDF from '@/components/admin/SeletorMaterialPDF'
+import type { Material } from '@/hooks/useMateriais'
 import type { TopicItem } from '@/hooks/useContentGeneration'
 import { supabase } from '@/lib/supabaseClient'
 
@@ -15,6 +17,12 @@ const TRILHAS_CONFIG: Record<string, string[]> = {
   'Física': ['Cinemática','Dinâmica','Leis de Newton','Trabalho e energia','Quantidade de movimento','Gravitação','Hidrostática','Termologia','Calorimetria','Termodinâmica','Óptica geométrica','Ondulatória','Eletrostática','Eletrodinâmica','Magnetismo','Física moderna'],
   'Biologia': ['Citologia','Histologia','Divisão celular','Genética mendeliana','Genética molecular','Evolução','Ecologia','Fisiologia vegetal','Fisiologia animal','Embriologia','Zoologia','Botânica'],
   'Cinética Química': ['Velocidade de reação','Fatores que afetam a velocidade','Catalisadores','Lei da velocidade','Energia de ativação'],
+  'Química Geral': ['Introdução à Química','Estrutura Atômica','Tabela Periódica','Ligações Químicas','Funções Inorgânicas','Reações Químicas','Estequiometria','Gases','Soluções'],
+  'Química Orgânica': ['Introdução à Orgânica','Hidrocarbonetos','Funções Oxigenadas','Funções Nitrogenadas','Isomeria','Reações Orgânicas','Polímeros','Bioquímica','Orgânica no Cotidiano'],
+  'Físico-Química': ['Termoquímica','Cinética Química','Equilíbrio Químico','Equilíbrio Iônico','Eletroquímica','Propriedades Coligativas','Gases'],
+  'Inorgânica': ['Óxidos','Ácidos','Bases','Sais','Nomenclatura Inorgânica','Reações Inorgânicas','Oxidação e Redução','Química Ambiental'],
+  'Química Analítica': ['Análise Qualitativa','Análise Quantitativa','Titulação e Volumetria','Espectroscopia','Cromatografia','Eletroanalítica'],
+  'Bioquímica': ['Carboidratos','Lipídios','Proteínas e Enzimas','Ácidos Nucleicos','Metabolismo Celular','Vitaminas e Cofatores'],
   'História': ['Pré-história','Antiguidade clássica','Idade Média','Renascimento','Reformas religiosas','Expansão marítima','Brasil colonial','Iluminismo','Revoluções burguesas','Brasil imperial','República Velha','Era Vargas','Guerra Fria','Brasil contemporâneo'],
   'Geografia': ['Cartografia','Relevo brasileiro','Hidrografia','Clima','Vegetação','Geopolítica','Urbanização','Industrialização','Agricultura','Globalização','Questões ambientais'],
   'Filosofia': ['Pré-socráticos','Platão e Aristóteles','Filosofia medieval','Filosofia moderna','Iluminismo','Filosofia contemporânea','Ética','Política'],
@@ -168,6 +176,7 @@ export default function GerarConteudoLote() {
   const [filterTrilha, setFilterTrilha] = useState<string>('Todas')
   const [modo, setModo] = useState<'prompt' | 'pdf'>('prompt')
   const [pdfFile, setPdfFile] = useState<File | null>(null)
+  const [materialSelecionado, setMaterialSelecionado] = useState<Material | null>(null)
   const [pdfStatus, setPdfStatus] = useState<Record<string, { status: string; questoes?: number; error?: string }>>({})
   const [pdfRunning, setPdfRunning] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
@@ -226,6 +235,15 @@ export default function GerarConteudoLote() {
   }
 
   // ── Gerar via PDF ─────────────────────────────────────────────
+  function blobToBase64(blob: Blob): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onload = () => resolve((reader.result as string).split(',')[1])
+      reader.onerror = reject
+      reader.readAsDataURL(blob)
+    })
+  }
+
   async function handleStartPdf() {
     if (!pdfFile || selected.size === 0) return
     setPdfRunning(true)
@@ -234,8 +252,23 @@ export default function GerarConteudoLote() {
     const token = session?.session?.access_token
     if (!token) { setPdfRunning(false); return }
 
-    const mimeType = pdfFile.type || 'application/pdf'
-    const pdfBase64 = await fileToBase64(pdfFile)
+    let pdfBase64: string
+    let mimeType: string
+
+    if (materialSelecionado) {
+      // Usa PDF salvo no banco
+      const res = await fetch(materialSelecionado.url)
+      const blob = await res.blob()
+      pdfBase64 = await blobToBase64(blob)
+      mimeType = blob.type || 'application/pdf'
+    } else if (pdfFile) {
+      // Usa PDF do upload temporário
+      pdfBase64 = await fileToBase64(pdfFile)
+      mimeType = pdfFile.type || 'application/pdf'
+    } else {
+      setPdfRunning(false)
+      return
+    }
     const toGenerate = filtered.filter(t => selected.has(t.id))
 
     for (const topico of toGenerate) {
@@ -281,39 +314,36 @@ export default function GerarConteudoLote() {
         </button>
       </div>
 
-      {/* Upload PDF */}
+      {/* Seletor PDF — salvo no banco ou upload temporário */}
       {modo === 'pdf' && (
-        <div className="mb-6">
+        <div className="mb-6 space-y-3">
+          <SeletorMaterialPDF
+            onSelecionar={(m) => { setMaterialSelecionado(m); if (m) setPdfFile(null) }}
+            materialSelecionado={materialSelecionado}
+            filtroMateria={filterTrilha !== 'Todas' ? filterTrilha : undefined}
+          />
+          <div className="text-center text-xs text-gray-400">ou</div>
           <input ref={fileRef} type="file" accept=".pdf,image/*" className="hidden"
-            onChange={e => setPdfFile(e.target.files?.[0] ?? null)} />
+            onChange={e => { setPdfFile(e.target.files?.[0] ?? null); setMaterialSelecionado(null) }} />
           <div
             onClick={() => fileRef.current?.click()}
-            className={`border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-all ${
-              pdfFile ? 'border-blue-400 bg-blue-50' : 'border-gray-300 hover:border-blue-400 hover:bg-blue-50'
+            className={`border-2 border-dashed rounded-xl p-4 text-center cursor-pointer transition-all ${
+              pdfFile ? 'border-blue-400 bg-blue-50' : 'border-gray-200 hover:border-blue-400 hover:bg-blue-50'
             }`}>
             {pdfFile ? (
-              <div className="flex items-center justify-center gap-3">
-                <span className="text-2xl">📄</span>
-                <div className="text-left">
-                  <p className="font-medium text-blue-700 text-sm">{pdfFile.name}</p>
-                  <p className="text-xs text-blue-500">{(pdfFile.size / 1024 / 1024).toFixed(1)} MB</p>
+              <div className="flex items-center gap-3">
+                <span className="text-xl">📄</span>
+                <div className="text-left flex-1 min-w-0">
+                  <p className="font-medium text-blue-700 text-sm truncate">{pdfFile.name}</p>
+                  <p className="text-xs text-blue-400">{(pdfFile.size / 1024 / 1024).toFixed(1)} MB — upload temporário</p>
                 </div>
                 <button onClick={e => { e.stopPropagation(); setPdfFile(null) }}
-                  className="ml-auto text-gray-400 hover:text-gray-600 text-lg">×</button>
+                  className="text-gray-400 hover:text-gray-600">×</button>
               </div>
             ) : (
-              <>
-                <p className="text-3xl mb-2">📚</p>
-                <p className="font-medium text-gray-700 text-sm">Clique para selecionar o PDF ou imagem</p>
-                <p className="text-xs text-gray-400 mt-1">Livro didático, apostila, prova — qualquer material em PDF ou imagem</p>
-              </>
+              <p className="text-xs text-gray-400">Upload temporário (não salva no banco)</p>
             )}
           </div>
-          {pdfFile && (
-            <div className="mt-3 bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 text-xs text-amber-700">
-              <strong>Como funciona:</strong> O GPT-4o vai ler o PDF e extrair questões inéditas baseadas no conteúdo do livro para cada tópico selecionado.
-            </div>
-          )}
         </div>
       )}
 
@@ -362,7 +392,7 @@ export default function GerarConteudoLote() {
         <div className="ml-auto">
           <button
             onClick={modo === 'prompt' ? handleStartPrompt : handleStartPdf}
-            disabled={selected.size === 0 || isRunning || (modo === 'pdf' && !pdfFile)}
+            disabled={selected.size === 0 || isRunning || (modo === 'pdf' && !pdfFile && !materialSelecionado)}
             className={`px-5 py-2 text-white text-sm font-medium rounded-lg disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2 transition-all ${modo === 'pdf' ? 'bg-blue-600 hover:bg-blue-700' : 'bg-purple-600 hover:bg-purple-700'}`}>
             {isRunning ? (
               <><svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg>Processando...</>

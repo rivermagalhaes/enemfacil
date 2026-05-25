@@ -346,33 +346,35 @@ export default function GestaoConteudoTrilhas({ areasProf, onSalvarAreas, salvan
     setGerandoIA(true); setMsg(null);
     try {
       const { data: { session } } = await supabase.auth.getSession();
+      setMsg({ tipo: "ok", texto: "⏳ Gerando pacote completo com IA... isso pode levar ~40 segundos." });
       const response = await fetch(
-        "https://iuziweujszfiaulltzqv.supabase.co/functions/v1/converter-questoes-objetivas",
+        "https://iuziweujszfiaulltzqv.supabase.co/functions/v1/generate-topic-content",
         {
           method: "POST",
           headers: { "Content-Type": "application/json", "Authorization": `Bearer ${session?.access_token}` },
           body: JSON.stringify({
-            questoes: [{
-              question: `Gere um conteúdo educacional COMPLETO para a unidade "${unidadeSel.titulo}" da matéria "${trilhaSel.label}". Retorne um JSON com: { "options": ["CONTEUDO_PRINCIPAL", "EXEMPLOS_PRATICOS", "FORMULAS_OU_DICAS", "TITULO_CURTO"], "answer_index": 0, "explanation": "" }. CONTEUDO_PRINCIPAL: texto explicativo rico com 400-600 palavras, linguagem clara para ensino médio, cobrindo todos os tópicos da unidade. EXEMPLOS_PRATICOS: 2-3 exemplos concretos e resolvidos. FORMULAS_OU_DICAS: fórmulas principais ou dicas de memorização (pode ser vazio se não aplicável). TITULO_CURTO: título conciso da unidade.`,
-              area: "natureza",
-              difficulty: "medio",
-            }],
+            materia: trilhaSel.label,
+            trilha: trilhaSel.label,
+            topico: unidadeSel.titulo,
+            topico_id: null,
+            trilha_id: null,
           }),
         }
       );
       const data = await response.json();
-      const r = data.resultados?.[0];
-      if (r?.options?.length >= 3) {
+      if (!response.ok || data.error) throw new Error(data.error || "Erro na geração");
+      const c = data.content;
+      if (c?.resumo) {
         setForm({
-          titulo:   r.options[3] || unidadeSel.titulo,
-          conteudo: r.options[0] || "",
-          exemplos: r.options[1] || "",
-          formulas: r.options[2] || "",
+          titulo:   c.topico || unidadeSel.titulo,
+          conteudo: c.resumo.explicacao || c.resumo.introducao || "",
+          exemplos: Array.isArray(c.resumo.conceitos_principais) ? c.resumo.conceitos_principais.join("\n") : "",
+          formulas: Array.isArray(c.resumo.dicas_enem) ? c.resumo.dicas_enem.join("\n") : "",
         });
-        setMsg({ tipo: "ok", texto: "✅ Conteúdo gerado! Revise e salve." });
-      } else {
-        throw new Error("Resposta inválida da IA");
       }
+      const fc = data.distribuicao?.flashcards?.inserted ?? 0;
+      const qe = data.distribuicao?.questoes_enem?.inserted ?? 0;
+      setMsg({ tipo: "ok", texto: `✅ Gerado! ${fc} flashcards · ${qe} questões ENEM · mapa mental · revisão. Revise e salve.` });
     } catch (err: any) {
       setMsg({ tipo: "erro", texto: "Erro ao gerar: " + err.message });
     }
@@ -454,37 +456,40 @@ export default function GestaoConteudoTrilhas({ areasProf, onSalvarAreas, salvan
       try {
         const { data: { session } } = await supabase.auth.getSession();
         const response = await fetch(
-          "https://iuziweujszfiaulltzqv.supabase.co/functions/v1/converter-questoes-objetivas",
+          "https://iuziweujszfiaulltzqv.supabase.co/functions/v1/generate-topic-content",
           {
             method: "POST",
             headers: { "Content-Type": "application/json", "Authorization": `Bearer ${session?.access_token}` },
             body: JSON.stringify({
-              questoes: [{
-                question: `Gere um conteúdo educacional COMPLETO para a unidade "${unidade.titulo}" da matéria "${trilhaSel.label}". Retorne um JSON com: { "options": ["CONTEUDO_PRINCIPAL", "EXEMPLOS_PRATICOS", "FORMULAS_OU_DICAS", "TITULO_CURTO"], "answer_index": 0, "explanation": "" }. CONTEUDO_PRINCIPAL: texto explicativo rico com 400-600 palavras. EXEMPLOS_PRATICOS: 2-3 exemplos concretos. FORMULAS_OU_DICAS: fórmulas ou dicas (vazio se não aplicável). TITULO_CURTO: título conciso.`,
-                area: "natureza",
-                difficulty: "medio",
-              }],
+              materia: trilhaSel.label,
+              trilha: trilhaSel.label,
+              topico: unidade.titulo,
+              topico_id: null,
+              trilha_id: null,
             }),
           }
         );
         const data = await response.json();
-        const r = data.resultados?.[0];
-        if (r?.options?.length >= 3) {
+        if (!response.ok || data.error) throw new Error(data.error);
+        const c = data.content;
+        if (c?.resumo) {
           await supabase.from("trilha_conteudos").upsert({
             materia:    trilhaSel.materia,
             unidade_id: unidade.id,
-            titulo:     r.options[3] || unidade.titulo,
-            conteudo:   r.options[0] || "",
-            exemplos:   r.options[1] || "",
-            formulas:   r.options[2] || "",
+            titulo:     c.topico || unidade.titulo,
+            conteudo:   c.resumo.explicacao || c.resumo.introducao || "",
+            exemplos:   Array.isArray(c.resumo.conceitos_principais) ? c.resumo.conceitos_principais.join("\n") : "",
+            formulas:   Array.isArray(c.resumo.dicas_enem) ? c.resumo.dicas_enem.join("\n") : "",
           }, { onConflict: "materia,unidade_id" });
-          ok++;
-          setStatusUnidades(p => ({ ...p, [unidade.id]: true }));
-          setMsg({ tipo: "ok", texto: `⏳ ${ok}/${unidadesSemConteudo.length} unidades geradas...` });
         }
-      } catch { /* continua */ }
+        ok++;
+        setStatusUnidades(p => ({ ...p, [unidade.id]: true }));
+      } catch (err: any) {
+        console.error("Erro em", unidade.titulo, err.message);
+      }
     }
-    setMsg({ tipo: "ok", texto: `✅ ${ok} unidade(s) gerada(s) com sucesso!` });
+    setGerandoIA(false);
+    setMsg({ tipo: "ok", texto: `✅ ${ok}/${unidadesSemConteudo.length} unidade(s) gerada(s) com pacote completo!` });
     carregarStatusTrilha(trilhaSel);
   }
 
