@@ -41,6 +41,8 @@ import ProvaOlimpiada from "@/pages/olimpiadas/ProvaOlimpiada";
 import AdminOlimpiada from "@/pages/olimpiadas/AdminOlimpiada";
 import CoordenadorDashboard from "@/pages/olimpiadas/CoordenadorDashboard";
 import GerarConteudoLote from "@/pages/admin/GerarConteudoLote";
+import ProcessarMaterial from "@/pages/admin/ProcessarMaterial"
+import CadastroConvite from "@/pages/cadastro/CadastroConvite";
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
@@ -95,6 +97,7 @@ export default function App() {
         <Route path="/trilha/:vestibular/redacao" element={<PrivateRoute><TrilhaRedacao /></PrivateRoute>} />
         <Route path="/trilha/:vestibular/organica" element={<PrivateRoute><TrilhaOrganica /></PrivateRoute>} />
         <Route path="/trilha/:vestibular/fisicoquimica" element={<PrivateRoute><TrilhaFisicoQuimica /></PrivateRoute>} />
+        <Route path="/admin/processar-material" element={<ProcessarMaterial />} />
 
         {/* Rota do módulo com tópicos — ex: /trilha/ENEM/matematica/modulo/fundamentos */}
         <Route path="/trilha/:vestibular/:materia/modulo/:moduloId" element={<PrivateRoute><ModuloPage /></PrivateRoute>} />
@@ -113,6 +116,7 @@ export default function App() {
        <Route path="/certificados" element={<PrivateRoute><MeusCertificados /></PrivateRoute>} />
        <Route path="/olimpiada/:id" element={<PrivateRouteFull><OlimpiadaHub /></PrivateRouteFull>} />
        <Route path="/olimpiada/:id/prova/:provaId" element={<PrivateRouteFull><ProvaOlimpiada /></PrivateRouteFull>} />
+       <Route path="/cadastro" element={<CadastroConvite />} />
        <Route path="/olimpiada/:id/admin" element={<PrivateRoute><AdminOlimpiada /></PrivateRoute>} />
        <Route path="/coordenador" element={<PrivateRoute><CoordenadorDashboard /></PrivateRoute>} />
 <Route path="/admin/gerar-conteudo" element={<PrivateRoute><GerarConteudoLote /></PrivateRoute>} />

@@ -1,11 +1,5 @@
 // supabase/functions/generate-topic-content/index.ts
-// Edge Function — EnemFácil Content Engine
-//
-// Deploy: supabase functions deploy generate-topic-content
-// Env vars necessárias:
-//   ANTHROPIC_API_KEY   — chave da API Claude
-//   SUPABASE_URL        — automático no Supabase
-//   SUPABASE_SERVICE_ROLE_KEY — automático no Supabase
+// v2 — usa texto do material como contexto quando disponível
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -15,46 +9,28 @@ const CORS = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// ── Prompt do sistema ────────────────────────────────────────
-const SYSTEM_PROMPT = `Você é uma equipe formada por:
+const SYSTEM_PROMPT = `Você é uma equipe de especialistas em educação:
 - Professor especialista em ENEM
-- Professor universitário da disciplina
 - Elaborador de questões do ENEM
 - Especialista em aprendizagem ativa
 - Designer instrucional
-- Especialista em mapas mentais
-- Especialista em flashcards
-- Especialista em revisão espaçada
 
-Sua missão é gerar conteúdo educacional completo para o aplicativo ENEM FÁCIL.
+Sua missão é gerar conteúdo educacional completo para o app ENEM FÁCIL.
+Quando um material de referência for fornecido, BASE TODO O CONTEÚDO NELE.
+Retorne EXCLUSIVAMENTE JSON VÁLIDO, sem markdown, sem comentários.`;
 
-RETORNE EXCLUSIVAMENTE JSON VÁLIDO.
+const buildPrompt = (materia: string, trilha: string, topico: string, textoMaterial?: string) => {
+  const contexto = textoMaterial
+    ? `\n\nMATERIAL DE REFERÊNCIA (use este conteúdo como base):\n${textoMaterial.slice(0, 60000)}\n\n`
+    : "\n\n(Gere baseado no seu conhecimento sobre o tópico)\n\n";
 
-REGRAS:
-1. O resumo deve ser completo, porém objetivo.
-2. Criar no mínimo 15 flashcards.
-3. Criar no mínimo 10 exercícios resolvidos.
-4. Criar no mínimo 20 questões estilo ENEM.
-5. Todas as questões devem possuir explicação detalhada.
-6. As questões devem seguir o padrão oficial do ENEM.
-7. O mapa mental deve ser hierárquico.
-8. Gerar prompts para imagens educacionais futuristas.
-9. Os prompts devem funcionar em Midjourney, DALL-E ou Stable Diffusion.
-10. Utilizar linguagem clara para estudantes do ensino médio.
-11. Priorizar conteúdos mais cobrados nos últimos ENEMs.
-12. Incluir aplicações práticas do cotidiano.
-13. Retornar somente JSON válido.
-14. Não utilizar markdown.
-15. Não adicionar comentários fora do JSON.`;
-
-const USER_PROMPT = (materia: string, trilha: string, topico: string) => `
-DISCIPLINA: ${materia}
+  return `DISCIPLINA: ${materia}
 TRILHA: ${trilha}
 TÓPICO: ${topico}
+${contexto}
+OBJETIVO: Criar pacote completo de aprendizagem do iniciante ao nível ENEM.
 
-OBJETIVO: Criar um pacote completo de aprendizagem que permita ao aluno sair do nível iniciante para o nível ENEM.
-
-ESTRUTURA:
+ESTRUTURA JSON:
 {
   "materia": "",
   "trilha": "",
@@ -66,273 +42,164 @@ ESTRUTURA:
     "erros_comuns": [],
     "dicas_enem": []
   },
-  "mapa_mental": {
-    "titulo": "",
-    "nodos": []
-  },
-  "imagens": [
-    {
-      "titulo": "",
-      "tipo": "hero",
-      "prompt": ""
-    }
-  ],
-  "flashcards": [
-    {
-      "pergunta": "",
-      "resposta": ""
-    }
-  ],
-  "exercicios": [
-    {
-      "nivel": "facil",
-      "pergunta": "",
-      "resposta": "",
-      "explicacao": ""
-    }
-  ],
-  "questoes_enem": [
-    {
-      "dificuldade": "",
-      "enunciado": "",
-      "alternativas": {
-        "A": "",
-        "B": "",
-        "C": "",
-        "D": "",
-        "E": ""
-      },
-      "gabarito": "",
-      "comentario": "",
-      "habilidade_bncc": ""
-    }
-  ],
-  "mini_simulado": {
-    "titulo": "",
-    "questoes": []
-  },
-  "revisao_inteligente": {
-    "dia_1": [],
-    "dia_7": [],
-    "dia_15": [],
-    "dia_30": []
-  },
-  "pptx": {
-    "slides": []
-  }
-}`;
+  "mapa_mental": { "titulo": "", "nodos": [] },
+  "imagens": [{ "titulo": "", "tipo": "hero", "prompt": "" }],
+  "flashcards": [{ "pergunta": "", "resposta": "" }],
+  "exercicios": [{ "nivel": "facil", "pergunta": "", "resposta": "", "explicacao": "" }],
+  "questoes_enem": [{
+    "dificuldade": "",
+    "enunciado": "",
+    "alternativas": { "A": "", "B": "", "C": "", "D": "", "E": "" },
+    "gabarito": "",
+    "comentario": "",
+    "habilidade_bncc": ""
+  }],
+  "mini_simulado": { "titulo": "", "questoes": [] },
+  "revisao_inteligente": { "dia_1": [], "dia_7": [], "dia_15": [], "dia_30": [] },
+  "pptx": { "slides": [] }
+}
 
-// ── Distribuidor de conteúdo para o banco ───────────────────
-async function distributeContent(
-  supabase: any,
-  content: any,
-  topicoId: string,
-  trilhaId: string | null,
-  logId: string
-) {
+REGRAS:
+- Mínimo 10 flashcards
+- Mínimo 5 exercícios resolvidos
+- Mínimo 10 questões estilo ENEM
+- Todas questões com explicação detalhada
+- Linguagem clara para ensino médio
+- Priorizar conteúdos cobrados no ENEM
+- Se material de referência fornecido: extraia exemplos e questões diretamente dele
+- Retornar APENAS JSON válido`;
+};
+
+async function distributeContent(supabase: any, content: any, topicoId: string, trilhaId: string | null) {
   const results: Record<string, any> = {};
 
-  // 1. Resumo + Mapa Mental + Revisão → topicos
-  const { error: topicoErr } = await supabase
-    .from("topicos")
-    .update({
+  // Resumo + mapa mental
+  if (topicoId && !topicoId.startsWith("virtual:")) {
+    await supabase.from("topicos").update({
       resumo_gerado: content.resumo ?? null,
       mapa_mental: content.mapa_mental ?? null,
       revisao_schedule: content.revisao_inteligente ?? null,
       content_gerado_em: new Date().toISOString(),
-    })
-    .eq("id", topicoId);
+    }).eq("id", topicoId);
+  }
 
-  results.topico = topicoErr ? { error: topicoErr.message } : { ok: true };
-
-  // 2. Flashcards
+  // Flashcards
   if (content.flashcards?.length) {
-    const flashcardsData = content.flashcards.map((f: any, i: number) => ({
-      topico_id: topicoId,
-      trilha_id: trilhaId,
-      area_enem: content.materia,
-      materia: content.materia,
-      pergunta: f.pergunta,
-      resposta: f.resposta,
-      ordem: i,
-      gerado_por_ia: true,
-    }));
-
-    // Remove flashcards antigos gerados por IA antes de reinserir
-    await supabase
-      .from("flashcards")
-      .delete()
-      .eq("topico_id", topicoId)
-      .eq("gerado_por_ia", true);
-
-    const { error: fcErr } = await supabase.from("flashcards").insert(flashcardsData);
-    results.flashcards = fcErr
-      ? { error: fcErr.message }
-      : { inserted: flashcardsData.length };
+    if (topicoId && !topicoId.startsWith("virtual:")) {
+      await supabase.from("flashcards").delete().eq("topico_id", topicoId).eq("gerado_por_ia", true);
+    }
+    const { error } = await supabase.from("flashcards").insert(
+      content.flashcards.map((f: any, i: number) => ({
+        topico_id: topicoId?.startsWith("virtual:") ? null : topicoId,
+        trilha_id: trilhaId,
+        area_enem: content.materia,
+        materia: content.materia,
+        pergunta: f.pergunta,
+        resposta: f.resposta,
+        ordem: i,
+        gerado_por_ia: true,
+      }))
+    );
+    results.flashcards = error ? { error: error.message } : { inserted: content.flashcards.length };
   }
 
-  // 3. Exercícios resolvidos
+  // Exercícios
   if (content.exercicios?.length) {
-    const exerciciosData = content.exercicios.map((e: any, i: number) => ({
-      topico_id: topicoId,
-      trilha_id: trilhaId,
-      area_enem: content.materia,
-      materia: content.materia,
-      nivel: e.nivel ?? "medio",
-      pergunta: e.pergunta,
-      resposta: e.resposta,
-      explicacao: e.explicacao,
-      ordem: i,
-      gerado_por_ia: true,
-    }));
-
-    await supabase
-      .from("exercicios_topico")
-      .delete()
-      .eq("topico_id", topicoId)
-      .eq("gerado_por_ia", true);
-
-    const { error: exErr } = await supabase.from("exercicios_topico").insert(exerciciosData);
-    results.exercicios = exErr
-      ? { error: exErr.message }
-      : { inserted: exerciciosData.length };
+    if (topicoId && !topicoId.startsWith("virtual:")) {
+      await supabase.from("exercicios_topico").delete().eq("topico_id", topicoId).eq("gerado_por_ia", true);
+    }
+    const { error } = await supabase.from("exercicios_topico").insert(
+      content.exercicios.map((e: any, i: number) => ({
+        topico_id: topicoId?.startsWith("virtual:") ? null : topicoId,
+        trilha_id: trilhaId,
+        area_enem: content.materia,
+        materia: content.materia,
+        nivel: e.nivel ?? "medio",
+        pergunta: e.pergunta,
+        resposta: e.resposta,
+        explicacao: e.explicacao,
+        ordem: i,
+        gerado_por_ia: true,
+      }))
+    );
+    results.exercicios = error ? { error: error.message } : { inserted: content.exercicios.length };
   }
 
-  // 4. Questões ENEM → questoes_simulado (sistema existente)
-  //    Cria um simulado-pai para este tópico se não existir
-  if (content.questoes_enem?.length) {
-    // Busca ou cria mini_simulado do tópico
-    let simuladoId: string;
+  // Questões ENEM
+  if (content.questoes_enem?.length && trilhaId) {
     const { data: simExistente } = await supabase
-      .from("mini_simulados")
-      .select("id")
-      .eq("trilha_id", trilhaId)
-      .eq("area_enem", content.materia)
-      .maybeSingle();
+      .from("mini_simulados").select("id")
+      .eq("trilha_id", trilhaId).eq("area_enem", content.materia).maybeSingle();
 
-    if (simExistente) {
-      simuladoId = simExistente.id;
-    } else {
-      const { data: novoSim, error: simErr } = await supabase
+    let simuladoId = simExistente?.id;
+    if (!simuladoId) {
+      const { data: novoSim } = await supabase
         .from("mini_simulados")
-        .insert({
-          trilha_id: trilhaId,
-          area_enem: content.materia,
-          ativo: true,
-        })
-        .select("id")
-        .single();
-
-      if (simErr) {
-        results.questoes_enem = { error: simErr.message };
-        return results;
-      }
-      simuladoId = novoSim.id;
+        .insert({ trilha_id: trilhaId, area_enem: content.materia, ativo: true })
+        .select("id").single();
+      simuladoId = novoSim?.id;
     }
 
-    // Remove questões geradas por IA anteriores deste simulado
-    await supabase
-      .from("questoes_simulado")
-      .delete()
-      .eq("simulado_id", simuladoId)
-      .eq("assunto_tag", `ia:${topicoId}`);
+    if (simuladoId) {
+      const tag = `ia:${topicoId}`;
+      await supabase.from("questoes_simulado").delete().eq("simulado_id", simuladoId).eq("assunto_tag", tag);
 
-    const questoesData = content.questoes_enem.map((q: any, i: number) => ({
-      simulado_id: simuladoId,
-      enunciado: q.enunciado,
-      area_enem: content.materia,
-      habilidade: q.habilidade_bncc ?? "",
-      assunto_tag: `ia:${topicoId}`,
-      dificuldade: q.dificuldade ?? "medio",
-      ordem: i,
-      ativa: true,
-    }));
+      const { data: inseridas } = await supabase.from("questoes_simulado").insert(
+        content.questoes_enem.map((q: any, i: number) => ({
+          simulado_id: simuladoId,
+          enunciado: q.enunciado,
+          area_enem: content.materia,
+          habilidade: q.habilidade_bncc ?? "",
+          assunto_tag: tag,
+          dificuldade: q.dificuldade ?? "medio",
+          ordem: i,
+          ativa: true,
+        }))
+      ).select("id");
 
-    const { data: questoesInseridas, error: qErr } = await supabase
-      .from("questoes_simulado")
-      .insert(questoesData)
-      .select("id");
-
-    if (qErr) {
-      results.questoes_enem = { error: qErr.message };
-    } else {
-      // Insere alternativas para cada questão
-      const alternativasData: any[] = [];
-      questoesInseridas.forEach((q: any, i: number) => {
-        const original = content.questoes_enem[i];
-        ["A", "B", "C", "D", "E"].forEach((letra) => {
-          alternativasData.push({
-            questao_id: q.id,
-            letra,
-            texto: original.alternativas[letra] ?? "",
-            correta: original.gabarito === letra,
+      if (inseridas) {
+        const alts: any[] = [];
+        inseridas.forEach((q: any, i: number) => {
+          const orig = content.questoes_enem[i];
+          ["A","B","C","D","E"].forEach(l => {
+            alts.push({ questao_id: q.id, letra: l, texto: orig.alternativas[l] ?? "", correta: orig.gabarito === l });
           });
         });
-      });
-
-      const { error: altErr } = await supabase
-        .from("alternativas_simulado")
-        .insert(alternativasData);
-
-      results.questoes_enem = altErr
-        ? { error: altErr.message }
-        : { inserted: questoesInseridas.length };
+        await supabase.from("alternativas_simulado").insert(alts);
+        results.questoes_enem = { inserted: inseridas.length };
+      }
     }
   }
 
-  // 5. Mini Simulado (questões de revisão rápida)
-  if (content.mini_simulado?.questoes?.length) {
-    // Reutiliza o simuladoId criado acima ou cria novo
-    results.mini_simulado = { ok: true, titulo: content.mini_simulado.titulo };
-  }
-
-  // 6. Content Heroes (imagens)
+  // Heroes
   if (content.imagens?.length) {
-    const heroesData = content.imagens.map((img: any) => ({
-      entity_type: "topico",
-      entity_id: topicoId,
-      titulo: img.titulo,
-      tipo: img.tipo ?? "hero",
-      prompt: img.prompt,
-      area_enem: content.materia,
-      status: "pending",
-      gerado_por_ia: true,
-    }));
-
-    // Upsert — se já existe hero para este tópico, atualiza o prompt
-    const { error: heroErr } = await supabase
-      .from("content_heroes")
-      .upsert(heroesData, { onConflict: "entity_type,entity_id,tipo" });
-
-    results.imagens = heroErr
-      ? { error: heroErr.message }
-      : { inserted: heroesData.length };
-  }
-
-  // 7. PPTX → pptx_assets (se tabela existir)
-  if (content.pptx?.slides?.length) {
-    const { error: pptxErr } = await supabase.from("pptx_assets").upsert({
-      topico_id: topicoId,
-      slides_data: content.pptx,
-      updated_at: new Date().toISOString(),
-    });
-    results.pptx = pptxErr ? { error: pptxErr.message } : { ok: true };
+    const { error } = await supabase.from("content_heroes").upsert(
+      content.imagens.map((img: any) => ({
+        entity_type: "topico",
+        entity_id: topicoId?.startsWith("virtual:") ? trilhaId : topicoId,
+        titulo: img.titulo,
+        tipo: img.tipo ?? "hero",
+        prompt: img.prompt,
+        area_enem: content.materia,
+        status: "pending",
+        gerado_por_ia: true,
+      })),
+      { onConflict: "entity_type,entity_id,tipo" }
+    );
+    results.imagens = error ? { error: error.message } : { inserted: content.imagens.length };
   }
 
   return results;
 }
 
-// ── Handler principal ─────────────────────────────────────────
 serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: CORS });
-  }
+  if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
 
   const startTime = Date.now();
 
   try {
     const body = await req.json();
-    const { materia, trilha, topico, topico_id, trilha_id } = body;
+    const { materia, trilha, topico, topico_id, trilha_id, material_id } = body;
 
     if (!materia || !trilha || !topico) {
       return new Response(
@@ -341,22 +208,56 @@ serve(async (req) => {
       );
     }
 
-    // Inicializa cliente Supabase com service role (bypass RLS para inserção)
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    // Cria log de geração
+    // Busca texto do material se disponível
+    let textoMaterial: string | undefined;
+
+    if (material_id) {
+      // Material específico passado
+      const { data: mat } = await supabase
+        .from("materiais").select("texto_extraido, titulo")
+        .eq("id", material_id).single();
+      if (mat?.texto_extraido) {
+        textoMaterial = mat.texto_extraido;
+        console.log(`Usando material: ${mat.titulo} (${textoMaterial.length} chars)`);
+      }
+    } else if (trilha_id) {
+      // Busca material vinculado à trilha
+      const { data: trilhaData } = await supabase
+        .from("trilhas").select("material_id, materiais(texto_extraido, titulo)")
+        .eq("id", trilha_id).single();
+
+      if ((trilhaData as any)?.materiais?.texto_extraido) {
+        textoMaterial = (trilhaData as any).materiais.texto_extraido;
+        console.log(`Usando material da trilha: ${(trilhaData as any).materiais.titulo}`);
+      } else {
+        // Busca qualquer material da mesma matéria com texto extraído
+        const { data: matDisp } = await supabase
+          .from("materiais")
+          .select("texto_extraido, titulo")
+          .eq("materia", materia)
+          .not("texto_extraido", "is", null)
+          .order("criado_em", { ascending: false })
+          .limit(1).single();
+
+        if (matDisp?.texto_extraido) {
+          textoMaterial = matDisp.texto_extraido;
+          console.log(`Usando material disponível: ${matDisp.titulo}`);
+        }
+      }
+    }
+
+    // Log
     const { data: logEntry } = await supabase
       .from("content_generation_log")
-      .insert({ materia, trilha, topico: topico, topico_id, status: "processing" })
-      .select("id")
-      .single();
+      .insert({ materia, trilha, topico, topico_id, status: "processing" })
+      .select("id").single();
 
-    const logId = logEntry?.id;
-
-    // ── Chama Claude API ──────────────────────────────────────
+    // Chama Claude
     const claudeRes = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: {
@@ -365,12 +266,10 @@ serve(async (req) => {
         "anthropic-version": "2023-06-01",
       },
       body: JSON.stringify({
-        model: "claude-opus-4-5",
-        max_tokens: 16000,
+        model: "claude-sonnet-4-6",
+        max_tokens: 8000,
         system: SYSTEM_PROMPT,
-        messages: [
-          { role: "user", content: USER_PROMPT(materia, trilha, topico) },
-        ],
+        messages: [{ role: "user", content: buildPrompt(materia, trilha, topico, textoMaterial) }],
       }),
     });
 
@@ -381,24 +280,17 @@ serve(async (req) => {
 
     const claudeData = await claudeRes.json();
     const rawContent = claudeData.content?.[0]?.text ?? "";
-    const tokensUsados = claudeData.usage?.input_tokens + claudeData.usage?.output_tokens;
+    const tokensUsados = (claudeData.usage?.input_tokens ?? 0) + (claudeData.usage?.output_tokens ?? 0);
 
-    // Parse do JSON (remove possíveis marcadores markdown defensivamente)
     let content: any;
     try {
-      const cleaned = rawContent.replace(/```json|```/g, "").trim();
+      const cleaned = rawContent.replace(/```json/g, "").replace(/```/g, "").trim();
       content = JSON.parse(cleaned);
-    } catch (parseErr) {
-      await supabase
-        .from("content_generation_log")
-        .update({
-          status: "error",
-          error_message: `JSON parse error: ${parseErr}`,
-          tokens_usados: tokensUsados,
-          duracao_ms: Date.now() - startTime,
-          finished_at: new Date().toISOString(),
-        })
-        .eq("id", logId);
+    } catch {
+      await supabase.from("content_generation_log").update({
+        status: "error", error_message: "JSON parse error",
+        tokens_usados: tokensUsados, finished_at: new Date().toISOString(),
+      }).eq("id", logEntry?.id);
 
       return new Response(
         JSON.stringify({ error: "Falha ao parsear resposta da IA", raw: rawContent.slice(0, 500) }),
@@ -406,47 +298,28 @@ serve(async (req) => {
       );
     }
 
-    // ── Distribui para o banco ────────────────────────────────
-    let distribuicao = {};
-    if (topico_id) {
-      distribuicao = await distributeContent(supabase, content, topico_id, trilha_id ?? null, logId);
-    }
+    const distribuicao = await distributeContent(supabase, content, topico_id ?? `virtual:${topico}`, trilha_id ?? null);
 
-    // Atualiza log com sucesso
-    await supabase
-      .from("content_generation_log")
-      .update({
-        status: "done",
-        tokens_usados: tokensUsados,
-        duracao_ms: Date.now() - startTime,
-        finished_at: new Date().toISOString(),
-      })
-      .eq("id", logId);
+    await supabase.from("content_generation_log").update({
+      status: "done", tokens_usados: tokensUsados,
+      duracao_ms: Date.now() - startTime, finished_at: new Date().toISOString(),
+    }).eq("id", logEntry?.id);
 
-    // ── Dispara geração de imagens em background (fire-and-forget) ──
-    const heroesGerados = distribuicao?.imagens?.inserted ?? 0;
+    // Fire-and-forget: gera imagens
+    const heroesGerados = (distribuicao as any)?.imagens?.inserted ?? 0;
     if (heroesGerados > 0) {
       fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/generate-hero-image`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
-        },
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}` },
         body: JSON.stringify({ processar_fila: true }),
-      }).catch(() => {}); // fire-and-forget, não bloqueia a resposta
+      }).catch(() => {});
     }
 
     return new Response(
-      JSON.stringify({
-        ok: true,
-        topico_id,
-        tokens_usados: tokensUsados,
-        duracao_ms: Date.now() - startTime,
-        distribuicao,
-        content,
-      }),
+      JSON.stringify({ ok: true, topico_id, tokens_usados: tokensUsados, duracao_ms: Date.now() - startTime, distribuicao, content, usou_material: !!textoMaterial }),
       { headers: { ...CORS, "Content-Type": "application/json" } }
     );
+
   } catch (err: any) {
     return new Response(
       JSON.stringify({ error: err.message }),

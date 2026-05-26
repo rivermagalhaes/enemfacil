@@ -881,9 +881,9 @@ export default function ProfessorDashboard() {
       )}
 
       {/* Abas */}
-      <div style={{ display:"flex",gap:4,padding:"12px 20px 0",overflowX:"auto",scrollbarWidth:"none" }}>
+      <div style={{ display:"flex",gap:2,padding:"10px 8px 0",overflowX:"auto",scrollbarWidth:"none" }}>
         {ABAS.map(a => (
-          <button key={a.id} onClick={()=>setAba(a.id)} style={{ padding:"6px 10px",borderRadius:10,border:"none",cursor:"pointer",fontWeight:600,fontSize:11,background:aba===a.id?"#0A7C4B":CORES.card,color:aba===a.id?"#fff":CORES.sub }}>
+          <button key={a.id} onClick={()=>setAba(a.id)} style={{ padding:"5px 7px",borderRadius:10,border:"none",cursor:"pointer",fontWeight:600,fontSize:10,whiteSpace:"nowrap",background:aba===a.id?"#0A7C4B":CORES.card,color:aba===a.id?"#fff":CORES.sub }}>
             {a.emoji} {a.label}
           </button>
         ))}
