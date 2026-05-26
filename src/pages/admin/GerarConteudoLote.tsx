@@ -189,8 +189,8 @@ export default function GerarConteudoLote() {
     async function load() {
       setLoadingTopicos(true)
       const { data: trilhasData } = await supabase.from('trilhas').select('id, titulo, area_enem').eq('ativa', true)
-      const { data: topicosData } = await supabase.from('topicos').select('id, nome, content_gerado_em')
-      const topicoMap = new Map((topicosData ?? []).map((t: any) => [t.nome, t]))
+      const { data: topicosData } = await supabase.from('topicos').select('id, titulo, content_gerado_em')
+      const topicoMap = new Map((topicosData ?? []).map((t: any) => [t.titulo, t]))
       const trilhaMap = new Map((trilhasData ?? []).map((t: any) => [t.titulo, t]))
       const mapped: TopicItem[] = []
       Object.entries(TRILHAS_CONFIG).forEach(([trilhaTitulo, topicosLista]) => {
