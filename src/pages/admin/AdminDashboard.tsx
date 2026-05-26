@@ -6,6 +6,7 @@ import { useAuth } from "@/hooks/useAuth";
 import CertificadosAdmin from "@/components/admin/CertificadosAdmin";
 import ExtratorPDF from "@/components/admin/ExtratorPDF";
 import GestaoConteudoTrilhas from "@/components/admin/GestaoConteudoTrilhas";
+import HeroImageManager from "@/components/admin/HeroImageManager";
 
 const CORES = {
   bg: "#F4F6FB", card: "#FFFFFF", primary: "#0057FF",
@@ -1037,7 +1038,7 @@ export default function AdminDashboard() {
           <div style={{ padding: "4px 0" }}><ExtratorPDF /></div>
         )}
 
-        {aba === "conteudo" && <><div style={{display:"flex",justifyContent:"flex-end",marginBottom:12}}><a href="/admin/gerar-conteudo" style={{display:"inline-flex",alignItems:"center",gap:8,padding:"8px 16px",background:"#7c3aed",color:"#fff",borderRadius:8,fontSize:13,fontWeight:600,textDecoration:"none"}}>⚡ Gerar conteúdo em lote</a></div><GestaoConteudoTrilhas /></>}
+        {aba === "conteudo" && <><div style={{display:"flex",justifyContent:"flex-end",marginBottom:12}}><a href="/admin/gerar-conteudo" style={{display:"inline-flex",alignItems:"center",gap:8,padding:"8px 16px",background:"#7c3aed",color:"#fff",borderRadius:8,fontSize:13,fontWeight:600,textDecoration:"none"}}>⚡ Gerar conteúdo em lote</a></div><GestaoConteudoTrilhas /><div style={{marginTop:24}}><HeroImageManager /></div></>}
 
       </div>
     </div>

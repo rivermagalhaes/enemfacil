@@ -423,6 +423,19 @@ serve(async (req) => {
       })
       .eq("id", logId);
 
+    // ── Dispara geração de imagens em background (fire-and-forget) ──
+    const heroesGerados = distribuicao?.imagens?.inserted ?? 0;
+    if (heroesGerados > 0) {
+      fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/generate-hero-image`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
+        },
+        body: JSON.stringify({ processar_fila: true }),
+      }).catch(() => {}); // fire-and-forget, não bloqueia a resposta
+    }
+
     return new Response(
       JSON.stringify({
         ok: true,
@@ -430,7 +443,7 @@ serve(async (req) => {
         tokens_usados: tokensUsados,
         duracao_ms: Date.now() - startTime,
         distribuicao,
-        content, // retorna o conteúdo completo para o frontend usar imediatamente
+        content,
       }),
       { headers: { ...CORS, "Content-Type": "application/json" } }
     );
