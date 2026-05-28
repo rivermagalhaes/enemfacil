@@ -11,7 +11,7 @@ import BottomNav from "@/components/layout/BottomNav";
 export default function AdminOlimpiada() {
   const { id = "OTQ" } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { profile } = useAuth();
+  const { profile, loading } = useAuth();
   const isAdmin = (profile as any)?.role === "admin" || (profile as any)?.role === "super_admin";
 
   const [aba, setAba] = useState<"prova"|"questoes"|"resultados"|"conteudo">("prova");
@@ -155,7 +155,11 @@ export default function AdminOlimpiada() {
     if (pdfConteudoRef.current) pdfConteudoRef.current.value="";
   }
 
-  useEffect(() => { if (isAdmin) carregarDados(); else navigate(-1); }, [id]);
+  useEffect(() => {
+    if (loading) return;
+    if (isAdmin) carregarDados();
+    else navigate(-1);
+  }, [id, loading]);
   useEffect(() => { if (aba === "conteudo" && evento) carregarConteudoArea(areaSel); }, [aba, areaSel, evento]);
 
   async function carregarDados() {
