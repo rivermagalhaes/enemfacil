@@ -31,11 +31,11 @@ import TrilhaFilosofia from "@/pages/trilha/TrilhaFilosofia";
 import TrilhaBiologia from "@/pages/trilha/TrilhaBiologia";
 import TrilhaRedacao from "@/pages/trilha/TrilhaRedacao";
 import TrilhaOrganica from "@/pages/trilha/TrilhaOrganica";
-import OlimpiadasQuimica from "@/pages/olimpiadas/OlimpiadasQuimica";
 import CorrecaoQR from "@/pages/admin/CorrecaoQR";
 import ModuloPage from "@/pages/trilha/ModuloPage";
 import MeusCertificados from "@/pages/certificados/MeusCertificados";
 import ValidarCertificado from "@/pages/certificados/ValidarCertificado";
+import OlimpiadasHub from "@/pages/olimpiadas/OlimpiadasHub";
 import OlimpiadaHub from "@/pages/olimpiadas/OlimpiadaHub";
 import ProvaOlimpiada from "@/pages/olimpiadas/ProvaOlimpiada";
 import AdminOlimpiada from "@/pages/olimpiadas/AdminOlimpiada";
@@ -45,7 +45,6 @@ import ProcessarMaterial from "@/pages/admin/ProcessarMaterial";
 import CadastroConvite from "@/pages/cadastro/CadastroConvite";
 import InscricaoOlimpiada from "@/pages/cadastro/InscricaoOlimpiada";
 
-// Rota privada com layout (bottom nav)
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
   if (loading) return (
@@ -60,7 +59,6 @@ function PrivateRoute({ children }: { children: React.ReactNode }) {
   return <AppLayout>{children}</AppLayout>;
 }
 
-// Rota privada sem layout (tela cheia)
 function PrivateRouteFull({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
   if (loading) return (
@@ -72,7 +70,6 @@ function PrivateRouteFull({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
-// Rota exclusiva para admin/super_admin
 function AdminRoute({ children }: { children: React.ReactNode }) {
   const { user, profile, loading } = useAuth();
   if (loading) return (
@@ -85,7 +82,6 @@ function AdminRoute({ children }: { children: React.ReactNode }) {
   return <AppLayout>{children}</AppLayout>;
 }
 
-// Rota exclusiva para professor
 function ProfessorRoute({ children }: { children: React.ReactNode }) {
   const { user, profile, loading } = useAuth();
   if (loading) return (
@@ -107,6 +103,7 @@ export default function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/cadastro" element={<CadastroConvite />} />
         <Route path="/certificado/:codigo" element={<ValidarCertificado />} />
+        <Route path="/inscricao/:sigla" element={<InscricaoOlimpiada />} />
 
         {/* ── Rotas do aluno ── */}
         <Route path="/" element={<PrivateRoute><Home /></PrivateRoute>} />
@@ -142,13 +139,13 @@ export default function App() {
         <Route path="/trilha/:vestibular/:materia/modulo/:moduloId" element={<PrivateRoute><ModuloPage /></PrivateRoute>} />
 
         {/* ── Olimpíadas ── */}
-        <Route path="/olimpiadas/quimica" element={<PrivateRouteFull><OlimpiadasQuimica /></PrivateRouteFull>} />
+        <Route path="/olimpiadas" element={<PrivateRouteFull><OlimpiadasHub /></PrivateRouteFull>} />
+        <Route path="/olimpiadas/quimica" element={<Navigate to="/olimpiadas" replace />} />
         <Route path="/olimpiada/:id" element={<PrivateRouteFull><OlimpiadaHub /></PrivateRouteFull>} />
         <Route path="/olimpiada/:id/prova/:provaId" element={<PrivateRouteFull><ProvaOlimpiada /></PrivateRouteFull>} />
-        <Route path="/inscricao/:sigla" element={<InscricaoOlimpiada />} />
         <Route path="/olimpiada/:id/admin" element={<AdminRoute><AdminOlimpiada /></AdminRoute>} />
 
-        {/* ── Sala virtual ── ORDEM IMPORTA: /sala/professor antes de /sala/:id */}
+        {/* ── Sala virtual ── */}
         <Route path="/sala/professor" element={<ProfessorRoute><SalaVirtualProfessor /></ProfessorRoute>} />
         <Route path="/sala" element={<PrivateRoute><SalaVirtual /></PrivateRoute>} />
         <Route path="/sala/:id" element={<PrivateRoute><SalaVirtual /></PrivateRoute>} />
