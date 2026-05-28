@@ -41,9 +41,11 @@ import ProvaOlimpiada from "@/pages/olimpiadas/ProvaOlimpiada";
 import AdminOlimpiada from "@/pages/olimpiadas/AdminOlimpiada";
 import CoordenadorDashboard from "@/pages/olimpiadas/CoordenadorDashboard";
 import GerarConteudoLote from "@/pages/admin/GerarConteudoLote";
-import ProcessarMaterial from "@/pages/admin/ProcessarMaterial"
+import ProcessarMaterial from "@/pages/admin/ProcessarMaterial";
 import CadastroConvite from "@/pages/cadastro/CadastroConvite";
+import InscricaoOlimpiada from "@/pages/cadastro/InscricaoOlimpiada";
 
+// Rota privada com layout (bottom nav)
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
   if (loading) return (
@@ -58,6 +60,7 @@ function PrivateRoute({ children }: { children: React.ReactNode }) {
   return <AppLayout>{children}</AppLayout>;
 }
 
+// Rota privada sem layout (tela cheia)
 function PrivateRouteFull({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
   if (loading) return (
@@ -69,26 +72,65 @@ function PrivateRouteFull({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+// Rota exclusiva para admin/super_admin
+function AdminRoute({ children }: { children: React.ReactNode }) {
+  const { user, profile, loading } = useAuth();
+  if (loading) return (
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100dvh", background: "#0f172a" }}>
+      <p style={{ fontSize: 14, color: "rgba(255,255,255,0.6)" }}>Carregando...</p>
+    </div>
+  );
+  if (!user) return <Navigate to="/login" replace />;
+  if (profile?.role !== "admin" && profile?.role !== "super_admin") return <Navigate to="/" replace />;
+  return <AppLayout>{children}</AppLayout>;
+}
+
+// Rota exclusiva para professor
+function ProfessorRoute({ children }: { children: React.ReactNode }) {
+  const { user, profile, loading } = useAuth();
+  if (loading) return (
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100dvh", background: "#0f172a" }}>
+      <p style={{ fontSize: 14, color: "rgba(255,255,255,0.6)" }}>Carregando...</p>
+    </div>
+  );
+  if (!user) return <Navigate to="/login" replace />;
+  if (profile?.role !== "professor" && profile?.role !== "admin" && profile?.role !== "super_admin") return <Navigate to="/" replace />;
+  return <AppLayout>{children}</AppLayout>;
+}
+
 export default function App() {
   return (
     <BrowserRouter>
       <Routes>
+
+        {/* ── Rotas públicas ── */}
         <Route path="/login" element={<Login />} />
+        <Route path="/cadastro" element={<CadastroConvite />} />
+        <Route path="/certificado/:codigo" element={<ValidarCertificado />} />
+
+        {/* ── Rotas do aluno ── */}
         <Route path="/" element={<PrivateRoute><Home /></PrivateRoute>} />
         <Route path="/quiz" element={<PrivateRoute><Quiz /></PrivateRoute>} />
         <Route path="/quiz/vestibular/:vestibular" element={<PrivateRoute><Quiz /></PrivateRoute>} />
         <Route path="/quiz/:area" element={<PrivateRoute><Quiz /></PrivateRoute>} />
         <Route path="/simulado" element={<PrivateRoute><Simulado /></PrivateRoute>} />
+        <Route path="/redacao" element={<PrivateRoute><Redacao /></PrivateRoute>} />
+        <Route path="/perfil" element={<PrivateRoute><Perfil /></PrivateRoute>} />
+        <Route path="/assinatura" element={<PrivateRoute><Assinatura /></PrivateRoute>} />
+        <Route path="/certificados" element={<PrivateRoute><MeusCertificados /></PrivateRoute>} />
+
+        {/* ── Agentes ── */}
         <Route path="/agente" element={<PrivateRoute><AgenteEnem /></PrivateRoute>} />
         <Route path="/agentes" element={<PrivateRoute><AgentesHome /></PrivateRoute>} />
         <Route path="/agentes/:vestibular" element={<PrivateRoute><AgenteVestibular /></PrivateRoute>} />
+
+        {/* ── Vestibular / Trilhas ── */}
         <Route path="/vestibular/:vestibular" element={<PrivateRouteFull><VestibularHub /></PrivateRouteFull>} />
         <Route path="/trilha/:vestibular/quimica" element={<PrivateRoute><TrilhaQuimica /></PrivateRoute>} />
         <Route path="/trilha/:vestibular/fisica" element={<PrivateRoute><TrilhaFisica /></PrivateRoute>} />
         <Route path="/trilha/:vestibular/matematica" element={<PrivateRoute><TrilhaMatematica /></PrivateRoute>} />
         <Route path="/trilha/:vestibular/portugues" element={<PrivateRoute><TrilhaPortugues /></PrivateRoute>} />
         <Route path="/trilha/:vestibular/ingles" element={<PrivateRoute><TrilhaIngles /></PrivateRoute>} />
-        <Route path="/olimpiadas/quimica" element={<PrivateRouteFull><OlimpiadasQuimica /></PrivateRouteFull>} />
         <Route path="/trilha/:vestibular/humanas" element={<PrivateRoute><TrilhaHumanas /></PrivateRoute>} />
         <Route path="/trilha/:vestibular/historia" element={<PrivateRoute><TrilhaHistoria /></PrivateRoute>} />
         <Route path="/trilha/:vestibular/geografia" element={<PrivateRoute><TrilhaGeografia /></PrivateRoute>} />
@@ -97,30 +139,38 @@ export default function App() {
         <Route path="/trilha/:vestibular/redacao" element={<PrivateRoute><TrilhaRedacao /></PrivateRoute>} />
         <Route path="/trilha/:vestibular/organica" element={<PrivateRoute><TrilhaOrganica /></PrivateRoute>} />
         <Route path="/trilha/:vestibular/fisicoquimica" element={<PrivateRoute><TrilhaFisicoQuimica /></PrivateRoute>} />
-        <Route path="/admin/processar-material" element={<ProcessarMaterial />} />
-
-        {/* Rota do módulo com tópicos — ex: /trilha/ENEM/matematica/modulo/fundamentos */}
         <Route path="/trilha/:vestibular/:materia/modulo/:moduloId" element={<PrivateRoute><ModuloPage /></PrivateRoute>} />
 
-        <Route path="/redacao" element={<PrivateRoute><Redacao /></PrivateRoute>} />
-        <Route path="/perfil" element={<PrivateRoute><Perfil /></PrivateRoute>} />
-        <Route path="/assinatura" element={<PrivateRoute><Assinatura /></PrivateRoute>} />
-        <Route path="/admin" element={<PrivateRoute><AdminDashboard /></PrivateRoute>} />
-        <Route path="/professor" element={<PrivateRoute><ProfessorDashboard /></PrivateRoute>} />
+        {/* ── Olimpíadas ── */}
+        <Route path="/olimpiadas/quimica" element={<PrivateRouteFull><OlimpiadasQuimica /></PrivateRouteFull>} />
+        <Route path="/olimpiada/:id" element={<PrivateRouteFull><OlimpiadaHub /></PrivateRouteFull>} />
+        <Route path="/olimpiada/:id/prova/:provaId" element={<PrivateRouteFull><ProvaOlimpiada /></PrivateRouteFull>} />
+        <Route path="/inscricao/:sigla" element={<InscricaoOlimpiada />} />
+        <Route path="/olimpiada/:id/admin" element={<AdminRoute><AdminOlimpiada /></AdminRoute>} />
+
+        {/* ── Sala virtual ── ORDEM IMPORTA: /sala/professor antes de /sala/:id */}
+        <Route path="/sala/professor" element={<ProfessorRoute><SalaVirtualProfessor /></ProfessorRoute>} />
         <Route path="/sala" element={<PrivateRoute><SalaVirtual /></PrivateRoute>} />
         <Route path="/sala/:id" element={<PrivateRoute><SalaVirtual /></PrivateRoute>} />
-        <Route path="/sala/professor" element={<PrivateRoute><SalaVirtualProfessor /></PrivateRoute>} />
         <Route path="/sala/:salaId/simulados" element={<PrivateRoute><SimuladoAluno /></PrivateRoute>} />
-        <Route path="/correcao/:assignmentId/:studentId" element={<PrivateRoute><CorrecaoQR /></PrivateRoute>} />
-       <Route path="/certificado/:codigo" element={<ValidarCertificado />} />
-       <Route path="/certificados" element={<PrivateRoute><MeusCertificados /></PrivateRoute>} />
-       <Route path="/olimpiada/:id" element={<PrivateRouteFull><OlimpiadaHub /></PrivateRouteFull>} />
-       <Route path="/olimpiada/:id/prova/:provaId" element={<PrivateRouteFull><ProvaOlimpiada /></PrivateRouteFull>} />
-       <Route path="/cadastro" element={<CadastroConvite />} />
-       <Route path="/olimpiada/:id/admin" element={<PrivateRoute><AdminOlimpiada /></PrivateRoute>} />
-       <Route path="/coordenador" element={<PrivateRoute><CoordenadorDashboard /></PrivateRoute>} />
-<Route path="/admin/gerar-conteudo" element={<PrivateRoute><GerarConteudoLote /></PrivateRoute>} />
+
+        {/* ── Correção QR ── */}
+        <Route path="/correcao/:assignmentId/:studentId" element={<ProfessorRoute><CorrecaoQR /></ProfessorRoute>} />
+
+        {/* ── Coordenador ── */}
+        <Route path="/coordenador" element={<PrivateRoute><CoordenadorDashboard /></PrivateRoute>} />
+
+        {/* ── Admin ── */}
+        <Route path="/admin" element={<AdminRoute><AdminDashboard /></AdminRoute>} />
+        <Route path="/admin/gerar-conteudo" element={<AdminRoute><GerarConteudoLote /></AdminRoute>} />
+        <Route path="/admin/processar-material" element={<AdminRoute><ProcessarMaterial /></AdminRoute>} />
+
+        {/* ── Professor ── */}
+        <Route path="/professor" element={<ProfessorRoute><ProfessorDashboard /></ProfessorRoute>} />
+
+        {/* ── Fallback ── */}
         <Route path="*" element={<Navigate to="/" replace />} />
+
       </Routes>
     </BrowserRouter>
   );

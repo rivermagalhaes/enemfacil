@@ -10,6 +10,9 @@ const OLIMPIADAS = {
   estaduais: [
     { id:"OTQ", nome:"OTQ", nomeCompleto:"Olimpíada Tocantinense de Química", emoji:"🧪", cor:"#0A7C4B", bg:"#EDFAF3", desc:"Seletiva estadual do Tocantins para OBQ", niveis:["Nível I · Fundamental","Nível II · Médio"], dificuldade:"⭐⭐⭐", badge:"Tocantins" },
   ],
+  locais: [
+    { id:"OQCMTO", nome:"OQCMTO", nomeCompleto:"1ª Olimpíada de Química dos Colégios Militares do Tocantins", emoji:"🎖️", cor:"#1B3A1B", bg:"#F0F4F0", desc:"Fase única · 30 questões · 120 min · 02/10/2025", niveis:["Fase Única · Ensino Médio"], dificuldade:"⭐⭐⭐", badge:"Colégios Militares · TO", dataProva:"02/10/2025" },
+  ],
 };
 
 export default function OlimpiadasQuimica() {
@@ -29,7 +32,7 @@ export default function OlimpiadasQuimica() {
             <p style={{ fontSize:24, fontWeight:800, color:"#fff", margin:"0 0 6px", letterSpacing:"-0.5px" }}>Olimpíadas de Química</p>
             <p style={{ fontSize:13, color:"rgba(255,255,255,0.7)", margin:"0 0 20px" }}>Prepare-se para competir e representar sua escola</p>
             <div style={{ display:"flex", gap:10, justifyContent:"center" }}>
-              {[{emoji:"🥇",label:"1 Nacional"},{emoji:"🌿",label:"1 Estadual"},{emoji:"🧪",label:"Só Química"}].map((s,i) => (
+              {[{emoji:"🥇",label:"1 Nacional"},{emoji:"🌿",label:"1 Estadual"},{emoji:"🎖️",label:"1 Local"}].map((s,i) => (
                 <div key={i} style={{ background:"rgba(255,255,255,0.12)", borderRadius:10, padding:"8px 14px", backdropFilter:"blur(10px)" }}>
                   <p style={{ fontSize:16, margin:"0 0 2px" }}>{s.emoji}</p>
                   <p style={{ fontSize:10, color:"rgba(255,255,255,0.8)", margin:0, fontWeight:600 }}>{s.label}</p>
@@ -41,6 +44,7 @@ export default function OlimpiadasQuimica() {
       </div>
 
       <div style={{ flex:1, overflowY:"auto", padding:"20px 14px 90px" }}>
+
         {/* Nacionais */}
         <div style={{ marginBottom:28 }}>
           <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:14 }}>
@@ -99,10 +103,40 @@ export default function OlimpiadasQuimica() {
           ))}
         </div>
 
+        {/* Locais — Colégios Militares */}
+        <div style={{ marginBottom:28 }}>
+          <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:14 }}>
+            <div style={{ width:4, height:18, borderRadius:2, background:"#1B3A1B" }} />
+            <p style={{ fontSize:13, fontWeight:700, color:CORES.text, textTransform:"uppercase", letterSpacing:"0.08em", margin:0 }}>🎖️ Colégios Militares — Tocantins</p>
+          </div>
+          {OLIMPIADAS.locais.map(o => (
+            <button key={o.id} onClick={() => navigate(`/olimpiada/${o.id}`)}
+              style={{ width:"100%", display:"flex", alignItems:"flex-start", gap:14, padding:16, borderRadius:18, background:CORES.bgCard, border:`2px solid ${o.cor}33`, cursor:"pointer", textAlign:"left", boxShadow:`0 4px 20px ${o.cor}15`, marginBottom:10 }}>
+              <div style={{ width:60, height:60, borderRadius:16, background:`linear-gradient(135deg, ${o.cor}, ${o.cor}cc)`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:28, flexShrink:0, boxShadow:`0 4px 16px ${o.cor}40` }}>{o.emoji}</div>
+              <div style={{ flex:1, minWidth:0 }}>
+                <div style={{ display:"flex", alignItems:"center", gap:6, marginBottom:3 }}>
+                  <p style={{ fontSize:18, fontWeight:800, color:o.cor, margin:0 }}>{o.nome}</p>
+                  <span style={{ fontSize:9, fontWeight:700, background:o.cor, color:"#fff", borderRadius:4, padding:"2px 7px" }}>{o.badge}</span>
+                </div>
+                <p style={{ fontSize:12, color:CORES.textSub, margin:"0 0 8px" }}>{o.nomeCompleto}</p>
+                <p style={{ fontSize:11, color:CORES.textSub, margin:"0 0 8px" }}>{o.desc}</p>
+                <div style={{ display:"flex", flexWrap:"wrap", gap:4 }}>
+                  {o.niveis.map((n,i) => <span key={i} style={{ fontSize:10, background:o.bg, color:o.cor, borderRadius:6, padding:"2px 8px", fontWeight:600 }}>{n}</span>)}
+                </div>
+              </div>
+              <div style={{ display:"flex", flexDirection:"column", alignItems:"flex-end", gap:6, flexShrink:0 }}>
+                {/* Badge de data */}
+                <span style={{ fontSize:9, fontWeight:700, background:"#1B3A1B", color:"#C9A84C", borderRadius:6, padding:"3px 8px", whiteSpace:"nowrap" }}>📅 {(o as any).dataProva}</span>
+                <svg width="18" height="18" viewBox="0 0 16 16" fill="none" stroke={o.cor} strokeWidth="2"><path d="M6 4l4 4-4 4"/></svg>
+              </div>
+            </button>
+          ))}
+        </div>
+
         <div style={{ background:"linear-gradient(135deg, #3b0764, #4c1d95)", borderRadius:16, padding:16, position:"relative", overflow:"hidden" }}>
           <p style={{ fontSize:13, fontWeight:700, color:"#fff", margin:"0 0 6px" }}>💡 Como funciona</p>
           <p style={{ fontSize:12, color:"rgba(255,255,255,0.7)", margin:0, lineHeight:1.6 }}>
-            Estude pela trilha de Química, pratique com questões reais das olimpíadas e use o Simulado para testar seu nível. A OTQ classifica para a OBQ nacional.
+            Estude pela trilha de Química, pratique com questões reais das olimpíadas e use o Simulado para testar seu nível. A OTQ classifica para a OBQ nacional. A OQCMTO é fase única com certificado para aproveitamento ≥ 50%.
           </p>
         </div>
       </div>
