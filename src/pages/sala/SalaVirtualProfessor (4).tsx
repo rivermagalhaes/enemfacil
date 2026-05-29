@@ -99,11 +99,6 @@ export default function SalaVirtualProfessor() {
   const [materiaisSalaAtiva, setMateriaisSalaAtiva] = useState<SalaMaterial[]>([]);
   const [tabMateriais, setTabMateriais] = useState<"biblioteca" | "upload">("biblioteca");
   const [modalMateriais, setModalMateriais] = useState(false);
-  const [modalSlides, setModalSlides] = useState(false);
-  const [slidesTopico, setSlidesTopico] = useState("");
-  const [slidesSubtopicos, setSlidesSubtopicos] = useState("");
-  const [gerandoSlides, setGerandoSlides] = useState(false);
-  const [msgSlides, setMsgSlides] = useState<{tipo:"ok"|"erro";texto:string}|null>(null);
   // materiais selecionados no modal de criação de sala
   const [materiaisSelecionadosCriacao, setMateriaisSelecionadosCriacao] = useState<Set<string>>(new Set());
   // upload direto
@@ -264,101 +259,6 @@ export default function SalaVirtualProfessor() {
       .from("materiais").select("id, titulo, tipo, url, materia, topic, vestibular")
       .eq("ativo", true).order("criado_em", { ascending: false });
     setMateriaisBiblioteca((data as Material[]) ?? []);
-  }
-
-  async function gerarSlides() {
-    if (!salaAtiva || !slidesTopico.trim()) return;
-    setGerandoSlides(true);
-    setMsgSlides({ tipo: "ok", texto: "⏳ Gerando conteúdo com IA..." });
-    try {
-      // 1. Gera conteúdo via Claude API
-      const response = await fetch("https://api.anthropic.com/v1/messages", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model: "claude-sonnet-4-20250514",
-          max_tokens: 4000,
-          system: "Você é um professor especialista. Retorne SOMENTE JSON válido, sem markdown.",
-          messages: [{
-            role: "user",
-            content: `Crie slides de aula para o tópico: "${slidesTopico}". Matéria: ${salaAtiva.materia}.${slidesSubtopicos ? " Subtópicos: " + slidesSubtopicos : ""}
-Retorne JSON: { "titulo": "título geral", "slides": [{ "tipo": "capa|conteudo|exemplo|resumo", "titulo": "string", "pontos": ["ponto1","ponto2","ponto3"] }] }
-Gere 8-10 slides variados.`
-          }]
-        })
-      });
-      const data = await response.json();
-      const raw = (data.content || []).filter((b: any) => b.type === "text").map((b: any) => b.text).join("");
-      const slidesData = JSON.parse(raw.replace(/```json|```/g, "").trim());
-
-      setMsgSlides({ tipo: "ok", texto: "📊 Montando apresentação..." });
-
-      // 2. Gera PPTX no browser com pptxgenjs
-      // @ts-ignore
-      const PptxGenJS = (await import("https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.bundle.js")).default || window.PptxGenJS;
-      const prs = new PptxGenJS();
-      prs.layout = "LAYOUT_16x9";
-      prs.title = slidesData.titulo;
-
-      slidesData.slides.forEach((s: any, i: number) => {
-        const slide = prs.addSlide();
-        if (s.tipo === "capa") {
-          slide.addShape(prs.ShapeType.rect, { x: 0, y: 0, w: "100%", h: "100%", fill: { color: "1a3a6e" } });
-          slide.addText(slidesData.titulo, { x: 0.5, y: 1.5, w: 9, h: 1.2, fontSize: 36, bold: true, color: "FFFFFF", align: "center", fontFace: "Arial" });
-          slide.addText(s.titulo, { x: 0.5, y: 3.0, w: 9, h: 0.6, fontSize: 18, color: "BFDBFE", align: "center" });
-          slide.addText("EnemFácil · " + salaAtiva.materia.toUpperCase(), { x: 0.5, y: 4.8, w: 9, h: 0.4, fontSize: 12, color: "93C5FD", align: "center" });
-        } else if (s.tipo === "resumo") {
-          slide.addShape(prs.ShapeType.rect, { x: 0, y: 0, w: "100%", h: "100%", fill: { color: "065C37" } });
-          slide.addText(s.titulo, { x: 0.4, y: 0.3, w: 9.2, h: 0.8, fontSize: 28, bold: true, color: "FFFFFF", fontFace: "Arial" });
-          if (s.pontos?.length) slide.addText(s.pontos.map((p: string) => ({ text: "✓  " + p, options: { breakLine: true, fontSize: 16, color: "FFFFFF" } })), { x: 0.5, y: 1.3, w: 9, h: 3.2, paraSpaceAfter: 8 });
-        } else {
-          slide.addShape(prs.ShapeType.rect, { x: 0, y: 0, w: 0.08, h: "100%", fill: { color: "2563eb" } });
-          slide.addText(s.titulo, { x: 0.3, y: 0.2, w: 9.4, h: 0.75, fontSize: 26, bold: true, color: "1a3a6e", fontFace: "Arial" });
-          if (s.pontos?.length) slide.addText(s.pontos.map((p: string) => ({ text: p, options: { breakLine: true, fontSize: 15, color: "1E293B", bullet: { type: "bullet" } } })), { x: 0.4, y: 1.1, w: 9.2, h: 3.5, paraSpaceAfter: 6 });
-          slide.addText(String(i + 1), { x: 9.2, y: 4.8, w: 0.6, h: 0.35, fontSize: 10, color: "64748B", align: "right" });
-        }
-      });
-
-      // 3. Exporta como blob e faz upload no Supabase Storage
-      const pptxBlob: Blob = await prs.write({ outputType: "blob" });
-      const nomeArquivo = `slides_${salaAtiva.id}_${Date.now()}.pptx`;
-      const { error: upErr } = await supabase.storage
-        .from("materiais-sala")
-        .upload(`salas/${salaAtiva.id}/${nomeArquivo}`, pptxBlob, {
-          contentType: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-          upsert: false,
-        });
-      if (upErr) throw new Error("Upload: " + upErr.message);
-
-      const { data: urlData } = supabase.storage.from("materiais-sala").getPublicUrl(`salas/${salaAtiva.id}/${nomeArquivo}`);
-
-      // 4. Salva na tabela materiais e vincula à sala
-      const { data: mat, error: matErr } = await supabase.from("materiais").insert({
-        titulo: `📊 ${slidesData.titulo}`,
-        tipo: "ppt",
-        url: urlData.publicUrl,
-        materia: salaAtiva.materia,
-        vestibular: salaAtiva.vestibular,
-        topic: slidesTopico,
-        ativo: true,
-      }).select("id").single();
-      if (matErr) throw new Error("Material: " + matErr.message);
-
-      await supabase.from("sala_materiais").insert({ sala_id: salaAtiva.id, material_id: mat.id });
-      await carregarMateriaisDaSala(salaAtiva.id);
-
-      // 5. Também dispara download para o professor
-      const link = document.createElement("a");
-      link.href = URL.createObjectURL(pptxBlob);
-      link.download = `${slidesData.titulo}.pptx`;
-      link.click();
-
-      setMsgSlides({ tipo: "ok", texto: `✅ ${slidesData.slides.length} slides gerados e adicionados à sala!` });
-      setTimeout(() => { setModalSlides(false); setMsgSlides(null); setSlidesTopico(""); setSlidesSubtopicos(""); }, 3000);
-    } catch (e: any) {
-      setMsgSlides({ tipo: "erro", texto: "Erro: " + e.message });
-    }
-    setGerandoSlides(false);
   }
 
   async function carregarMateriaisDaSala(salaId: string) {
@@ -907,38 +807,6 @@ Gere 8-10 slides variados.`
       {/* ══════════════════════════════════════════════════════
           Modal Materiais — Opção B (painel ao vivo)
           ══════════════════════════════════════════════════════ */}
-      {modalSlides && salaAtiva && (
-        <>
-          <div onClick={() => setModalSlides(false)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", zIndex: 1000 }} />
-          <div style={{ position: "fixed", bottom: 0, left: 0, right: 0, zIndex: 1001, background: "#0f172a", borderRadius: "20px 20px 0 0", padding: 20, boxShadow: "0 -8px 40px rgba(0,0,0,0.4)" }}>
-            <div style={{ width: 40, height: 4, borderRadius: 2, background: "rgba(255,255,255,0.1)", margin: "0 auto 16px" }} />
-            <p style={{ fontSize: 16, fontWeight: 700, color: "#fff", margin: "0 0 4px" }}>🎯 Gerar Slides com IA</p>
-            <p style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", margin: "0 0 16px" }}>{salaAtiva.nome} · {salaAtiva.materia}</p>
-            {msgSlides && (
-              <div style={{ marginBottom: 12, padding: "8px 12px", borderRadius: 8, background: msgSlides.tipo === "ok" ? "rgba(78,206,154,0.15)" : "rgba(239,68,68,0.15)", color: msgSlides.tipo === "ok" ? "#4ece9a" : "#ef4444", fontSize: 12, fontWeight: 600 }}>
-                {msgSlides.texto}
-              </div>
-            )}
-            <p style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", margin: "0 0 6px" }}>Tópico principal *</p>
-            <input value={slidesTopico} onChange={e => setSlidesTopico(e.target.value)}
-              placeholder="Ex: Funções Orgânicas, Estequiometria, Cinética Química..."
-              style={{ width: "100%", padding: "10px 12px", borderRadius: 10, border: "1px solid rgba(255,255,255,0.1)", background: "rgba(255,255,255,0.06)", fontSize: 13, color: "#fff", boxSizing: "border-box" as const, marginBottom: 12, outline: "none" }} />
-            <p style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", margin: "0 0 6px" }}>Subtópicos (opcional)</p>
-            <input value={slidesSubtopicos} onChange={e => setSlidesSubtopicos(e.target.value)}
-              placeholder="Ex: nomenclatura, propriedades, reações..."
-              style={{ width: "100%", padding: "10px 12px", borderRadius: 10, border: "1px solid rgba(255,255,255,0.1)", background: "rgba(255,255,255,0.06)", fontSize: 13, color: "#fff", boxSizing: "border-box" as const, marginBottom: 20, outline: "none" }} />
-            <button onClick={gerarSlides} disabled={gerandoSlides || !slidesTopico.trim()}
-              style={{ width: "100%", padding: "13px 0", background: gerandoSlides || !slidesTopico.trim() ? "rgba(255,255,255,0.08)" : "linear-gradient(90deg,#f59e0b,#d97706)", color: gerandoSlides || !slidesTopico.trim() ? "rgba(255,255,255,0.3)" : "#fff", border: "none", borderRadius: 12, fontSize: 15, fontWeight: 700, cursor: "pointer", marginBottom: 10 }}>
-              {gerandoSlides ? "⏳ Gerando..." : "🎯 Gerar slides com IA"}
-            </button>
-            <button onClick={() => setModalSlides(false)}
-              style={{ width: "100%", padding: "12px 0", background: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.5)", border: "none", borderRadius: 12, fontSize: 14, cursor: "pointer" }}>
-              Cancelar
-            </button>
-          </div>
-        </>
-      )}
-
       {modalMateriais && salaAtiva && (
         <>
           <div onClick={() => setModalMateriais(false)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", zIndex: 1000 }} />

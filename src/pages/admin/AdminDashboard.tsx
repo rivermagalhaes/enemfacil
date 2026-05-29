@@ -988,7 +988,7 @@ export default function AdminDashboard() {
                   <div>
                     <p style={{ fontSize:10,color:CORES.sub,margin:"0 0 3px" }}>ROLE</p>
                     <select value={u.role||"aluno"} onChange={e=>alterarRole(u.id,e.target.value)} style={{ width:"100%",padding:"5px 8px",borderRadius:6,border:`1px solid ${CORES.border}`,fontSize:12 }}>
-                      {["aluno","professor","admin"].map(r=><option key={r}>{r}</option>)}
+                      {["student","professor","admin"].map(r=><option key={r}>{r}</option>)}
                     </select>
                   </div>
                 </div>

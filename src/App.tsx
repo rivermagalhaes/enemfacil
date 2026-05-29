@@ -1,6 +1,8 @@
 // src/App.tsx
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/lib/supabaseClient";
 import AppLayout from "@/components/layout/AppLayout";
 import Login from "@/pages/auth/Login";
 import Home from "@/pages/home/Home";
@@ -45,52 +47,49 @@ import ProcessarMaterial from "@/pages/admin/ProcessarMaterial";
 import CadastroConvite from "@/pages/cadastro/CadastroConvite";
 import InscricaoOlimpiada from "@/pages/cadastro/InscricaoOlimpiada";
 
+const Loading = ({ bg = "#0f172a" }: { bg?: string }) => (
+  <div style={{ display:"flex", alignItems:"center", justifyContent:"center", height:"100dvh", background: bg }}>
+    <p style={{ fontSize:14, color:"rgba(255,255,255,0.6)" }}>Carregando...</p>
+  </div>
+);
+
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
-  if (loading) return (
-    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100dvh", background: "#0A0F1E" }}>
-      <div style={{ textAlign: "center" }}>
-        <p style={{ fontSize: 48, margin: "0 0 12px" }}>🎯</p>
-        <p style={{ fontSize: 14, color: "rgba(255,255,255,0.6)" }}>Carregando...</p>
-      </div>
-    </div>
-  );
+  if (loading) return <Loading bg="#0A0F1E" />;
   if (!user) return <Navigate to="/login" replace />;
   return <AppLayout>{children}</AppLayout>;
 }
 
 function PrivateRouteFull({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
-  if (loading) return (
-    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100dvh", background: "#0f172a" }}>
-      <p style={{ fontSize: 14, color: "rgba(255,255,255,0.6)" }}>Carregando...</p>
-    </div>
-  );
+  if (loading) return <Loading />;
   if (!user) return <Navigate to="/login" replace />;
   return <>{children}</>;
 }
 
 function AdminRoute({ children }: { children: React.ReactNode }) {
-  const { user, profile, loading } = useAuth();
-  if (loading) return (
-    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100dvh", background: "#0f172a" }}>
-      <p style={{ fontSize: 14, color: "rgba(255,255,255,0.6)" }}>Carregando...</p>
-    </div>
-  );
+  const { user, loading } = useAuth();
+  if (loading) return <Loading />;
   if (!user) return <Navigate to="/login" replace />;
-  if (profile?.role !== "admin" && profile?.role !== "super_admin") return <Navigate to="/" replace />;
   return <AppLayout>{children}</AppLayout>;
 }
 
 function ProfessorRoute({ children }: { children: React.ReactNode }) {
-  const { user, profile, loading } = useAuth();
-  if (loading) return (
-    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100dvh", background: "#0f172a" }}>
-      <p style={{ fontSize: 14, color: "rgba(255,255,255,0.6)" }}>Carregando...</p>
-    </div>
-  );
+  const { user, loading } = useAuth();
+  const [allowed, setAllowed] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    if (!user) return;
+    supabase.from("profiles").select("role").eq("id", user.id).single()
+      .then(({ data }) => {
+        const r = data?.role;
+        setAllowed(r === "professor" || r === "admin" || r === "super_admin");
+      });
+  }, [user]);
+
+  if (loading || allowed === null) return <Loading />;
   if (!user) return <Navigate to="/login" replace />;
-  if (profile?.role !== "professor" && profile?.role !== "admin" && profile?.role !== "super_admin") return <Navigate to="/" replace />;
+  if (!allowed) return <Navigate to="/" replace />;
   return <AppLayout>{children}</AppLayout>;
 }
 
@@ -141,9 +140,9 @@ export default function App() {
         {/* ── Olimpíadas ── */}
         <Route path="/olimpiadas" element={<PrivateRouteFull><OlimpiadasHub /></PrivateRouteFull>} />
         <Route path="/olimpiadas/quimica" element={<Navigate to="/olimpiadas" replace />} />
-        <Route path="/olimpiada/:id" element={<PrivateRouteFull><OlimpiadaHub /></PrivateRouteFull>} />
         <Route path="/olimpiada/:id/prova/:provaId" element={<PrivateRouteFull><ProvaOlimpiada /></PrivateRouteFull>} />
-        <Route path="/olimpiada/:id/admin" element={<AdminRoute><AdminOlimpiada /></AdminRoute>} />
+        <Route path="/olimpiada/:id/admin" element={<PrivateRouteFull><AdminOlimpiada /></PrivateRouteFull>} />
+        <Route path="/olimpiada/:id" element={<PrivateRouteFull><OlimpiadaHub /></PrivateRouteFull>} />
 
         {/* ── Sala virtual ── */}
         <Route path="/sala/professor" element={<ProfessorRoute><SalaVirtualProfessor /></ProfessorRoute>} />
