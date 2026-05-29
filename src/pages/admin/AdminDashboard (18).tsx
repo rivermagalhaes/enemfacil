@@ -286,23 +286,10 @@ export default function AdminDashboard() {
         const r = new FileReader(); r.onload = () => res(r.result as string); r.onerror = rej; r.readAsText(file);
       });
       const parsed = JSON.parse(texto);
-      const rows: any[] = Array.isArray(parsed) ? parsed : parsed.questoes ?? [];
+      const rows = Array.isArray(parsed) ? parsed : parsed.questoes ?? [];
       if (rows.length === 0) throw new Error("Nenhuma questão encontrada no JSON");
-
-      // Filtra questões com figura
-      const temFigura = (q: any) => {
-        const txt = (q.enunciado || q.question || "").toLowerCase();
-        const figs = q.figuras || q.figures || q.contexto_visual || "";
-        return (/figura|imagem|gráfico|grafico|tabela|observe|veja|quadro|diagrama|esquema/.test(txt) &&
-                /abaixo|seguinte|ao lado|apresentad/.test(txt)) ||
-               (Array.isArray(figs) && figs.length > 0) ||
-               (typeof figs === "string" && figs.trim().length > 0);
-      };
-      const semFigura = rows.filter(r => !temFigura(r));
-      const ignoradas = rows.length - semFigura.length;
-
       let ok = 0, err = 0;
-      for (const row of semFigura) {
+      for (const row of rows) {
         const question    = row.enunciado || row.question || "";
         const answer_idx  = row.resposta_correta ?? row.answer_index ?? 0;
         const explanation = row.explicacao || row.explanation || "";
@@ -311,7 +298,7 @@ export default function AdminDashboard() {
         const difficulty  = row.dificuldade || row.difficulty || "medio";
         const vestibular  = row.vestibular || "ENEM";
         const ano         = row.ano ? Number(row.ano) : null;
-        const alternativas: any[] = row.alternativas || row.options?.map((t: string) => ({ texto: t })) || [];
+        const alternativas = row.alternativas || row.options?.map((t: string) => ({ texto: t })) || [];
         if (!question || alternativas.length < 2) { err++; continue; }
         const { data: q, error } = await supabase.from("questions").insert({
           question, explanation, answer_index: Number(answer_idx),
@@ -326,8 +313,7 @@ export default function AdminDashboard() {
         );
         ok++;
       }
-      const aviso = ignoradas > 0 ? ` · ⚠️ ${ignoradas} ignoradas (têm figura)` : "";
-      setMsg({ tipo: "ok", texto: `✅ ${ok} questões importadas${aviso}${err > 0 ? ` · ❌ ${err} com erro` : ""}` });
+      setMsg({ tipo: "ok", texto: `✅ ${ok} questões importadas${err > 0 ? `. ⚠️ ${err} com erro` : ""}` });
     } catch (ex: any) { setMsg({ tipo: "erro", texto: "Erro: " + ex.message }); }
     setImportandoJson(false);
     if (jsonRef.current) jsonRef.current.value = "";
