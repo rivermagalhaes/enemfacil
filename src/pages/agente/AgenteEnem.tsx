@@ -3,6 +3,7 @@ import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import BottomNav from "@/components/layout/BottomNav";
 import { CORES, AREAS } from "@/styles/theme";
+import { useApiUsage } from "@/hooks/useApiUsage";
 
 interface Mensagem {
   role: "user" | "assistant";
@@ -31,7 +32,7 @@ function identificarArea(texto: string): string {
   return "geral";
 }
 
-async function consultarIA(pergunta: string, historico: Mensagem[]): Promise<string> {
+async function consultarIA(pergunta: string, historico: Mensagem[]): Promise<{texto: string; tokens_in: number; tokens_out: number}> {
   const response = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -57,11 +58,16 @@ Idioma: Português brasileiro.`,
 
   if (!response.ok) throw new Error("Erro ao consultar IA");
   const data = await response.json();
-  return data.content?.[0]?.text ?? "Não foi possível obter uma resposta.";
+  return {
+    texto: data.content?.[0]?.text ?? "Não foi possível obter uma resposta.",
+    tokens_in: data.usage?.input_tokens ?? 0,
+    tokens_out: data.usage?.output_tokens ?? 0,
+  };
 }
 
 export default function AgenteEnem() {
   const navigate = useNavigate();
+  const { verificarLimite, registrarUso } = useApiUsage();
   const [mensagens, setMensagens] = useState<Mensagem[]>([{
     role: "assistant",
     content: "Olá! 👋 Sou seu professor particular para o ENEM!\n\nPosso te ajudar com qualquer matéria: Matemática, Português, História, Geografia, Física, Química, Biologia e muito mais.\n\nO que você quer aprender hoje?",
@@ -76,8 +82,18 @@ export default function AgenteEnem() {
   async function enviar(pergunta?: string) {
     const texto = (pergunta ?? input).trim();
     if (!texto || loading) return;
-    setInput(""); setLoading(true);
 
+    // Verifica limite antes de chamar a IA
+    const check = await verificarLimite("agente");
+    if (!check.pode) {
+      setMensagens(prev => [...prev, {
+        role: "assistant",
+        content: "⚠️ " + (check.motivo || "Limite de uso atingido. Faça upgrade do seu plano para continuar."),
+      }]);
+      return;
+    }
+
+    setInput(""); setLoading(true);
     const area = identificarArea(texto);
     setMensagens(prev => [...prev,
       { role: "user", content: texto },
@@ -85,10 +101,12 @@ export default function AgenteEnem() {
     ]);
 
     try {
-      const resposta = await consultarIA(texto, mensagens);
+      const { texto: resposta, tokens_in, tokens_out } = await consultarIA(texto, mensagens);
       setMensagens(prev => [...prev.slice(0, -1), {
         role: "assistant", content: resposta, area,
       }]);
+      // Registra uso
+      registrarUso("agente", tokens_in, tokens_out);
     } catch {
       setMensagens(prev => [...prev.slice(0, -1), {
         role: "assistant",
@@ -124,7 +142,6 @@ export default function AgenteEnem() {
       <div style={{ flex: 1, overflowY: "auto", padding: "14px 14px 8px", display: "flex", flexDirection: "column", gap: 12 }}>
         {mensagens.map((msg, idx) => (
           <div key={idx} style={{ display: "flex", flexDirection: "column", alignItems: msg.role === "user" ? "flex-end" : "flex-start", gap: 4 }}>
-
             {msg.role === "assistant" && msg.area && msg.area !== "geral" && (() => {
               const area = areaConfig(msg.area);
               return area ? (
@@ -133,7 +150,6 @@ export default function AgenteEnem() {
                 </span>
               ) : null;
             })()}
-
             <div style={{
               maxWidth: "85%", padding: "10px 14px",
               borderRadius: msg.role === "user" ? "16px 16px 4px 16px" : "16px 16px 16px 4px",
@@ -156,7 +172,6 @@ export default function AgenteEnem() {
           </div>
         ))}
 
-        {/* Sugestões iniciais */}
         {mensagens.length === 1 && (
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
             <p style={{ fontSize: 11, color: CORES.textSub, margin: "8px 0 4px", textAlign: "center" }}>Perguntas frequentes</p>
@@ -172,7 +187,6 @@ export default function AgenteEnem() {
             ))}
           </div>
         )}
-
         <div ref={bottomRef} />
       </div>
 

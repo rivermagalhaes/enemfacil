@@ -201,7 +201,7 @@ export default function AdminDashboard() {
   }
 
   const total = usuarios.length;
-  const assinantes = usuarios.filter(u => u.plano && u.plano !== "gratis").length;
+  const assinantes = usuarios.filter(u => u.plano && !["gratis","free","estudante","student",""].includes(u.plano)).length;
   const ativos = usuarios.filter(u => u.xp_total > 0).length;
   const xpTotal = usuarios.reduce((acc, u) => acc + (u.xp_total ?? 0), 0);
   const xpMedio = total ? Math.floor(xpTotal / total) : 0;

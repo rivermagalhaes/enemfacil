@@ -217,98 +217,41 @@ export default function SimuladoAluno() {
   if (finalizado && resultado) {
     const pct = Math.round((resultado.acertos / resultado.total) * 100);
     const emoji = pct >= 70 ? "🏆" : pct >= 50 ? "👍" : "📚";
-    const LETRAS = ["A","B","C","D","E"];
     return (
-      <div style={{ minHeight: "100dvh", background: "#0a0f1e", fontFamily: "system-ui, sans-serif" }}>
-        {/* Header resultado */}
-        <div style={{ background: "linear-gradient(135deg,#065C37,#0A7C4B)", padding: "20px 20px 28px", textAlign: "center" }}>
-          <p style={{ fontSize: 52, margin: "0 0 8px" }}>{emoji}</p>
-          <p style={{ fontSize: 22, fontWeight: 800, color: "#fff", margin: "0 0 4px" }}>Simulado concluído!</p>
-          <p style={{ fontSize: 14, color: "rgba(255,255,255,0.7)", margin: "0 0 16px" }}>{simuladoAtivo?.titulo}</p>
-          {/* Stats */}
-          <div style={{ display: "flex", gap: 10, justifyContent: "center" }}>
-            <div style={{ background: "rgba(255,255,255,0.15)", borderRadius: 14, padding: "12px 20px", textAlign: "center" }}>
-              <p style={{ fontSize: 32, fontWeight: 900, color: pct >= 70 ? "#4ece9a" : pct >= 50 ? "#fbbf24" : "#ef4444", margin: "0 0 2px" }}>{pct}%</p>
-              <p style={{ fontSize: 11, color: "rgba(255,255,255,0.6)", margin: 0 }}>Nota</p>
-            </div>
-            <div style={{ background: "rgba(255,255,255,0.15)", borderRadius: 14, padding: "12px 20px", textAlign: "center" }}>
-              <p style={{ fontSize: 32, fontWeight: 900, color: "#4ece9a", margin: "0 0 2px" }}>{resultado.acertos}</p>
-              <p style={{ fontSize: 11, color: "rgba(255,255,255,0.6)", margin: 0 }}>Acertos</p>
-            </div>
-            <div style={{ background: "rgba(255,255,255,0.15)", borderRadius: 14, padding: "12px 20px", textAlign: "center" }}>
-              <p style={{ fontSize: 32, fontWeight: 900, color: "#ef4444", margin: "0 0 2px" }}>{resultado.total - resultado.acertos}</p>
-              <p style={{ fontSize: 11, color: "rgba(255,255,255,0.6)", margin: 0 }}>Erros</p>
-            </div>
+      <div style={{ minHeight: "100dvh", background: "#0a0f1e", fontFamily: "system-ui, sans-serif", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 24 }}>
+        <div style={{ textAlign: "center", maxWidth: 360, width: "100%" }}>
+          <p style={{ fontSize: 64, margin: "0 0 16px" }}>{emoji}</p>
+          <p style={{ fontSize: 24, fontWeight: 800, color: "#fff", margin: "0 0 8px" }}>Simulado concluído!</p>
+          <div style={{ background: "rgba(255,255,255,0.05)", borderRadius: 20, padding: 24, marginBottom: 20 }}>
+            <p style={{ fontSize: 56, fontWeight: 900, color: pct >= 70 ? "#4ece9a" : pct >= 50 ? "#f59e0b" : "#ef4444", margin: "0 0 4px" }}>{pct}%</p>
+            <p style={{ fontSize: 16, color: "rgba(255,255,255,0.6)", margin: 0 }}>{resultado.acertos} de {resultado.total} acertos</p>
           </div>
-        </div>
 
-        {/* Revisão questão a questão */}
-        <div style={{ padding: "16px 16px 100px" }}>
-          <p style={{ fontSize: 12, fontWeight: 700, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: "0.08em", margin: "0 0 12px" }}>
-            📋 Revisão completa
-          </p>
-          {questoes.map((q, i) => {
-            const resp = respostas[q.id] ?? -1;
-            const acertou = resp === q.answer_index;
-            return (
-              <div key={q.id} style={{ background: "rgba(255,255,255,0.04)", borderRadius: 14, padding: 14, marginBottom: 12, border: `1px solid ${acertou ? "rgba(78,206,154,0.2)" : "rgba(239,68,68,0.2)"}` }}>
-                {/* Cabeçalho */}
-                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
-                  <div style={{ width: 28, height: 28, borderRadius: "50%", background: acertou ? "rgba(78,206,154,0.2)" : "rgba(239,68,68,0.2)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, flexShrink: 0 }}>
-                    {acertou ? "✅" : "❌"}
+          {/* Gabarito */}
+          <div style={{ background: "rgba(255,255,255,0.03)", borderRadius: 16, padding: 16, marginBottom: 20, textAlign: "left" }}>
+            <p style={{ fontSize: 12, fontWeight: 700, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", margin: "0 0 12px" }}>Gabarito</p>
+            {questoes.map((q, i) => {
+              const resp = respostas[q.id] ?? -1;
+              const correta = resp === q.answer_index;
+              return (
+                <div key={q.id} style={{ marginBottom: 12, paddingBottom: 12, borderBottom: i < questoes.length - 1 ? "1px solid rgba(255,255,255,0.05)" : "none" }}>
+                  <div style={{ display: "flex", gap: 8, alignItems: "flex-start" }}>
+                    <span style={{ fontSize: 14, minWidth: 20 }}>{correta ? "✅" : "❌"}</span>
+                    <p style={{ fontSize: 12, color: "rgba(255,255,255,0.7)", margin: 0 }}>{i + 1}. {q.question.slice(0, 80)}{q.question.length > 80 ? "..." : ""}</p>
                   </div>
-                  <p style={{ fontSize: 11, fontWeight: 700, color: acertou ? "#4ece9a" : "#ef4444", margin: 0 }}>
-                    Questão {i + 1} — {acertou ? "Correta" : "Incorreta"}
-                  </p>
-                  {q.topic && <span style={{ fontSize: 9, color: "#64748b", background: "rgba(255,255,255,0.06)", borderRadius: 99, padding: "2px 8px", marginLeft: "auto" }}>{q.topic}</span>}
+                  {!correta && (
+                    <p style={{ fontSize: 11, color: "#4ece9a", margin: "4px 0 0 28px" }}>
+                      Correta: {String.fromCharCode(65 + q.answer_index)}) {q.options[q.answer_index]}
+                    </p>
+                  )}
                 </div>
+              );
+            })}
+          </div>
 
-                {/* Enunciado */}
-                <p style={{ fontSize: 13, color: "#e2e8f0", lineHeight: 1.6, margin: "0 0 12px" }}>{q.question}</p>
-
-                {/* Alternativas */}
-                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                  {q.options.map((opt, idx) => {
-                    const isCorreta = idx === q.answer_index;
-                    const isSelecionada = idx === resp;
-                    const isErrada = isSelecionada && !isCorreta;
-                    let bg = "rgba(255,255,255,0.04)";
-                    let border = "1px solid rgba(255,255,255,0.08)";
-                    let cor = "rgba(255,255,255,0.5)";
-                    let corLetra = "#64748b";
-                    let bgLetra = "rgba(255,255,255,0.08)";
-                    if (isCorreta) { bg = "rgba(78,206,154,0.12)"; border = "1px solid rgba(78,206,154,0.4)"; cor = "#4ece9a"; corLetra = "#fff"; bgLetra = "#0A7C4B"; }
-                    if (isErrada)  { bg = "rgba(239,68,68,0.12)";  border = "1px solid rgba(239,68,68,0.4)";  cor = "#ef4444"; corLetra = "#fff"; bgLetra = "#ef4444"; }
-                    return (
-                      <div key={idx} style={{ display: "flex", alignItems: "flex-start", gap: 10, padding: "9px 12px", borderRadius: 10, background: bg, border }}>
-                        <div style={{ width: 22, height: 22, borderRadius: "50%", background: bgLetra, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 800, color: corLetra, flexShrink: 0, marginTop: 1 }}>
-                          {LETRAS[idx]}
-                        </div>
-                        <span style={{ fontSize: 12, color: cor, lineHeight: 1.5 }}>{opt}</span>
-                        {isCorreta && <span style={{ marginLeft: "auto", fontSize: 12, flexShrink: 0 }}>✓</span>}
-                        {isErrada  && <span style={{ marginLeft: "auto", fontSize: 12, flexShrink: 0 }}>✗</span>}
-                      </div>
-                    );
-                  })}
-                </div>
-
-                {/* Explicação */}
-                {q.explanation && (
-                  <div style={{ marginTop: 10, background: "rgba(14,165,233,0.08)", borderRadius: 10, padding: "10px 12px", border: "1px solid rgba(14,165,233,0.2)" }}>
-                    <p style={{ fontSize: 10, fontWeight: 700, color: "#0ea5e9", margin: "0 0 4px", textTransform: "uppercase", letterSpacing: "0.05em" }}>💡 Explicação</p>
-                    <p style={{ fontSize: 12, color: "#93c5fd", margin: 0, lineHeight: 1.6 }}>{q.explanation}</p>
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-
-        {/* Botão fixo */}
-        <div style={{ position: "fixed", bottom: 0, left: 0, right: 0, padding: "12px 20px 28px", background: "rgba(10,15,30,0.95)", backdropFilter: "blur(10px)", borderTop: "1px solid rgba(255,255,255,0.06)" }}>
           <button onClick={() => { setSimuladoAtivo(null); setIniciado(false); setFinalizado(false); }}
             style={{ width: "100%", padding: "14px 0", background: "linear-gradient(90deg,#065C37,#0A7C4B)", color: "#fff", border: "none", borderRadius: 12, fontSize: 15, fontWeight: 700, cursor: "pointer" }}>
-            ← Voltar aos simulados
+            Voltar às salas
           </button>
         </div>
       </div>

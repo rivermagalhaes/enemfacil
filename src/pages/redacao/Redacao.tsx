@@ -1,5 +1,6 @@
 // src/pages/redacao/Redacao.tsx
 import { useState } from "react";
+import { useApiUsage } from "@/hooks/useApiUsage";
 import { useNavigate } from "react-router-dom";
 import BottomNav from "@/components/layout/BottomNav";
 import { CORES } from "@/styles/theme";
@@ -184,7 +185,7 @@ const TEMAS: Tema[] = [
 ];
 
 
-async function corrigirRedacao(tema: Tema, texto: string): Promise<Correcao> {
+async function corrigirRedacao(tema: Tema, texto: string): Promise<{correcao: Correcao; tokens_in: number; tokens_out: number}> {
   const response = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -223,11 +224,16 @@ Responda APENAS em JSON válido, sem markdown, sem texto adicional:
   if (!response.ok) throw new Error("Erro ao corrigir redação");
   const data = await response.json();
   const texto_resposta = data.content?.[0]?.text ?? "{}";
-  return JSON.parse(texto_resposta.replace(/```json|```/g, "").trim());
+  return {
+    correcao: JSON.parse(texto_resposta.replace(/```json|```/g, "").trim()),
+    tokens_in: data.usage?.input_tokens ?? 0,
+    tokens_out: data.usage?.output_tokens ?? 0,
+  };
 }
 
 export default function Redacao() {
   const navigate = useNavigate();
+  const { verificarLimite, registrarUso } = useApiUsage();
   const [etapa, setEtapa] = useState<"temas" | "dicas" | "editor" | "correcao">("temas");
   const [temaSelecionado, setTemaSelecionado] = useState<Tema | null>(null);
   const [texto, setTexto] = useState("");
@@ -243,10 +249,17 @@ export default function Redacao() {
       setErro("Escreva pelo menos 100 caracteres antes de corrigir.");
       return;
     }
+    // Verifica limite antes de chamar IA
+    const check = await verificarLimite("redacao");
+    if (!check.pode) {
+      setErro("⚠️ " + (check.motivo || "Limite de correções atingido. Faça upgrade do seu plano."));
+      return;
+    }
     setCorrigindo(true);
     setErro(null);
     try {
-      const resultado = await corrigirRedacao(temaSelecionado, texto);
+      const { correcao: resultado, tokens_in, tokens_out } = await corrigirRedacao(temaSelecionado, texto);
+      registrarUso("redacao", tokens_in, tokens_out);
       setCorrecao(resultado);
       setEtapa("correcao");
     } catch {
