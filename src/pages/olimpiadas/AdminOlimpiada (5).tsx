@@ -38,7 +38,6 @@ export default function AdminOlimpiada() {
   // Importação de questões via PDF
   const pdfQuestoesRef = useRef<HTMLInputElement>(null);
   const [importandoQuestoes, setImportandoQuestoes] = useState(false);
-  const [modoImport, setModoImport] = useState<"objetiva"|"converter">("objetiva");
   const [questoesImportadas, setQuestoesImportadas] = useState<any[]>([]);
   const [msgImport, setMsgImport] = useState<{tipo:"ok"|"erro";texto:string}|null>(null);
 
@@ -166,7 +165,7 @@ export default function AdminOlimpiada() {
     const file = e.target.files?.[0];
     if (!file || !prova) return;
     setImportandoQuestoes(true);
-    setMsgImport({ tipo:"ok", texto:"⏳ Extraindo questões do PDF..." });
+    setMsgImport({ tipo:"ok", texto:"⏳ Extraindo questões do PDF com IA..." });
     try {
       const base64Data = await new Promise<string>((res,rej) => {
         const r = new FileReader();
@@ -175,72 +174,56 @@ export default function AdminOlimpiada() {
         r.readAsDataURL(file);
       });
 
-      const { data: { session } } = await supabase.auth.getSession();
-      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-      const headers = { "Content-Type": "application/json", "Authorization": `Bearer ${session?.access_token}` };
-
-      // 1. Extrai questões do PDF
-      const r1 = await fetch(`${supabaseUrl}/functions/v1/extrair-questoes-pdf`, {
-        method: "POST", headers,
-        body: JSON.stringify({ base64Data, mimeType: file.type || "application/pdf" })
+      const response = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: "claude-sonnet-4-20250514",
+          max_tokens: 4000,
+          system: `Você é um especialista em extrair questões de provas em PDF.
+Extraia TODAS as questões de múltipla escolha do documento fornecido.
+Retorne SOMENTE JSON válido, sem markdown:
+{
+  "questoes": [
+    {
+      "enunciado": "texto completo da questão",
+      "alternativas": [
+        {"texto": "texto da alternativa A"},
+        {"texto": "texto da alternativa B"},
+        {"texto": "texto da alternativa C"},
+        {"texto": "texto da alternativa D"},
+        {"texto": "texto da alternativa E"}
+      ],
+      "resposta_correta": 0,
+      "assunto": "tópico da questão",
+      "dificuldade": "facil|medio|dificil|olimpico",
+      "explicacao": "explicação da resposta correta (se disponível)"
+    }
+  ]
+}
+Se não encontrar o gabarito, use resposta_correta: 0 e mencione na explicação.`,
+          messages: [{
+            role: "user",
+            content: [{
+              type: "document",
+              source: { type: "base64", media_type: file.type || "application/pdf", data: base64Data }
+            }, {
+              type: "text",
+              text: `Extraia todas as questões de múltipla escolha desta prova de ${id.toUpperCase()}. Identifique enunciados, alternativas (A-E) e gabarito quando disponível.`
+            }]
+          }]
+        })
       });
-      const d1 = await r1.json();
-      if (!r1.ok || d1.error) throw new Error(d1.error || "Erro ao extrair PDF");
-      let qs = (d1.questoes ?? []).filter((q: any) => q.options?.length >= 2);
 
-      // 2. Se modo converter OU se tem discursivas, converte para objetivas
-      const discursivas = qs.filter((q: any) => q.tipo_original === "discursiva" || !q.options?.length);
-      if (modoImport === "converter" || discursivas.length > 0) {
-        const toConvert = modoImport === "converter" ? qs : discursivas;
-        setMsgImport({ tipo:"ok", texto:`⏳ Convertendo ${toConvert.length} questões discursivas...` });
-        const r2 = await fetch(`${supabaseUrl}/functions/v1/converter-questoes-objetivas`, {
-          method: "POST", headers,
-          body: JSON.stringify({
-            questoes: toConvert.map((q: any) => ({
-              question: q.question,
-              area: q.area || "ciencias_natureza",
-              difficulty: q.difficulty || "medio",
-              topic: q.topic || "",
-            }))
-          })
-        });
-        const d2 = await r2.json();
-        if (!r2.ok || d2.error) throw new Error(d2.error || "Erro ao converter");
-        const resultados = d2.resultados ?? [];
-        if (modoImport === "converter") {
-          // Substitui tudo
-          qs = qs.map((q: any, i: number) => ({
-            ...q, ...resultados[i],
-            options: resultados[i]?.options ?? q.options,
-            answer_index: resultados[i]?.answer_index ?? q.answer_index ?? 0,
-            explanation: resultados[i]?.explanation ?? q.explanation ?? "",
-          }));
-        } else {
-          // Só atualiza as discursivas
-          let idx = 0;
-          qs = qs.map((q: any) => {
-            if (q.tipo_original === "discursiva") {
-              const r = resultados[idx++];
-              return { ...q, options: r?.options ?? q.options, answer_index: r?.answer_index ?? 0, explanation: r?.explanation ?? "" };
-            }
-            return q;
-          });
-        }
-      }
+      const data = await response.json();
+      const raw = data.content?.[0]?.text ?? "{}";
+      const parsed = JSON.parse(raw.replace(/\`\`\`json|\`\`\`/g, "").trim());
+      const qs = parsed.questoes ?? [];
 
       if (qs.length === 0) throw new Error("Nenhuma questão encontrada no PDF");
 
-      // Normaliza para o formato interno
-      const normalizadas = qs.map((q: any) => ({
-        enunciado: q.question,
-        alternativas: (q.options ?? []).map((t: string) => ({ texto: t })),
-        resposta_correta: q.answer_index ?? 0,
-        assunto: q.topic ?? "",
-        dificuldade: q.difficulty ?? "medio",
-        explicacao: q.explanation ?? "",
-      }));
-      setQuestoesImportadas(normalizadas);
-      setMsgImport({ tipo:"ok", texto:`✅ ${normalizadas.length} questões prontas! Revise o gabarito antes de salvar.` });
+      setQuestoesImportadas(qs);
+      setMsgImport({ tipo:"ok", texto:`✅ ${qs.length} questões encontradas! Revise e confirme o gabarito antes de salvar.` });
     } catch(e:any) {
       setMsgImport({ tipo:"erro", texto:"Erro: " + e.message });
     }
@@ -435,22 +418,6 @@ export default function AdminOlimpiada() {
               </div>
             </div>
             <input ref={pdfQuestoesRef} type="file" accept=".pdf" onChange={importarPdfQuestoes} style={{ display:"none" }} />
-
-            {/* Seletor de modo de importação */}
-            <div style={{ display:"flex", gap:6, marginBottom:10 }}>
-              {([
-                { id:"objetiva", label:"📋 Extrair objetivas", desc:"Questões já em múltipla escolha" },
-                { id:"converter", label:"✨ Converter discursivas", desc:"Transforma em objetivas com IA" },
-              ] as const).map(m => (
-                <button key={m.id} onClick={() => setModoImport(m.id)}
-                  style={{ flex:1, padding:"8px 10px", borderRadius:10, border:"none", cursor:"pointer", textAlign:"left",
-                    background: modoImport === m.id ? (m.id === "converter" ? "#F3F0FF" : "#eef2ff") : "#f8fafc",
-                    outline: modoImport === m.id ? `2px solid ${m.id === "converter" ? "#6D28D9" : "#1a3a6e"}` : "none" }}>
-                  <p style={{ fontSize:11, fontWeight:700, color: modoImport === m.id ? (m.id === "converter" ? "#4C1D95" : "#1a3a6e") : "#64748b", margin:"0 0 2px" }}>{m.label}</p>
-                  <p style={{ fontSize:10, color:"#94a3b8", margin:0 }}>{m.desc}</p>
-                </button>
-              ))}
-            </div>
 
             {/* Mensagem de importação */}
             {msgImport && (
