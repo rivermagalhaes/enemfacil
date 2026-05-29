@@ -119,6 +119,8 @@ export default function ProfessorDashboard() {
   const [pdfModuleId, setPdfModuleId] = useState<string|null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const excelRef = useRef<HTMLInputElement>(null);
+  const jsonRef2 = useRef<HTMLInputElement>(null);
+  const [importandoJson2, setImportandoJson2] = useState(false);
   const [form, setForm] = useState({ titulo:"", descricao:"", tipo:"pdf", vestibular:"ENEM", materia:"", topic:"" });
 
   useEffect(() => {
@@ -354,6 +356,43 @@ export default function ProfessorDashboard() {
     if (ok > 0) setQuestoesExtraidas([]);
     carregarQuestoes();
     setSalvandoExtraidas(false);
+  }
+
+  async function importarJsonProfessor(e: React.ChangeEvent<HTMLInputElement>) {
+    if (!e.target.files?.[0]) return;
+    const file = e.target.files[0];
+    setImportandoJson2(true);
+    try {
+      const texto = await new Promise<string>((res, rej) => {
+        const r = new FileReader(); r.onload = () => res(r.result as string); r.onerror = rej; r.readAsText(file);
+      });
+      const parsed = JSON.parse(texto);
+      const rows = Array.isArray(parsed) ? parsed : parsed.questoes ?? [];
+      if (rows.length === 0) throw new Error("Nenhuma questão encontrada");
+      let ok = 0, err = 0;
+      for (const row of rows) {
+        const question = row.enunciado || row.question || "";
+        const answer_idx = row.resposta_correta ?? row.answer_index ?? 0;
+        const alternativas = row.alternativas || row.options?.map((t: string) => ({ texto: t })) || [];
+        if (!question || alternativas.length < 2) { err++; continue; }
+        const { data: q, error } = await supabase.from("questions").insert({
+          question, explanation: row.explicacao || row.explanation || "",
+          answer_index: Number(answer_idx), vestibular: row.vestibular || "ENEM",
+          topic: row.assunto || row.topic || null, area: row.area || null,
+          difficulty: row.dificuldade || row.difficulty || "medio",
+          ano: row.ano ? Number(row.ano) : null,
+        }).select("id").single();
+        if (error || !q) { err++; continue; }
+        await supabase.from("question_options").insert(
+          alternativas.map((a: any, i: number) => ({ question_id: q.id, option_index: i, label: typeof a === "string" ? a : a.texto || a.label || "" }))
+        );
+        ok++;
+      }
+      setMsg({ tipo: "ok", texto: `✅ ${ok} questões importadas${err > 0 ? `. ⚠️ ${err} com erro` : ""}` });
+    } catch (ex: any) { setMsg({ tipo: "erro", texto: "Erro: " + ex.message }); }
+    setImportandoJson2(false);
+    if (jsonRef2.current) jsonRef2.current.value = "";
+    setTimeout(() => setMsg(null), 6000);
   }
 
   async function importarExcel(e: React.ChangeEvent<HTMLInputElement>) {
@@ -1820,8 +1859,12 @@ export default function ProfessorDashboard() {
                   📥 Baixar template Excel
                 </a>
                 <input ref={excelRef} type="file" accept=".xlsx,.xls" onChange={importarExcel} style={{ display:"none" }} />
+                <input ref={jsonRef2} type="file" accept=".json" onChange={importarJsonProfessor} style={{ display:"none" }} />
                 <button onClick={()=>excelRef.current?.click()} disabled={importando} style={{ padding:"11px 0",background:importando?"#e2e8f0":"#0A7C4B",color:importando?CORES.sub:"#fff",border:"none",borderRadius:10,fontSize:13,fontWeight:600,cursor:importando?"not-allowed":"pointer" }}>
                   {importando ? "⏳ Importando..." : "📤 Selecionar Excel e importar"}
+                </button>
+                <button onClick={()=>jsonRef2.current?.click()} disabled={importandoJson2} style={{ padding:"11px 0",background:importandoJson2?"#e2e8f0":"#1a3a6e",color:importandoJson2?CORES.sub:"#fff",border:"none",borderRadius:10,fontSize:13,fontWeight:600,cursor:importandoJson2?"not-allowed":"pointer" }}>
+                  {importandoJson2 ? "⏳ Importando..." : "📥 Selecionar JSON e importar"}
                 </button>
               </div>
             </div>

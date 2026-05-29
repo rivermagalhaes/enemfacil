@@ -76,8 +76,6 @@ export default function AdminDashboard() {
   const [msg, setMsg] = useState<{ tipo: "ok" | "erro"; texto: string } | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const excelRef = useRef<HTMLInputElement>(null);
-  const jsonRef = useRef<HTMLInputElement>(null);
-  const [importandoJson, setImportandoJson] = useState(false);
   const [form, setForm] = useState({ titulo: "", descricao: "", tipo: "pdf", vestibular: "ENEM", materia: "", topic: "" });
   const [filtroVestibular, setFiltroVestibular] = useState("TODOS");
 
@@ -274,49 +272,6 @@ export default function AdminDashboard() {
       setMsg({ tipo: "ok", texto: `✅ ${ok} questões importadas${err > 0 ? `. ⚠️ ${err} com erro` : ""}` });
     } catch (ex: any) { setMsg({ tipo: "erro", texto: "Erro: " + ex.message }); }
     setImportando(false);
-    setTimeout(() => setMsg(null), 6000);
-  }
-
-  async function importarJson(e: React.ChangeEvent<HTMLInputElement>) {
-    if (!e.target.files?.[0]) return;
-    const file = e.target.files[0];
-    setImportandoJson(true);
-    try {
-      const texto = await new Promise<string>((res, rej) => {
-        const r = new FileReader(); r.onload = () => res(r.result as string); r.onerror = rej; r.readAsText(file);
-      });
-      const parsed = JSON.parse(texto);
-      const rows = Array.isArray(parsed) ? parsed : parsed.questoes ?? [];
-      if (rows.length === 0) throw new Error("Nenhuma questão encontrada no JSON");
-      let ok = 0, err = 0;
-      for (const row of rows) {
-        const question    = row.enunciado || row.question || "";
-        const answer_idx  = row.resposta_correta ?? row.answer_index ?? 0;
-        const explanation = row.explicacao || row.explanation || "";
-        const topic       = row.assunto || row.topic || null;
-        const area        = row.area || null;
-        const difficulty  = row.dificuldade || row.difficulty || "medio";
-        const vestibular  = row.vestibular || "ENEM";
-        const ano         = row.ano ? Number(row.ano) : null;
-        const alternativas = row.alternativas || row.options?.map((t: string) => ({ texto: t })) || [];
-        if (!question || alternativas.length < 2) { err++; continue; }
-        const { data: q, error } = await supabase.from("questions").insert({
-          question, explanation, answer_index: Number(answer_idx),
-          vestibular, topic, area, difficulty, ano,
-        }).select("id").single();
-        if (error || !q) { err++; continue; }
-        await supabase.from("question_options").insert(
-          alternativas.map((a: any, i: number) => ({
-            question_id: q.id, option_index: i,
-            label: typeof a === "string" ? a : a.texto || a.label || "",
-          }))
-        );
-        ok++;
-      }
-      setMsg({ tipo: "ok", texto: `✅ ${ok} questões importadas${err > 0 ? `. ⚠️ ${err} com erro` : ""}` });
-    } catch (ex: any) { setMsg({ tipo: "erro", texto: "Erro: " + ex.message }); }
-    setImportandoJson(false);
-    if (jsonRef.current) jsonRef.current.value = "";
     setTimeout(() => setMsg(null), 6000);
   }
 
@@ -992,12 +947,8 @@ export default function AdminDashboard() {
                   📥 Baixar template Excel
                 </a>
                 <input ref={excelRef} type="file" accept=".xlsx,.xls" onChange={importarExcel} style={{ display:"none" }} />
-                <input ref={jsonRef} type="file" accept=".json" onChange={importarJson} style={{ display:"none" }} />
                 <button onClick={()=>excelRef.current?.click()} disabled={importando} style={{ padding:"11px 0",background:importando?"#e2e8f0":CORES.primary,color:importando?CORES.sub:"#fff",border:"none",borderRadius:10,fontSize:13,fontWeight:600,cursor:importando?"not-allowed":"pointer" }}>
                   {importando ? "⏳ Importando..." : "📤 Selecionar Excel e importar"}
-                </button>
-                <button onClick={()=>jsonRef.current?.click()} disabled={importandoJson} style={{ padding:"11px 0",background:importandoJson?"#e2e8f0":"#065C37",color:importandoJson?CORES.sub:"#fff",border:"none",borderRadius:10,fontSize:13,fontWeight:600,cursor:importandoJson?"not-allowed":"pointer" }}>
-                  {importandoJson ? "⏳ Importando..." : "📥 Selecionar JSON e importar"}
                 </button>
               </div>
             </div>

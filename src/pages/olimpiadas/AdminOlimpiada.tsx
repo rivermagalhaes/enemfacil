@@ -37,6 +37,7 @@ export default function AdminOlimpiada() {
 
   // Importação de questões via PDF
   const pdfQuestoesRef = useRef<HTMLInputElement>(null);
+  const jsonQuestoesRef = useRef<HTMLInputElement>(null);
   const [importandoQuestoes, setImportandoQuestoes] = useState(false);
   const [modoImport, setModoImport] = useState<"objetiva"|"converter">("objetiva");
   const [questoesImportadas, setQuestoesImportadas] = useState<any[]>([]);
@@ -160,6 +161,42 @@ export default function AdminOlimpiada() {
     } catch(e:any) { setMsgConteudo({ tipo:"erro", texto:"Erro: "+e.message }); }
     setImportandoConteudo(false);
     if (pdfConteudoRef.current) pdfConteudoRef.current.value="";
+  }
+
+  async function importarJsonQuestoes(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file || !prova) return;
+    setMsgImport({ tipo:"ok", texto:"⏳ Lendo arquivo JSON..." });
+    try {
+      const texto = await new Promise<string>((res, rej) => {
+        const r = new FileReader();
+        r.onload = () => res(r.result as string);
+        r.onerror = rej;
+        r.readAsText(file);
+      });
+      const parsed = JSON.parse(texto);
+      const qs = Array.isArray(parsed) ? parsed : parsed.questoes ?? [];
+      if (qs.length === 0) throw new Error("Nenhuma questão encontrada no JSON");
+
+      // Normaliza — aceita tanto o formato interno quanto o formato da IA
+      const normalizadas = qs.map((q: any) => ({
+        enunciado: q.enunciado || q.question || "",
+        alternativas: q.alternativas
+          ? q.alternativas
+          : (q.options ?? []).map((t: string) => ({ texto: t })),
+        resposta_correta: q.resposta_correta ?? q.answer_index ?? 0,
+        assunto: q.assunto || q.topic || "",
+        dificuldade: q.dificuldade || q.difficulty || "medio",
+        explicacao: q.explicacao || q.explanation || "",
+      })).filter((q: any) => q.enunciado && q.alternativas?.length >= 2);
+
+      if (normalizadas.length === 0) throw new Error("Formato inválido. Verifique o JSON.");
+      setQuestoesImportadas(normalizadas);
+      setMsgImport({ tipo:"ok", texto:`✅ ${normalizadas.length} questões carregadas! Revise o gabarito antes de salvar.` });
+    } catch(e: any) {
+      setMsgImport({ tipo:"erro", texto:"Erro: " + e.message });
+    }
+    if (jsonQuestoesRef.current) jsonQuestoesRef.current.value = "";
   }
 
   async function importarPdfQuestoes(e: React.ChangeEvent<HTMLInputElement>) {
@@ -424,6 +461,10 @@ export default function AdminOlimpiada() {
             <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
               <p style={{ fontSize:13, fontWeight:700, margin:0 }}>{questoes.length} / {prova?.total_questoes ?? 30} questões</p>
               <div style={{ display:"flex", gap:6 }}>
+                <button onClick={() => jsonQuestoesRef.current?.click()}
+                  style={{ padding:"7px 12px", background:"linear-gradient(135deg,#065C37,#0A7C4B)", color:"#fff", border:"none", borderRadius:8, fontSize:11, fontWeight:600, cursor:"pointer" }}>
+                  📥 Importar JSON
+                </button>
                 <button onClick={() => pdfQuestoesRef.current?.click()} disabled={importandoQuestoes}
                   style={{ padding:"7px 12px", background:"linear-gradient(135deg,#6D28D9,#4C1D95)", color:"#fff", border:"none", borderRadius:8, fontSize:11, fontWeight:600, cursor:"pointer" }}>
                   {importandoQuestoes ? "⏳..." : "📄 Importar PDF"}
@@ -434,6 +475,7 @@ export default function AdminOlimpiada() {
                 </button>
               </div>
             </div>
+            <input ref={jsonQuestoesRef} type="file" accept=".json" onChange={importarJsonQuestoes} style={{ display:"none" }} />
             <input ref={pdfQuestoesRef} type="file" accept=".pdf" onChange={importarPdfQuestoes} style={{ display:"none" }} />
 
             {/* Seletor de modo de importação */}
