@@ -201,7 +201,7 @@ export default function SalaVirtual() {
     const { data } = await supabase
       .from("materiais")
       .select("id, titulo, tipo, url, materia, topic")
-      .or(`materia.ilike.%${s.materia}%,vestibular.eq.${s.vestibular}`)
+      .ilike("materia", `%${s.materia}%`)
       .order("criado_em", { ascending: false })
       .limit(10);
     setMateriais(data ?? []);
@@ -352,10 +352,10 @@ export default function SalaVirtual() {
           </p>
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {materiais.map(m => (
-              <a key={m.id} href={m.url} target="_blank" rel="noreferrer"
+              <a key={m.id} href={m.tipo === "pdf" || m.tipo === "ppt" ? `https://docs.google.com/viewer?url=${encodeURIComponent(m.url)}&embedded=false` : m.url} target="_blank" rel="noreferrer"
                 style={{ display: "flex", alignItems: "center", gap: 10, background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 12, padding: "10px 14px", textDecoration: "none" }}>
                 <span style={{ fontSize: 20, flexShrink: 0 }}>
-                  {m.tipo === "pdf" ? "📄" : m.tipo === "video" ? "🎥" : m.tipo === "ppt" ? "📊" : "📦"}
+                  {m.tipo === "pdf" || m.tipo === "ppt" ? "📄" : m.tipo === "video" ? "🎥" : m.tipo === "ppt" ? "📊" : "📦"}
                 </span>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <p style={{ fontSize: 13, fontWeight: 600, color: "#fff", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{m.titulo}</p>
@@ -468,10 +468,10 @@ export default function SalaVirtual() {
             </p>
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               {materiais.map(m => (
-                <a key={m.id} href={m.url} target="_blank" rel="noreferrer"
+                <a key={m.id} href={m.tipo === "pdf" || m.tipo === "ppt" ? `https://docs.google.com/viewer?url=${encodeURIComponent(m.url)}&embedded=false` : m.url} target="_blank" rel="noreferrer"
                   style={{ display: "flex", alignItems: "center", gap: 10, background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 12, padding: "10px 14px", textDecoration: "none" }}>
                   <span style={{ fontSize: 20, flexShrink: 0 }}>
-                    {m.tipo === "pdf" ? "📄" : m.tipo === "video" ? "🎥" : m.tipo === "ppt" ? "📊" : "📦"}
+                    {m.tipo === "pdf" || m.tipo === "ppt" ? "📄" : m.tipo === "video" ? "🎥" : m.tipo === "ppt" ? "📊" : "📦"}
                   </span>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <p style={{ fontSize: 13, fontWeight: 600, color: "#fff", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{m.titulo}</p>
