@@ -90,6 +90,7 @@ export default function SalaVirtualProfessor() {
   const [questoesSelecionadas, setQuestoesSelecionadas] = useState<Set<string>>(new Set());
   const [buscandoQuestoes, setBuscandoQuestoes] = useState(false);
   const [filtroArea, setFiltroArea] = useState("todas");
+  const [filtroMinhas, setFiltroMinhas] = useState(true);
   const [salvandoSimulado, setSalvandoSimulado] = useState(false);
   const [simuladoDetalhe, setSimuladoDetalhe] = useState<Assignment | null>(null);
   const [submissoesDetalhe, setSubmissoesDetalhe] = useState<any[]>([]);
@@ -360,6 +361,7 @@ export default function SalaVirtualProfessor() {
     const q = supabase.from("questions")
       .select("id, question, answer_index, explanation, topic, area").limit(50);
     if (filtroArea !== "todas") q.eq("area", filtroArea);
+    if (filtroMinhas) q.eq("professor_id", user!.id);
     const { data } = await q;
     if (data && data.length > 0) {
       const ids = data.map((q: any) => q.id);
@@ -959,6 +961,16 @@ export default function SalaVirtualProfessor() {
             <input type="number" placeholder="Sem limite" value={formSimulado.tempo_limite_min} onChange={e => setFormSimulado(f => ({ ...f, tempo_limite_min: e.target.value }))} style={{ ...INPUT, marginBottom: 20 }} />
             <div style={{ borderTop: "1px solid rgba(255,255,255,0.06)", paddingTop: 16, marginBottom: 14 }}>
               <p style={{ fontSize: 13, fontWeight: 700, color: "#fff", margin: "0 0 10px" }}>📚 Questões</p>
+              <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
+                <button onClick={() => setFiltroMinhas(true)}
+                  style={{ flex: 1, padding: "8px 0", borderRadius: 8, border: "none", cursor: "pointer", fontSize: 12, fontWeight: 700, background: filtroMinhas ? "#0A7C4B" : "rgba(255,255,255,0.07)", color: "#fff" }}>
+                  👤 Minhas questões
+                </button>
+                <button onClick={() => setFiltroMinhas(false)}
+                  style={{ flex: 1, padding: "8px 0", borderRadius: 8, border: "none", cursor: "pointer", fontSize: 12, fontWeight: 700, background: !filtroMinhas ? "#0057FF" : "rgba(255,255,255,0.07)", color: "#fff" }}>
+                  🌐 Todas
+                </button>
+              </div>
               <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
                 <select value={filtroArea} onChange={e => setFiltroArea(e.target.value)} style={{ ...INPUT, flex: 1 }}>
                   <option value="todas">Todas as áreas</option>
