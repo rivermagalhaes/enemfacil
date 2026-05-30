@@ -24,7 +24,12 @@ export default function AdminOlimpiada() {
 
   // Conteúdo por área
   const pdfConteudoRef = useRef<HTMLInputElement>(null);
+  const jsonQuestoesRef = useRef<HTMLInputElement>(null);
   const [importandoConteudo, setImportandoConteudo] = useState(false);
+  const [importandoQuestoes, setImportandoQuestoes] = useState(false);
+  const [questoesImportadas, setQuestoesImportadas] = useState<any[]>([]);
+  const [msgImport, setMsgImport] = useState<{tipo:"ok"|"erro";texto:string}|null>(null);
+  const [modoImport] = useState<"objetiva"|"converter">("objetiva");
 
   const [areaSel, setAreaSel] = useState(0);
   const [formConteudo, setFormConteudo] = useState({ titulo:"", conteudo:"", exemplos:"", formulas:"" });
@@ -34,14 +39,6 @@ export default function AdminOlimpiada() {
 
   // Form prova
   const [fProva, setFProva] = useState({ titulo:"", duracao_minutos:120, total_questoes:30, nota_aprovacao:60, data_inicio:"", data_fim:"" });
-
-  // Importação de questões via PDF
-  const pdfQuestoesRef = useRef<HTMLInputElement>(null);
-  const jsonQuestoesRef = useRef<HTMLInputElement>(null);
-  const [importandoQuestoes, setImportandoQuestoes] = useState(false);
-  const [modoImport, setModoImport] = useState<"objetiva"|"converter">("objetiva");
-  const [questoesImportadas, setQuestoesImportadas] = useState<any[]>([]);
-  const [msgImport, setMsgImport] = useState<{tipo:"ok"|"erro";texto:string}|null>(null);
 
   // Form questão
   const [fQ, setFQ] = useState({ enunciado:"", alternativas:[{texto:""},{texto:""},{texto:""},{texto:""},{texto:""}], resposta_correta:0, explicacao:"", assunto:"", dificuldade:"medio" });
@@ -168,18 +165,26 @@ export default function AdminOlimpiada() {
     if (!file || !prova) return;
     setMsgImport({ tipo:"ok", texto:"⏳ Lendo arquivo JSON..." });
     try {
-      const texto = await new Promise<string>((res, rej) => {
-        const r = new FileReader();
-        r.onload = () => res(r.result as string);
-        r.onerror = rej;
-        r.readAsText(file);
+      const texto = await new Promise<string>((res,rej) => {
+        const r = new FileReader(); r.onload = () => res(r.result as string); r.onerror = rej; r.readAsText(file);
       });
       const parsed = JSON.parse(texto);
-      const qs = Array.isArray(parsed) ? parsed : parsed.questoes ?? [];
-      if (qs.length === 0) throw new Error("Nenhuma questão encontrada no JSON");
+      const qs: any[] = Array.isArray(parsed) ? parsed : parsed.questoes ?? [];
+      if (qs.length === 0) throw new Error("Nenhuma questão encontrada");
 
-      // Normaliza — aceita tanto o formato interno quanto o formato da IA
-      const normalizadas = qs.map((q: any) => ({
+      // Filtra questões com figura
+      const temFigura = (q: any) => {
+        const txt = (q.enunciado || q.question || "").toLowerCase();
+        const figs = q.figuras || q.figures || q.contexto_visual || "";
+        return (/figura|imagem|gráfico|grafico|tabela|observe|veja|quadro|diagrama|esquema/.test(txt) &&
+                /abaixo|seguinte|ao lado|apresentad/.test(txt)) ||
+               (Array.isArray(figs) && figs.length > 0) ||
+               (typeof figs === "string" && figs.trim().length > 0);
+      };
+      const semFigura = qs.filter(q => !temFigura(q));
+      const ignoradas = qs.length - semFigura.length;
+
+      const normalizadas = semFigura.map((q: any) => ({
         enunciado: q.enunciado || q.question || "",
         alternativas: q.alternativas
           ? q.alternativas
@@ -190,12 +195,11 @@ export default function AdminOlimpiada() {
         explicacao: q.explicacao || q.explanation || "",
       })).filter((q: any) => q.enunciado && q.alternativas?.length >= 2);
 
-      if (normalizadas.length === 0) throw new Error("Formato inválido. Verifique o JSON.");
+      if (normalizadas.length === 0) throw new Error("Nenhuma questão válida encontrada");
       setQuestoesImportadas(normalizadas);
-      setMsgImport({ tipo:"ok", texto:`✅ ${normalizadas.length} questões carregadas! Revise o gabarito antes de salvar.` });
-    } catch(e: any) {
-      setMsgImport({ tipo:"erro", texto:"Erro: " + e.message });
-    }
+      const aviso = ignoradas > 0 ? ` · ⚠️ ${ignoradas} ignoradas (têm figura)` : "";
+      setMsgImport({ tipo:"ok", texto:`✅ ${normalizadas.length} questões carregadas!${aviso} Revise o gabarito antes de salvar.` });
+    } catch(e: any) { setMsgImport({ tipo:"erro", texto:"Erro: " + e.message }); }
     if (jsonQuestoesRef.current) jsonQuestoesRef.current.value = "";
   }
 
@@ -206,17 +210,11 @@ export default function AdminOlimpiada() {
     setMsgImport({ tipo:"ok", texto:"⏳ Extraindo questões do PDF..." });
     try {
       const base64Data = await new Promise<string>((res,rej) => {
-        const r = new FileReader();
-        r.onload = () => res((r.result as string).split(",")[1]);
-        r.onerror = rej;
-        r.readAsDataURL(file);
+        const r = new FileReader(); r.onload = () => res((r.result as string).split(",")[1]); r.onerror = rej; r.readAsDataURL(file);
       });
-
       const { data: { session } } = await supabase.auth.getSession();
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
       const headers = { "Content-Type": "application/json", "Authorization": `Bearer ${session?.access_token}` };
-
-      // 1. Extrai questões do PDF
       const r1 = await fetch(`${supabaseUrl}/functions/v1/extrair-questoes-pdf`, {
         method: "POST", headers,
         body: JSON.stringify({ base64Data, mimeType: file.type || "application/pdf" })
@@ -224,88 +222,47 @@ export default function AdminOlimpiada() {
       const d1 = await r1.json();
       if (!r1.ok || d1.error) throw new Error(d1.error || "Erro ao extrair PDF");
       let qs = (d1.questoes ?? []).filter((q: any) => q.options?.length >= 2);
-
-      // 2. Se modo converter OU se tem discursivas, converte para objetivas
-      const discursivas = qs.filter((q: any) => q.tipo_original === "discursiva" || !q.options?.length);
+      const discursivas = qs.filter((q: any) => q.tipo_original === "discursiva");
       if (modoImport === "converter" || discursivas.length > 0) {
         const toConvert = modoImport === "converter" ? qs : discursivas;
         setMsgImport({ tipo:"ok", texto:`⏳ Convertendo ${toConvert.length} questões discursivas...` });
         const r2 = await fetch(`${supabaseUrl}/functions/v1/converter-questoes-objetivas`, {
           method: "POST", headers,
-          body: JSON.stringify({
-            questoes: toConvert.map((q: any) => ({
-              question: q.question,
-              area: q.area || "ciencias_natureza",
-              difficulty: q.difficulty || "medio",
-              topic: q.topic || "",
-            }))
-          })
+          body: JSON.stringify({ questoes: toConvert.map((q: any) => ({ question: q.question, area: q.area || "ciencias_natureza", difficulty: q.difficulty || "medio", topic: q.topic || "" }) )})
         });
         const d2 = await r2.json();
         if (!r2.ok || d2.error) throw new Error(d2.error || "Erro ao converter");
         const resultados = d2.resultados ?? [];
         if (modoImport === "converter") {
-          // Substitui tudo
-          qs = qs.map((q: any, i: number) => ({
-            ...q, ...resultados[i],
-            options: resultados[i]?.options ?? q.options,
-            answer_index: resultados[i]?.answer_index ?? q.answer_index ?? 0,
-            explanation: resultados[i]?.explanation ?? q.explanation ?? "",
-          }));
+          qs = qs.map((q: any, i: number) => ({ ...q, ...resultados[i], options: resultados[i]?.options ?? q.options, answer_index: resultados[i]?.answer_index ?? q.answer_index ?? 0, explanation: resultados[i]?.explanation ?? q.explanation ?? "" }));
         } else {
-          // Só atualiza as discursivas
           let idx = 0;
-          qs = qs.map((q: any) => {
-            if (q.tipo_original === "discursiva") {
-              const r = resultados[idx++];
-              return { ...q, options: r?.options ?? q.options, answer_index: r?.answer_index ?? 0, explanation: r?.explanation ?? "" };
-            }
-            return q;
-          });
+          qs = qs.map((q: any) => { if (q.tipo_original === "discursiva") { const r = resultados[idx++]; return { ...q, options: r?.options ?? q.options, answer_index: r?.answer_index ?? 0, explanation: r?.explanation ?? "" }; } return q; });
         }
       }
-
       if (qs.length === 0) throw new Error("Nenhuma questão encontrada no PDF");
-
-      // Normaliza para o formato interno
       const normalizadas = qs.map((q: any) => ({
-        enunciado: q.question,
-        alternativas: (q.options ?? []).map((t: string) => ({ texto: t })),
-        resposta_correta: q.answer_index ?? 0,
-        assunto: q.topic ?? "",
-        dificuldade: q.difficulty ?? "medio",
-        explicacao: q.explanation ?? "",
+        enunciado: q.question, alternativas: (q.options ?? []).map((t: string) => ({ texto: t })),
+        resposta_correta: q.answer_index ?? 0, assunto: q.topic ?? "", dificuldade: q.difficulty ?? "medio", explicacao: q.explanation ?? "",
       }));
       setQuestoesImportadas(normalizadas);
       setMsgImport({ tipo:"ok", texto:`✅ ${normalizadas.length} questões prontas! Revise o gabarito antes de salvar.` });
-    } catch(e:any) {
-      setMsgImport({ tipo:"erro", texto:"Erro: " + e.message });
-    }
+    } catch(e:any) { setMsgImport({ tipo:"erro", texto:"Erro: " + e.message }); }
     setImportandoQuestoes(false);
-    if (pdfQuestoesRef.current) pdfQuestoesRef.current.value = "";
+    if (e.target) e.target.value = "";
   }
 
   async function salvarQuestoesImportadas() {
     if (!prova || questoesImportadas.length === 0) return;
     setSalvando(true);
     const inserts = questoesImportadas.map((q, i) => ({
-      prova_id: prova.id,
-      enunciado: q.enunciado,
-      alternativas: q.alternativas,
-      resposta_correta: q.resposta_correta,
-      explicacao: q.explicacao || "",
-      assunto: q.assunto || "",
-      dificuldade: q.dificuldade || "medio",
-      ordem: questoes.length + i + 1,
+      prova_id: prova.id, enunciado: q.enunciado, alternativas: q.alternativas,
+      resposta_correta: q.resposta_correta, explicacao: q.explicacao || "",
+      assunto: q.assunto || "", dificuldade: q.dificuldade || "medio", ordem: questoes.length + i + 1,
     }));
     const { error } = await supabase.from("questoes_prova").insert(inserts);
-    if (error) {
-      setMsgImport({ tipo:"erro", texto:"Erro ao salvar: " + error.message });
-    } else {
-      setMsgImport({ tipo:"ok", texto:`✅ ${questoesImportadas.length} questões salvas!` });
-      setQuestoesImportadas([]);
-      carregarDados();
-    }
+    if (error) { setMsgImport({ tipo:"erro", texto:"Erro ao salvar: " + error.message }); }
+    else { setMsgImport({ tipo:"ok", texto:`✅ ${questoesImportadas.length} questões salvas!` }); setQuestoesImportadas([]); carregarDados(); }
     setSalvando(false);
   }
 
@@ -463,11 +420,11 @@ export default function AdminOlimpiada() {
               <div style={{ display:"flex", gap:6 }}>
                 <button onClick={() => jsonQuestoesRef.current?.click()}
                   style={{ padding:"7px 12px", background:"linear-gradient(135deg,#065C37,#0A7C4B)", color:"#fff", border:"none", borderRadius:8, fontSize:11, fontWeight:600, cursor:"pointer" }}>
-                  📥 Importar JSON
+                  📥 JSON
                 </button>
-                <button onClick={() => pdfQuestoesRef.current?.click()} disabled={importandoQuestoes}
+                <button onClick={() => { const i = document.createElement("input"); i.type="file"; i.accept=".pdf"; i.onchange=(e:any)=>importarPdfQuestoes(e); i.click(); }} disabled={importandoQuestoes}
                   style={{ padding:"7px 12px", background:"linear-gradient(135deg,#6D28D9,#4C1D95)", color:"#fff", border:"none", borderRadius:8, fontSize:11, fontWeight:600, cursor:"pointer" }}>
-                  {importandoQuestoes ? "⏳..." : "📄 Importar PDF"}
+                  {importandoQuestoes ? "⏳..." : "📄 PDF"}
                 </button>
                 <button onClick={() => setAdicionandoQ(true)}
                   style={{ padding:"7px 14px", background:"#1a3a6e", color:"#fff", border:"none", borderRadius:8, fontSize:12, fontWeight:600, cursor:"pointer" }}>
@@ -476,66 +433,32 @@ export default function AdminOlimpiada() {
               </div>
             </div>
             <input ref={jsonQuestoesRef} type="file" accept=".json" onChange={importarJsonQuestoes} style={{ display:"none" }} />
-            <input ref={pdfQuestoesRef} type="file" accept=".pdf" onChange={importarPdfQuestoes} style={{ display:"none" }} />
 
-            {/* Seletor de modo de importação */}
-            <div style={{ display:"flex", gap:6, marginBottom:10 }}>
-              {([
-                { id:"objetiva", label:"📋 Extrair objetivas", desc:"Questões já em múltipla escolha" },
-                { id:"converter", label:"✨ Converter discursivas", desc:"Transforma em objetivas com IA" },
-              ] as const).map(m => (
-                <button key={m.id} onClick={() => setModoImport(m.id)}
-                  style={{ flex:1, padding:"8px 10px", borderRadius:10, border:"none", cursor:"pointer", textAlign:"left",
-                    background: modoImport === m.id ? (m.id === "converter" ? "#F3F0FF" : "#eef2ff") : "#f8fafc",
-                    outline: modoImport === m.id ? `2px solid ${m.id === "converter" ? "#6D28D9" : "#1a3a6e"}` : "none" }}>
-                  <p style={{ fontSize:11, fontWeight:700, color: modoImport === m.id ? (m.id === "converter" ? "#4C1D95" : "#1a3a6e") : "#64748b", margin:"0 0 2px" }}>{m.label}</p>
-                  <p style={{ fontSize:10, color:"#94a3b8", margin:0 }}>{m.desc}</p>
-                </button>
-              ))}
-            </div>
-
-            {/* Mensagem de importação */}
             {msgImport && (
               <div style={{ marginBottom:10, padding:"8px 12px", borderRadius:8, background:msgImport.tipo==="ok"?"#EDFAF3":"#FFF1F1", color:msgImport.tipo==="ok"?"#15803d":"#b91c1c", fontSize:12, fontWeight:600 }}>
                 {msgImport.texto}
               </div>
             )}
 
-            {/* Questões importadas para revisão */}
             {questoesImportadas.length > 0 && (
               <div style={{ background:"#F3F0FF", borderRadius:14, padding:14, border:"1px solid #C4B5FD", marginBottom:14 }}>
                 <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:10 }}>
-                  <p style={{ fontSize:13, fontWeight:700, color:"#4C1D95", margin:0 }}>
-                    📋 {questoesImportadas.length} questões extraídas — revise o gabarito
-                  </p>
+                  <p style={{ fontSize:13, fontWeight:700, color:"#4C1D95", margin:0 }}>📋 {questoesImportadas.length} questões — revise o gabarito</p>
                   <div style={{ display:"flex", gap:6 }}>
-                    <button onClick={() => setQuestoesImportadas([])}
-                      style={{ padding:"5px 10px", background:"#fff", color:"#ef4444", border:"1px solid #fca5a5", borderRadius:6, fontSize:11, cursor:"pointer" }}>
-                      Descartar
-                    </button>
-                    <button onClick={salvarQuestoesImportadas} disabled={salvando}
-                      style={{ padding:"5px 10px", background:"#4C1D95", color:"#fff", border:"none", borderRadius:6, fontSize:11, fontWeight:600, cursor:"pointer" }}>
-                      {salvando ? "Salvando..." : "✅ Salvar todas"}
-                    </button>
+                    <button onClick={() => setQuestoesImportadas([])} style={{ padding:"5px 10px", background:"#fff", color:"#ef4444", border:"1px solid #fca5a5", borderRadius:6, fontSize:11, cursor:"pointer" }}>Descartar</button>
+                    <button onClick={salvarQuestoesImportadas} disabled={salvando} style={{ padding:"5px 10px", background:"#4C1D95", color:"#fff", border:"none", borderRadius:6, fontSize:11, fontWeight:600, cursor:"pointer" }}>{salvando ? "..." : "✅ Salvar todas"}</button>
                   </div>
                 </div>
                 <div style={{ maxHeight:400, overflowY:"auto", display:"flex", flexDirection:"column", gap:8 }}>
                   {questoesImportadas.map((q, i) => (
                     <div key={i} style={{ background:"#fff", borderRadius:10, padding:"10px 12px", border:"1px solid #E9D5FF" }}>
-                      <p style={{ fontSize:11, fontWeight:700, color:"#6D28D9", margin:"0 0 4px" }}>Questão {i+1} · {q.assunto || "Sem assunto"}</p>
-                      <p style={{ fontSize:12, color:"#1e293b", margin:"0 0 8px", lineHeight:1.5 }}>{q.enunciado?.slice(0,150)}{(q.enunciado?.length||0)>150?"...":""}</p>
-                      <p style={{ fontSize:11, color:"#64748b", margin:"0 0 4px" }}>Gabarito:</p>
-                      <div style={{ display:"flex", gap:4, flexWrap:"wrap" }}>
-                        {["A","B","C","D","E"].map((letra, idx) => (
-                          <button key={idx} onClick={() => {
-                            const novo = [...questoesImportadas];
-                            novo[i] = { ...novo[i], resposta_correta: idx };
-                            setQuestoesImportadas(novo);
-                          }}
-                            style={{ padding:"3px 10px", borderRadius:6, border:"none", cursor:"pointer", fontSize:11, fontWeight:700,
-                              background: q.resposta_correta === idx ? "#22c55e" : "#f1f5f9",
-                              color: q.resposta_correta === idx ? "#fff" : "#64748b" }}>
-                            {letra}
+                      <p style={{ fontSize:11, fontWeight:700, color:"#6D28D9", margin:"0 0 4px" }}>Q{i+1} · {q.assunto||"Sem assunto"}</p>
+                      <p style={{ fontSize:12, color:"#1e293b", margin:"0 0 8px" }}>{q.enunciado?.slice(0,120)}{q.enunciado?.length>120?"...":""}</p>
+                      <div style={{ display:"flex", gap:4 }}>
+                        {["A","B","C","D","E"].map((l,idx) => (
+                          <button key={idx} onClick={() => { const n=[...questoesImportadas]; n[i]={...n[i],resposta_correta:idx}; setQuestoesImportadas(n); }}
+                            style={{ padding:"3px 10px", borderRadius:6, border:"none", cursor:"pointer", fontSize:11, fontWeight:700, background:q.resposta_correta===idx?"#22c55e":"#f1f5f9", color:q.resposta_correta===idx?"#fff":"#64748b" }}>
+                            {l}
                           </button>
                         ))}
                       </div>
