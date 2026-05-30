@@ -5,6 +5,7 @@ import { useAuth } from "@/hooks/useAuth";
 import BottomNav from "@/components/layout/BottomNav";
 import { supabase } from "@/lib/supabaseClient";
 import { AREAS, CORES, LIMITES_DIA } from "@/styles/theme";
+import CertificadosAdmin from "@/components/admin/CertificadosAdmin";
 
 
 const FUNCIONALIDADES = [
@@ -85,6 +86,7 @@ function FuncItem({ f, plano, userId, onClick }: { f: typeof FUNCIONALIDADES[0];
 export default function Perfil() {
   const { profile, signOut } = useAuth();
   const navigate = useNavigate();
+  const [abaAtivo, setAbaAtivo] = useState<string | null>(null);
 
   if (!profile) return null;
 
@@ -105,51 +107,63 @@ export default function Perfil() {
       <div style={{ display:"flex",flexDirection:"column",minHeight:"100dvh",background:CORES.bg }}>
         <div style={{ background:`linear-gradient(135deg,${isCoordenador?"#1a0a2e, #3b0764":isAdmin?"#1a0a0a, #3a0a0a":"#0a1a0f, #0a3a1f"})`,padding:"16px 16px 20px" }}>
           <div style={{ display:"flex",alignItems:"center",gap:12 }}>
+            {abaAtivo && (
+              <button onClick={() => setAbaAtivo(null)} style={{ background:"rgba(255,255,255,0.15)",border:"none",borderRadius:8,padding:"6px 10px",color:"#fff",fontSize:18,cursor:"pointer",lineHeight:1 }}>←</button>
+            )}
             <div style={{ width:52,height:52,borderRadius:"50%",background:corRole,display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,fontWeight:700,color:"#fff",border:"2px solid rgba(255,255,255,0.2)" }}>
               {nome[0].toUpperCase()}
             </div>
             <div style={{ flex:1 }}>
-              <p style={{ fontSize:16,fontWeight:700,color:"#fff",margin:"0 0 4px" }}>{nome}</p>
+              <p style={{ fontSize:16,fontWeight:700,color:"#fff",margin:"0 0 4px" }}>{abaAtivo === "certificados" ? "🎓 Certificados" : nome}</p>
               <span style={{ fontSize:11,fontWeight:700,borderRadius:99,padding:"2px 12px",background:bgRole,color:corRole }}>
                 {isCoordenador ? "🏆 Coordenador de Olimpíadas" : isAdmin ? "🛡️ Administrador" : "👨‍🏫 Professor"}
               </span>
             </div>
-            <button onClick={() => navigate(isCoordenador ? "/coordenador" : isAdmin ? "/admin" : "/professor")} style={{ padding:"8px 14px",background:corRole,color:"#fff",border:"none",borderRadius:10,fontSize:12,fontWeight:700,cursor:"pointer" }}>
-              {isCoordenador ? "🏆 Painel" : isAdmin ? "🛡️ Painel" : "📁 Painel"}
-            </button>
+            {!abaAtivo && (
+              <button onClick={() => navigate(isCoordenador ? "/coordenador" : isAdmin ? "/admin" : "/professor")} style={{ padding:"8px 14px",background:corRole,color:"#fff",border:"none",borderRadius:10,fontSize:12,fontWeight:700,cursor:"pointer" }}>
+                {isCoordenador ? "🏆 Painel" : isAdmin ? "🛡️ Painel" : "📁 Painel"}
+              </button>
+            )}
           </div>
         </div>
 
         <div style={{ flex:1,overflowY:"auto",padding:"16px 14px 90px" }}>
 
-          {/* Atalhos do painel */}
-          <p style={{ fontSize:11,fontWeight:700,color:CORES.textSub,textTransform:"uppercase",letterSpacing:"0.06em",margin:"0 0 10px" }}>Atalhos</p>
-          <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:20 }}>
-            {(isCoordenador ? [
-              { emoji:"🏆", label:"Olimpíadas",  path:"/coordenador", cor:"#7C3AED" },
-              { emoji:"📖", label:"Conteúdo",   path:"/coordenador", cor:"#0057FF" },
-              { emoji:"📝", label:"Questões",   path:"/coordenador", cor:"#0A7C4B" },
-              { emoji:"🏅", label:"Resultados", path:"/coordenador", cor:"#f59e0b" },
-            ] : isAdmin ? [
-              { emoji:"📁", label:"Materiais",  path:"/admin",     cor:"#0057FF" },
-              { emoji:"📝", label:"Questões",   path:"/admin",     cor:"#7C3AED" },
-              { emoji:"👥", label:"Usuários",   path:"/admin",     cor:"#22c55e" },
-              { emoji:"🏆", label:"Rankings",   path:"/admin",     cor:"#f59e0b" },
-            ] : [
-              { emoji:"📁", label:"Materiais",  path:"/professor", cor:"#0A7C4B" },
-              { emoji:"📝", label:"Questões",   path:"/professor", cor:"#0057FF" },
-            ]).map((item,i) => (
-              <button key={i} onClick={() => navigate(item.path)} style={{ display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:6,padding:"16px 0",borderRadius:14,background:CORES.bgCard,border:`1.5px solid ${item.cor}22`,cursor:"pointer",boxShadow:"0 2px 8px rgba(0,0,0,0.06)" }}>
-                <span style={{ fontSize:24 }}>{item.emoji}</span>
-                <span style={{ fontSize:12,fontWeight:600,color:item.cor }}>{item.label}</span>
-              </button>
-            ))}
-          </div>
+          {abaAtivo === "certificados" ? (
+            <CertificadosAdmin />
+          ) : (
+            <>
+              {/* Atalhos do painel */}
+              <p style={{ fontSize:11,fontWeight:700,color:CORES.textSub,textTransform:"uppercase",letterSpacing:"0.06em",margin:"0 0 10px" }}>Atalhos</p>
+              <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:20 }}>
+                {(isCoordenador ? [
+                  { emoji:"🏆", label:"Olimpíadas",  path:"/coordenador", cor:"#7C3AED" },
+                  { emoji:"📖", label:"Conteúdo",   path:"/coordenador", cor:"#0057FF" },
+                  { emoji:"📝", label:"Questões",   path:"/coordenador", cor:"#0A7C4B" },
+                  { emoji:"🏅", label:"Resultados", path:"/coordenador", cor:"#f59e0b" },
+                ] : isAdmin ? [
+                  { emoji:"📁", label:"Materiais",  path:"/admin",       cor:"#0057FF" },
+                  { emoji:"📝", label:"Questões",   path:"/admin",       cor:"#7C3AED" },
+                  { emoji:"👥", label:"Usuários",   path:"/admin",       cor:"#22c55e" },
+                  { emoji:"🏆", label:"Rankings",   path:"/admin",       cor:"#f59e0b" },
+                  { emoji:"🎓", label:"Certificados", path:"certificados", cor:"#0A7C4B", inline: true },
+                ] : [
+                  { emoji:"📁", label:"Materiais",  path:"/professor", cor:"#0A7C4B" },
+                  { emoji:"📝", label:"Questões",   path:"/professor", cor:"#0057FF" },
+                ]).map((item: any, i: number) => (
+                  <button key={i} onClick={() => item.inline ? setAbaAtivo(item.path) : navigate(item.path)} style={{ display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:6,padding:"16px 0",borderRadius:14,background:CORES.bgCard,border:`1.5px solid ${item.cor}22`,cursor:"pointer",boxShadow:"0 2px 8px rgba(0,0,0,0.06)" }}>
+                    <span style={{ fontSize:24 }}>{item.emoji}</span>
+                    <span style={{ fontSize:12,fontWeight:600,color:item.cor }}>{item.label}</span>
+                  </button>
+                ))}
+              </div>
 
-          {/* Sair */}
-          <button onClick={() => signOut().then(() => navigate("/login"))} style={{ width:"100%",padding:"11px 0",border:`1px solid ${CORES.border}`,background:CORES.bgCard,borderRadius:8,fontSize:14,fontWeight:500,cursor:"pointer",color:"#EF4444" }}>
-            Sair da conta
-          </button>
+              {/* Sair */}
+              <button onClick={() => signOut().then(() => navigate("/login"))} style={{ width:"100%",padding:"11px 0",border:`1px solid ${CORES.border}`,background:CORES.bgCard,borderRadius:8,fontSize:14,fontWeight:500,cursor:"pointer",color:"#EF4444" }}>
+                Sair da conta
+              </button>
+            </>
+          )}
         </div>
         <BottomNav />
       </div>
