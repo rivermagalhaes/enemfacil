@@ -244,7 +244,8 @@ export default function Home() {
           </button>
         )}
 
-{/* Olimpíadas */}
+{/* Olimpíadas — visível apenas para admin e coordenador */}
+{((profile as any)?.role === "admin" || (profile as any)?.role === "super_admin") && (
 <div
   onClick={() => navigate("/olimpiadas/quimica")}
   style={{
@@ -264,6 +265,7 @@ export default function Home() {
     <p style={{ fontSize: 11, color: "rgba(255,255,255,0.7)", margin: 0 }}>OBQ · OTQ · Olimpíadas regionais</p>
   </div>
 </div>
+)}
 
         {/* Vestibulares */}
         <p style={{ fontSize: 13, fontWeight: 700, color: CORES.text, textTransform: "uppercase", letterSpacing: "0.08em", margin: "0 0 12px" }}>Vestibulares</p>
