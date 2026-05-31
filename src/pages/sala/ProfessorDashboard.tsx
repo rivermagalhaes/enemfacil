@@ -162,6 +162,7 @@ export default function ProfessorDashboard() {
         answer_index: q.answer_index ?? 0, vestibular: q.vestibular || "PROPRIO",
         topic: q.topic || null, area: q.area || "ciencias_natureza",
         difficulty: q.difficulty || "medio", ano: q.ano || new Date().getFullYear(),
+        professor_id: user!.id,
       }).select("id").single();
       if (error || !qSalva) { err++; continue; }
       const opts = (q.options || []).filter(Boolean).map((label: string, i: number) => ({ question_id: qSalva.id, option_index: i, label }));
@@ -191,6 +192,7 @@ export default function ProfessorDashboard() {
           answer_index: Number(row.answer_index), vestibular: row.vestibular,
           topic: row.topic ?? null, area: row.area ?? null,
           difficulty: row.difficulty ?? "medio", ano: row.ano ? Number(row.ano) : null,
+          professor_id: user!.id,
         }).select("id").single();
         if (error || !q) { err++; continue; }
         const opts = [row.option_0, row.option_1, row.option_2, row.option_3, row.option_4].filter(Boolean);
@@ -214,6 +216,7 @@ export default function ProfessorDashboard() {
       answer_index: qForm.answer_index, vestibular: qForm.vestibular,
       topic: qForm.topic || null, area: qForm.area,
       difficulty: qForm.difficulty, ano: qForm.ano,
+      professor_id: user!.id,
     }).select("id").single();
     if (error || !q) { setQMsg({ tipo:"erro", texto:"Erro ao salvar: " + error?.message }); setSalvandoQ(false); return; }
     const opts = filledOptions.map((label, i) => ({ question_id: q.id, option_index: i, label }));
