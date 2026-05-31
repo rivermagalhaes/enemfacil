@@ -46,6 +46,9 @@ import GerarConteudoLote from "@/pages/admin/GerarConteudoLote";
 import ProcessarMaterial from "@/pages/admin/ProcessarMaterial";
 import CadastroConvite from "@/pages/cadastro/CadastroConvite";
 import InscricaoOlimpiada from "@/pages/cadastro/InscricaoOlimpiada";
+import MeuDesempenho from "@/pages/MeuDesempenho";
+import ProfessorDashboardPedagogico from "@/pages/ProfessorDashboard";
+import CoordenacaoDashboard from "@/pages/CoordenacaoDashboard";
 
 const Loading = ({ bg = "#0f172a" }: { bg?: string }) => (
   <div style={{ display:"flex", alignItems:"center", justifyContent:"center", height:"100dvh", background: bg }}>
@@ -136,6 +139,9 @@ export default function App() {
         <Route path="/trilha/:vestibular/organica" element={<PrivateRoute><TrilhaOrganica /></PrivateRoute>} />
         <Route path="/trilha/:vestibular/fisicoquimica" element={<PrivateRoute><TrilhaFisicoQuimica /></PrivateRoute>} />
         <Route path="/trilha/:vestibular/:materia/modulo/:moduloId" element={<PrivateRoute><ModuloPage /></PrivateRoute>} />
+        <Route path="/meu-desempenho" element={<PrivateRoute><MeuDesempenho /></PrivateRoute>} />
+<Route path="/professor/dashboard" element={<ProfessorRoute><ProfessorDashboardPedagogico /></ProfessorRoute>} />
+<Route path="/coordenacao/dashboard" element={<AdminRoute><CoordenacaoDashboard /></AdminRoute>} />
 
         {/* ── Olimpíadas ── */}
         <Route path="/olimpiadas" element={<PrivateRouteFull><OlimpiadasHub /></PrivateRouteFull>} />

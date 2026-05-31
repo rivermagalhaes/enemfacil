@@ -9,11 +9,12 @@ import { useAuth } from "@/hooks/useAuth";
 import { CORES } from "@/styles/theme";
 
 const TABS = [
-  { path: "/",         icon: "🏠", label: "Início"    },
-  { path: "/quiz",     icon: "🧠", label: "Quiz"      },
-  { path: "/simulado", icon: "📝", label: "Simulado"  },
-  { path: "/agentes",  icon: "🤖", label: "Agente IA" },
-  { path: "/perfil",   icon: "👤", label: "Perfil"    },
+  { path: "/",               icon: "🏠", label: "Início"     },
+  { path: "/quiz",           icon: "🧠", label: "Quiz"       },
+  { path: "/simulado",       icon: "📝", label: "Simulado"   },
+  { path: "/meu-desempenho", icon: "📊", label: "Desempenho" },
+  { path: "/agentes",        icon: "🤖", label: "Agente IA"  },
+  { path: "/perfil",         icon: "👤", label: "Perfil"     },
 ];
 
 function useIsDesktop() {
@@ -38,8 +39,9 @@ function Sidebar() {
 
   const tabs = [
     ...TABS,
-    ...(role === "admin"     ? [{ path: "/admin",     icon: "🛡️",  label: "Admin" }] : []),
-    ...(role === "professor" ? [{ path: "/professor", icon: "👨‍🏫", label: "Prof"  }] : []),
+    ...(role === "admin"     ? [{ path: "/admin",              icon: "🛡️",  label: "Admin"     }] : []),
+    ...(role === "admin"     ? [{ path: "/coordenacao/dashboard", icon: "🏫", label: "Coord."   }] : []),
+    ...(role === "professor" ? [{ path: "/professor/dashboard", icon: "👨‍🏫", label: "Dashboard" }] : []),
   ];
 
   return (
@@ -111,6 +113,8 @@ function BottomNavMobile() {
   const { profile } = useAuth();
   const role = (profile as any)?.role;
 
+  const isAdminArea = pathname.startsWith("/admin") || pathname.startsWith("/professor") || pathname.startsWith("/coordenacao");
+
   return (
     <div style={{ position:"fixed", bottom:0, left:0, right:0, zIndex:100, background:"rgba(255,255,255,0.96)", backdropFilter:"blur(20px)", borderTop:"0.5px solid rgba(0,0,0,0.08)", display:"flex", padding:"8px 0 calc(8px + env(safe-area-inset-bottom))" }}>
       {TABS.map(tab => {
@@ -124,13 +128,20 @@ function BottomNavMobile() {
           </button>
         );
       })}
-      {(role === "admin" || role === "professor") && (
-        <button onClick={() => navigate(role === "super_admin" ? "/coordenador" : role === "admin" ? "/admin" : "/professor")} style={{ flex:1, display:"flex", flexDirection:"column", alignItems:"center", gap:2, border:"none", background:"transparent", cursor:"pointer", padding:"4px 0" }}>
-          <div style={{ width:36, height:36, borderRadius:12, background: pathname.startsWith("/admin") || pathname.startsWith("/professor") ? "#FFF1F1" : "transparent", display:"flex", alignItems:"center", justifyContent:"center", fontSize:18 }}>
-            {role === "admin" ? "🛡️" : "👨‍🏫"}
+      {(role === "admin" || role === "professor" || role === "super_admin") && (
+        <button
+          onClick={() => navigate(
+            role === "super_admin" ? "/coordenacao/dashboard" :
+            role === "admin"       ? "/admin" :
+            "/professor/dashboard"
+          )}
+          style={{ flex:1, display:"flex", flexDirection:"column", alignItems:"center", gap:2, border:"none", background:"transparent", cursor:"pointer", padding:"4px 0" }}
+        >
+          <div style={{ width:36, height:36, borderRadius:12, background: isAdminArea ? "#FFF1F1" : "transparent", display:"flex", alignItems:"center", justifyContent:"center", fontSize:18 }}>
+            {role === "admin" || role === "super_admin" ? "🛡️" : "👨‍🏫"}
           </div>
-          <span style={{ fontSize:10, fontWeight: pathname.startsWith("/admin") || pathname.startsWith("/professor") ? 700 : 400, color: pathname.startsWith("/admin") || pathname.startsWith("/professor") ? "#ef4444" : CORES.textSub }}>
-            {role === "super_admin" ? "Olimp" : role === "admin" ? "Admin" : "Prof"}
+          <span style={{ fontSize:10, fontWeight: isAdminArea ? 700 : 400, color: isAdminArea ? "#ef4444" : CORES.textSub }}>
+            {role === "super_admin" ? "Coord" : role === "admin" ? "Admin" : "Prof"}
           </span>
         </button>
       )}

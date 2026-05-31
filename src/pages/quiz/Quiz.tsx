@@ -16,6 +16,9 @@ interface Questao {
   difficulty: string;
   vestibular: string;
   ano?: number;
+  topic?: string;
+  habilidade?: string;
+  conteudo?: string;
   options: { id: string; option_index: number; label: string }[];
 }
 
@@ -83,19 +86,16 @@ export default function Quiz() {
 
   const plano = String((profile as any)?.plan ?? (profile as any)?.plano ?? "free");
 
-  // Modo vestibular ou área
   const modoVestibular = !!vestibularParam;
   const vestConfig = vestibularParam ? VESTIBULARES_CONFIG[vestibularParam] : null;
   const area = AREAS.find(a => a.id === areaParam) ?? AREAS[0];
 
-  // Cores do header dependendo do modo
   const headerCor = modoVestibular && vestConfig ? vestConfig.cor : area.cor;
   const headerBg = modoVestibular && vestConfig ? vestConfig.bg : area.bg;
   const headerEmoji = modoVestibular && vestConfig ? vestConfig.emoji : area.emoji;
   const headerLabel = modoVestibular && vestConfig ? vestConfig.nome : area.label;
   const headerDesc = modoVestibular && vestConfig ? vestConfig.desc : area.sublabel;
 
-  // Filtros de matéria e vestibular
   const [filtroMateria, setFiltroMateria] = useState<string>("");
   const [filtroVestibularEnem, setFiltroVestibularEnem] = useState<string>("ENEM");
   const [mostrarFiltros, setMostrarFiltros] = useState(!modoVestibular && !areaParam);
@@ -115,7 +115,7 @@ export default function Quiz() {
   useEffect(() => {
     async function carregar() {
       if (mostrarFiltros) return;
-      let query = supabase.from("questions").select("id, question, explanation, answer_index, area, difficulty, vestibular, ano");
+      let query = supabase.from("questions").select("id, question, explanation, answer_index, area, difficulty, vestibular, ano, topic, habilidade, conteudo");
 
       if (modoVestibular && vestibularParam) {
         query = query.eq("vestibular", vestibularParam);
@@ -153,10 +153,23 @@ export default function Quiz() {
     if (!ok) return;
     setRespostas(prev => ({ ...prev, [idx]: optIndex }));
     setMostrarExplicacao(true);
-    // XP: +10 se acertou, +2 se errou (incentiva participação)
-    if (profile?.id) {
-      const acertou = questaoAtual?.answer_index === optIndex;
+    if (profile?.id && questaoAtual) {
+      const acertou = questaoAtual.answer_index === optIndex;
+      // XP
       await addXP(profile.id, acertou ? XP.QUESTAO_CERTA : XP.QUESTAO_ERRADA);
+      // Diagnóstico pedagógico
+      await supabase.from("respostas_diagnostico").insert({
+        aluno_id: profile.id,
+        question_id: questaoAtual.id,
+        resposta_escolhida: optIndex,
+        correta: acertou,
+        area_conhecimento: questaoAtual.area ?? null,
+        disciplina: questaoAtual.area ?? null,
+        conteudo: questaoAtual.conteudo ?? questaoAtual.topic ?? null,
+        habilidade: questaoAtual.habilidade ?? null,
+        dificuldade: questaoAtual.difficulty ?? null,
+        vestibular: questaoAtual.vestibular ?? null,
+      });
     }
   }
 
@@ -230,7 +243,6 @@ export default function Quiz() {
           <div style={{ padding: "8px 0" }}>
             <p style={{ fontSize: 13, color: CORES.textSub, marginBottom: 16 }}>Escolha o vestibular e a matéria para praticar:</p>
 
-            {/* Escolher vestibular */}
             <p style={{ fontSize: 11, fontWeight: 700, color: CORES.textSub, textTransform: "uppercase", letterSpacing: "0.06em", margin: "0 0 10px" }}>Vestibular</p>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 20 }}>
               {[
@@ -252,7 +264,6 @@ export default function Quiz() {
               ))}
             </div>
 
-            {/* Escolher matéria */}
             <p style={{ fontSize: 11, fontWeight: 700, color: CORES.textSub, textTransform: "uppercase", letterSpacing: "0.06em", margin: "0 0 10px" }}>Matéria</p>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 24 }}>
               {[
@@ -287,7 +298,7 @@ export default function Quiz() {
           </div>
         )}
 
-      {/* Bloqueado */}
+        {/* Bloqueado */}
         {bloqueado && !mostrarFiltros && (
           <div style={{ background: "#fff1f1", border: "1px solid #fca5a5", borderRadius: 14, padding: 20, textAlign: "center" }}>
             <p style={{ fontSize: 32, margin: "0 0 8px" }}>🔒</p>
@@ -365,7 +376,6 @@ export default function Quiz() {
               </div>
             )}
 
-            {/* Botão Agente IA — só no modo vestibular, após responder */}
             {mostrarExplicacao && modoVestibular && vestConfig && (
               <button
                 onClick={() => navigate(`/agentes/${vestibularParam}`)}
@@ -412,6 +422,12 @@ export default function Quiz() {
                 Início →
               </button>
             </div>
+            <button
+              onClick={() => navigate("/meu-desempenho")}
+              style={{ marginTop: 10, width: "100%", padding: "12px 0", background: "#f0f9ff", color: "#0057FF", border: "1px solid #BAE6FD", borderRadius: 10, fontSize: 13, fontWeight: 600, cursor: "pointer" }}
+            >
+              📊 Ver meu desempenho
+            </button>
           </div>
         )}
       </div>

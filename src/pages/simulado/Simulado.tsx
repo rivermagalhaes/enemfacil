@@ -37,6 +37,10 @@ interface Questao {
   area: string;
   difficulty: string;
   ano?: number;
+  topic?: string;
+  habilidade?: string;
+  conteudo?: string;
+  vestibular?: string;
   options: { id: string; option_index: number; label: string }[];
 }
 
@@ -111,7 +115,7 @@ export default function Simulado() {
   // Cronômetro
   useEffect(() => {
     if (etapa !== "quiz") return;
-    if (tempo <= 0) { setEtapa("resultado"); return; }
+    if (tempo <= 0) { finalizarSimulado(); return; }
     const t = setInterval(() => setTempo(s => s - 1), 1000);
     return () => clearInterval(t);
   }, [etapa, tempo]);
@@ -142,7 +146,7 @@ export default function Simulado() {
       for (const area of AREAS.slice(0, 4)) {
         const { data: qs } = await supabase
           .from("questions")
-          .select("id, question, explanation, answer_index, area, difficulty, ano")
+          .select("id, question, explanation, answer_index, area, difficulty, ano, topic, habilidade, conteudo, vestibular")
           .eq("area", area.id).eq("vestibular", "ENEM").limit(9);
         if (qs?.length) {
           const ids = qs.map((q: any) => q.id);
@@ -153,7 +157,7 @@ export default function Simulado() {
     } else {
       const { data: qs } = await supabase
         .from("questions")
-        .select("id, question, explanation, answer_index, area, difficulty, ano")
+        .select("id, question, explanation, answer_index, area, difficulty, ano, topic, habilidade, conteudo, vestibular")
         .eq("vestibular", vestSelecionado.id)
         .limit(vestSelecionado.questoes);
       if (qs?.length) {
@@ -177,16 +181,46 @@ export default function Simulado() {
     setRespostas(prev => ({ ...prev, [idx]: optIndex }));
   }
 
+  async function finalizarSimulado(respostasFinais?: Record<number, number>) {
+    const respostasUsar = respostasFinais ?? respostas;
+    setEtapa("resultado");
+
+    if (!profile?.id) return;
+
+    const totalAcertos = Object.entries(respostasUsar).filter(
+      ([i, r]) => questoes[Number(i)]?.answer_index === r
+    ).length;
+
+    // XP
+    const xpTotal = XP.SIMULADO_CONCLUIR + (totalAcertos * XP.SIMULADO_BONUS);
+    await addXP(profile.id, xpTotal);
+
+    // Salvar diagnóstico pedagógico para cada resposta
+    const inserts = Object.entries(respostasUsar).map(([i, resposta]) => {
+      const q = questoes[Number(i)];
+      if (!q) return null;
+      return {
+        aluno_id: profile.id,
+        question_id: q.id,
+        resposta_escolhida: resposta,
+        correta: q.answer_index === resposta,
+        area_conhecimento: q.area ?? null,
+        disciplina: q.area ?? null,
+        conteudo: q.conteudo ?? q.topic ?? null,
+        habilidade: q.habilidade ?? null,
+        dificuldade: q.difficulty ?? null,
+        vestibular: q.vestibular ?? vestSelecionado.id,
+      };
+    }).filter(Boolean);
+
+    if (inserts.length > 0) {
+      await supabase.from("respostas_diagnostico").insert(inserts);
+    }
+  }
+
   async function proximaQuestao() {
     if (idx + 1 >= questoes.length) {
-      setEtapa("resultado");
-      if (profile?.id) {
-        const totalAcertos = Object.entries(respostas).filter(
-          ([i, r]) => questoes[Number(i)]?.answer_index === r
-        ).length;
-        const xpTotal = XP.SIMULADO_CONCLUIR + (totalAcertos * XP.SIMULADO_BONUS);
-        await addXP(profile.id, xpTotal);
-      }
+      await finalizarSimulado(respostas);
       return;
     }
     setIdx(i => i + 1);
@@ -409,7 +443,6 @@ export default function Simulado() {
               </>
             )}
 
-            {/* Botão manual para abrir feedback */}
             <button
               onClick={() => setFeedbackAberto(true)}
               style={{
@@ -423,7 +456,7 @@ export default function Simulado() {
               ⭐ Avaliar o simulado
             </button>
 
-            <div style={{ display: "flex", gap: 10 }}>
+            <div style={{ display: "flex", gap: 10, marginBottom: 10 }}>
               <button onClick={() => setEtapa("inicio")} style={{ flex: 1, padding: "12px 0", background: CORES.bgCard, color: CORES.text, border: `1px solid ${CORES.border}`, borderRadius: 10, fontSize: 13, fontWeight: 500, cursor: "pointer" }}>
                 Novo simulado
               </button>
@@ -431,13 +464,18 @@ export default function Simulado() {
                 Início →
               </button>
             </div>
+            <button
+              onClick={() => navigate("/meu-desempenho")}
+              style={{ width: "100%", padding: "12px 0", background: "#f0f9ff", color: "#0057FF", border: "1px solid #BAE6FD", borderRadius: 10, fontSize: 13, fontWeight: 600, cursor: "pointer" }}
+            >
+              📊 Ver meu desempenho
+            </button>
           </div>
         )}
       </div>
 
       <BottomNav />
 
-      {/* Modal de feedback */}
       <FeedbackModal
         isOpen={feedbackAberto}
         onClose={() => setFeedbackAberto(false)}

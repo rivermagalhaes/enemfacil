@@ -228,7 +228,7 @@ export default function Home() {
 
         {/* Botão painel professor */}
         {podePainelProfessor && (
-          <button onClick={() => navigate((profile as any)?.role === "super_admin" ? "/coordenador" : "/professor")} style={{
+          <button onClick={() => navigate((profile as any)?.role === "super_admin" ? "/coordenacao/dashboard" : "/professor/dashboard")} style={{
             width: "100%", padding: "14px 16px", borderRadius: 14, marginBottom: 20,
             background: "linear-gradient(135deg, #065C37, #0A7C4B)",
             border: "none", cursor: "pointer", textAlign: "left",
